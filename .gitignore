@@ -1,0 +1,112 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.staging
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# TypeScript
+*.tsbuildinfo
+
+# Prisma
+apps/backend/src/database/prisma/migrations/
+
+# Flutter
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/.packages
+apps/mobile/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/ios/.symlinks/
+apps/mobile/ios/Pods/
+apps/mobile/ios/Flutter/Flutter.framework
+apps/mobile/ios/Flutter/Flutter.podspec
+
+# Python
+apps/ai-services/__pycache__/
+apps/ai-services/*.pyc
+apps/ai-services/*.pyo
+apps/ai-services/*.pyd
+apps/ai-services/.Python
+apps/ai-services/venv/
+apps/ai-services/.venv/
+apps/ai-services/*.egg-info/
+apps/ai-services/dist/
+apps/ai-services/.pytest_cache/
+apps/ai-services/.mypy_cache/
+
+# Coverage
+coverage/
+.nyc_output/
+htmlcov/
+.coverage
+
+# Uploads (local dev)
+uploads/
+temp/
+
+# Keys
+*.pem
+*.key
+*.cert
+
+
+node_modules/
+.env
+.env.*
+!.env.example
+
+dist/
+build/
+coverage/
+
+*.log
+
+.idea/
+.vscode/
+
+.DS_Store
+Thumbs.db

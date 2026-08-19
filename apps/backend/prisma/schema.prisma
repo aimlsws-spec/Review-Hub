@@ -1,0 +1,2306 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  PENDING_VERIFICATION
+  DEACTIVATED
+}
+
+enum OtpType {
+  REGISTRATION
+  PASSWORD_RESET
+  TWO_FACTOR
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+}
+
+enum OtpStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+  EXHAUSTED
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
+enum SessionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum MerchantStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  DEACTIVATED
+}
+
+enum MerchantVerificationStatus {
+  NOT_SUBMITTED
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  REQUIRES_RESUBMISSION
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  REQUIRES_RESUBMISSION
+}
+
+enum MerchantDocumentType {
+  PAN
+  GST
+  BUSINESS_REGISTRATION
+  ADDRESS_PROOF
+  CANCELLED_CHEQUE
+  BANK_PROOF
+  IDENTITY_PROOF
+}
+
+enum DocumentVerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum BankVerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum MerchantTeamRole {
+  OWNER
+  ADMIN
+  MANAGER
+  ANALYST
+  VIEWER
+}
+
+enum MerchantTeamStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  REJECTED
+  EXPIRED
+}
+
+enum CampaignType {
+  SOCIAL_SHARE
+  SOCIAL_FOLLOW
+  REVIEW
+  REFERRAL
+  APP_INSTALL
+  VIDEO_WATCH
+  WEBSITE_VISIT
+  SURVEY
+  CUSTOM
+}
+
+enum RewardType {
+  CASH
+  POINTS
+  COUPON
+  GIFT_CARD
+  PRODUCT
+  DISCOUNT
+}
+
+enum VerificationType {
+  AI
+  MANUAL
+  HYBRID
+}
+
+enum CampaignVisibility {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+}
+
+enum CampaignPriority {
+  LOW
+  NORMAL
+  HIGH
+  FEATURED
+}
+
+enum TargetGender {
+  ALL
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CampaignApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum CampaignMediaType {
+  IMAGE
+  VIDEO
+  BANNER
+  THUMBNAIL
+}
+
+enum TaskType {
+  // Generic proof-based types (SRS Batch 3)
+  SCREENSHOT
+  URL
+  VIDEO
+  TEXT
+  FILE_UPLOAD
+  CUSTOM
+  // Platform-specific actions
+  INSTAGRAM_FOLLOW
+  INSTAGRAM_LIKE
+  INSTAGRAM_COMMENT
+  INSTAGRAM_STORY_SHARE
+  FACEBOOK_SHARE
+  FACEBOOK_LIKE
+  GOOGLE_REVIEW
+  PLAY_STORE_REVIEW
+  APP_INSTALL
+  REFERRAL
+  SURVEY
+  WEBSITE_VISIT
+  WATCH_VIDEO
+  YOUTUBE_SUBSCRIBE
+  TWITTER_FOLLOW
+}
+
+enum ParticipantStatus {
+  JOINED
+  IN_PROGRESS
+  COMPLETED
+  REWARDED
+  DISQUALIFIED
+  ABANDONED
+}
+
+enum SubmissionStatus {
+  PENDING
+  AI_PROCESSING
+  PENDING_MANUAL
+  APPROVED
+  REJECTED
+  RESUBMITTED
+  EXPIRED
+}
+
+enum EvidenceType {
+  SCREENSHOT
+  VIDEO
+  URL
+  TEXT
+  METADATA
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  HOLD
+  RELEASE
+  REFUND
+  WITHDRAWAL
+  BONUS
+  REFERRAL
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum RewardStatus {
+  PENDING
+  APPROVED
+  CREDITED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum VerificationSource {
+  AI
+  MANUAL
+  HYBRID
+}
+
+enum AIJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum FraudRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum WithdrawalStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  PROCESSING
+  PAID
+  FAILED
+  REJECTED
+  CANCELLED
+}
+
+enum NotificationType {
+  SYSTEM
+  CAMPAIGN
+  REWARD
+  WITHDRAWAL
+  REFERRAL
+  SUPPORT
+  SECURITY
+  PROMOTIONAL
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum SupportTicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_USER
+  RESOLVED
+  CLOSED
+}
+
+enum SupportPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SupportCategory {
+  ACCOUNT
+  CAMPAIGN
+  PAYMENT
+  WITHDRAWAL
+  REWARD
+  BUG
+  GENERAL
+}
+
+enum CMSPageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum FileType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+  AUDIO
+  OTHER
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  PLATFORM_ADMIN
+  FINANCE_TEAM
+  SUPPORT_TEAM
+  FRAUD_TEAM
+  CONTENT_MODERATOR
+  CAMPAIGN_REVIEWER
+}
+
+enum FraudFlagType {
+  DUPLICATE_SUBMISSION
+  MANIPULATED_IMAGE
+  VPN_DETECTED
+  MULTIPLE_ACCOUNTS
+  REFERRAL_ABUSE
+  RAPID_SUBMISSIONS
+  SUSPICIOUS_DEVICE
+  BLACKLISTED_IP
+  AI_GENERATED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  APPROVE
+  REJECT
+  VERIFY
+  EXPORT
+  STATUS_CHANGE
+  SUSPEND
+  BAN
+  RESTORE
+  CONFIG_CHANGE
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+model User {
+  id                  String     @id @default(uuid())
+  firstName           String
+  lastName            String
+  email               String?    @unique
+  phone               String?    @unique
+  passwordHash        String?
+  googleId            String?    @unique
+  appleId             String?    @unique
+  avatarUrl           String?
+  status              UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt     DateTime?
+  phoneVerifiedAt     DateTime?
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  timezone            String?    @default("UTC")
+  language            String?    @default("en")
+  referralCode        String     @unique @default(uuid())
+  referredById        String?
+  isTwoFactorEnabled  Boolean    @default(false)
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  deletedAt           DateTime?
+
+  referredBy             User?                   @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals              User[]                  @relation("UserReferrals")
+  userRoles              UserRole[]
+  sessions               UserSession[]
+  otps                   Otp[]
+  devices                Device[]
+  loginHistories         LoginHistory[]
+  merchant               Merchant?
+  merchantTeams          MerchantTeam[]
+  wallet                 UserWallet?
+  bankAccounts           UserBankAccount[]
+  taskSubmissions        TaskSubmission[]        @relation("TaskSubmissionUser")
+  reviewedSubmissions    TaskSubmission[]        @relation("TaskSubmissionReviewer")
+  rewards                Reward[]                @relation("RewardUser")
+  submissionFraudFlags   SubmissionFraudFlag[]   @relation("SubmissionFraudFlagUser")
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  referralsMade          Referral[]              @relation("ReferralReferrer")
+  referralReceived       Referral?               @relation("ReferralReferredUser")
+  supportTickets         SupportTicket[]
+  fraudFlags             FraudFlag[]
+  uploadedFiles          UploadedFile[]          @relation("UploadedFileUser")
+  activityLogs           ActivityLog[]           @relation("ActivityLogUser")
+  campaignParticipants   CampaignParticipant[]
+  campaignAudits         CampaignAudit[]         @relation("CampaignAuditUser")
+  campaignApprovals      CampaignApproval[]      @relation("CampaignApprovalReviewer")
+  userAnalytics          UserAnalytics?
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+  @@index([referralCode])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Role {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  isSystem    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@index([slug])
+  @@index([deletedAt])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  module      String
+  action      String
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@unique([module, action])
+  @@index([module])
+  @@index([slug])
+  @@map("permissions")
+}
+
+model UserRole {
+  id         String   @id @default(uuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  assignedBy String?
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  assignedAt   DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserSession {
+  id               String        @id @default(uuid())
+  userId           String
+  refreshTokenHash String
+  ipAddress        String?
+  deviceId         String?
+  userAgent        String?       @db.Text
+  status           SessionStatus @default(ACTIVE)
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id])
+  device Device? @relation(fields: [deviceId], references: [id])
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+model Otp {
+  id          String    @id @default(uuid())
+  userId      String
+  type        OtpType
+  code        String
+  status      OtpStatus @default(PENDING)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, type, status])
+  @@index([expiresAt])
+  @@map("otps")
+}
+
+model Device {
+  id          String         @id @default(uuid())
+  userId      String
+  name        String?
+  platform    DevicePlatform
+  os          String?
+  appVersion  String?
+  pushToken   String?        @unique
+  fingerprint String?
+  isActive    Boolean        @default(true)
+  lastSeenAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id])
+  sessions     UserSession[]
+  loginHistory LoginHistory[]
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+  @@index([fingerprint])
+  @@map("devices")
+}
+
+model LoginHistory {
+  id            String    @id @default(uuid())
+  userId        String
+  deviceId      String?
+  ipAddress     String?
+  browser       String?
+  location      String?
+  isSuccess     Boolean   @default(true)
+  failureReason String?
+  loginAt       DateTime  @default(now())
+  logoutAt      DateTime?
+
+  user   User    @relation(fields: [userId], references: [id])
+  device Device? @relation(fields: [deviceId], references: [id])
+
+  @@index([userId])
+  @@index([loginAt])
+  @@index([isSuccess])
+  @@map("login_history")
+}
+
+model Country {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  code     String  @unique
+  dialCode String?
+  isActive Boolean @default(true)
+
+  states    State[]
+  merchants Merchant[]
+
+  @@map("countries")
+}
+
+model State {
+  id        String  @id @default(uuid())
+  countryId String
+  name      String
+  code      String?
+  isActive  Boolean @default(true)
+
+  country   Country    @relation(fields: [countryId], references: [id])
+  cities    City[]
+  merchants Merchant[]
+
+  @@unique([countryId, name])
+  @@index([countryId])
+  @@map("states")
+}
+
+model City {
+  id       String  @id @default(uuid())
+  stateId  String
+  name     String
+  isActive Boolean @default(true)
+
+  state     State      @relation(fields: [stateId], references: [id])
+  merchants Merchant[]
+
+  @@unique([stateId, name])
+  @@index([stateId])
+  @@map("cities")
+}
+
+model Merchant {
+  id                 String                     @id @default(uuid())
+  userId             String                     @unique
+  businessName       String
+  legalBusinessName  String?
+  businessType       String?
+  businessCategory   String?
+  gstNumber          String?                    @unique
+  panNumber          String?                    @unique
+  registrationNumber String?
+  website            String?
+  email              String                     @unique
+  phone              String                     @unique
+  addressLine1       String?
+  addressLine2       String?
+  countryId          String?
+  stateId            String?
+  cityId             String?
+  postalCode         String?
+  logoUrl            String?
+  description        String?                    @db.Text
+  verificationStatus MerchantVerificationStatus @default(NOT_SUBMITTED)
+  status             MerchantStatus             @default(PENDING_VERIFICATION)
+  creditBalance      Decimal                    @default(0) @db.Decimal(12, 2)
+  commissionRate     Decimal                    @default(0) @db.Decimal(5, 4)
+  kycCompletedAt     DateTime?
+  verifiedAt         DateTime?
+  verifiedBy         String?
+  rejectedReason     String?                    @db.Text
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  deletedAt          DateTime?
+
+  user              User                  @relation(fields: [userId], references: [id])
+  country           Country?              @relation(fields: [countryId], references: [id])
+  state             State?                @relation(fields: [stateId], references: [id])
+  city              City?                 @relation(fields: [cityId], references: [id])
+  documents         MerchantDocument[]
+  bankAccounts      MerchantBankAccount[]
+  teamMembers       MerchantTeam[]
+  invitations       MerchantInvitation[]
+  wallet            MerchantWallet?
+  campaigns         Campaign[]
+  supportTickets    SupportTicket[]
+  merchantAnalytics MerchantAnalytics?
+  webhooks          Webhook[]
+  reviews           Review[]
+
+  @@index([businessName])
+  @@index([email])
+  @@index([phone])
+  @@index([gstNumber])
+  @@index([panNumber])
+  @@index([verificationStatus])
+  @@index([status])
+  @@index([countryId])
+  @@index([stateId])
+  @@index([cityId])
+  @@index([deletedAt])
+  @@map("merchants")
+}
+
+model MerchantDocument {
+  id                 String                     @id @default(uuid())
+  merchantId         String
+  documentType       MerchantDocumentType
+  fileUploadId       String?
+  documentNumber     String?
+  verificationStatus DocumentVerificationStatus @default(PENDING)
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  rejectionReason    String?                    @db.Text
+  expiresAt          DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  deletedAt          DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@index([documentType])
+  @@index([verificationStatus])
+  @@index([deletedAt])
+  @@map("merchant_documents")
+}
+
+model MerchantBankAccount {
+  id                 String                 @id @default(uuid())
+  merchantId         String
+  bankName           String
+  accountHolderName  String
+  accountNumber      String
+  ifscCode           String
+  branch             String?
+  upiId              String?
+  isPrimary          Boolean                @default(false)
+  verificationStatus BankVerificationStatus @default(PENDING)
+  verifiedAt         DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  deletedAt          DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@unique([merchantId, accountNumber, ifscCode])
+  @@index([merchantId])
+  @@index([verificationStatus])
+  @@index([deletedAt])
+  @@map("merchant_bank_accounts")
+}
+
+model MerchantTeam {
+  id          String             @id @default(uuid())
+  merchantId  String
+  userId      String
+  role        MerchantTeamRole   @default(VIEWER)
+  permissions Json?
+  status      MerchantTeamStatus @default(ACTIVE)
+  invitedBy   String?
+  joinedAt    DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  deletedAt   DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([merchantId, userId])
+  @@index([merchantId])
+  @@index([userId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("merchant_team")
+}
+
+model MerchantInvitation {
+  id          String           @id @default(uuid())
+  merchantId  String
+  email       String
+  role        MerchantTeamRole @default(VIEWER)
+  inviteToken String           @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  status      InvitationStatus @default(PENDING)
+  invitedBy   String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@unique([merchantId, email])
+  @@index([merchantId])
+  @@index([email])
+  @@index([inviteToken])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@map("merchant_invitations")
+}
+
+enum ReviewSource {
+  GOOGLE
+  FACEBOOK
+  ZOMATO
+  SWIGGY
+  TRIPADVISOR
+  WEBSITE
+  OTHER
+}
+
+enum ReviewStatus {
+  PENDING
+  REPLIED
+  FLAGGED
+  RESOLVED
+}
+
+/// A review a merchant received on an external platform (Google, Facebook, etc.),
+/// logged into VIRAL KAR so the merchant can track and reply to it in one place.
+/// Not synced live from those platforms — entered manually until a real
+/// platform-API integration is built.
+model Review {
+  id            String       @id @default(uuid())
+  merchantId    String
+  customerName  String
+  customerEmail String?
+  source        ReviewSource
+  rating        Int
+  title         String?
+  body          String       @db.Text
+  status        ReviewStatus @default(PENDING)
+  reply         String?      @db.Text
+  repliedAt     DateTime?
+  repliedBy     String?
+  reviewedAt    DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@index([status])
+  @@index([source])
+  @@index([rating])
+  @@index([customerEmail])
+  @@index([deletedAt])
+  @@map("reviews")
+}
+
+model Campaign {
+  id                  String             @id @default(uuid())
+  merchantId          String
+  title               String
+  slug                String             @unique
+  shortDescription    String?
+  description         String             @db.Text
+  thumbnailUrl        String?
+  bannerUrl           String?
+  campaignType        CampaignType
+  status              CampaignStatus     @default(DRAFT)
+  visibility          CampaignVisibility @default(PUBLIC)
+  priority            CampaignPriority   @default(NORMAL)
+  rewardType          RewardType         @default(CASH)
+  rewardAmount        Decimal            @db.Decimal(12, 2)
+  totalBudget         Decimal            @db.Decimal(12, 2)
+  reservedBudget      Decimal            @default(0) @db.Decimal(12, 2)
+  spentBudget         Decimal            @default(0) @db.Decimal(12, 2)
+  remainingBudget     Decimal            @db.Decimal(12, 2)
+  maxParticipants     Int?
+  currentParticipants Int                @default(0)
+  minimumUserLevel    Int                @default(0)
+  minimumFollowers    Int                @default(0)
+  minimumAge          Int?
+  maximumAge          Int?
+  targetGender        TargetGender       @default(ALL)
+  targetCountries     Json?
+  targetStates        Json?
+  targetCities        Json?
+  startAt             DateTime?
+  endAt               DateTime?
+  publishedAt         DateTime?
+  approvedAt          DateTime?
+  approvedBy          String?
+  rejectedReason      String?            @db.Text
+  autoApprove         Boolean            @default(false)
+  aiThreshold         Float              @default(0.8)
+  featured            Boolean            @default(false)
+  featuredUntil       DateTime?
+  metadata            Json?
+  createdBy           String
+  updatedBy           String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  merchant        Merchant                  @relation(fields: [merchantId], references: [id])
+  tasks           CampaignTask[]
+  media           CampaignMedia[]
+  targets         CampaignTarget[]
+  categories      CampaignCategoryMapping[]
+  tags            CampaignTagMap[]
+  audits          CampaignAudit[]
+  approvals       CampaignApproval[]
+  participants    CampaignParticipant[]
+  rewards         Reward[]
+  analytics       CampaignAnalytics?
+  analyticsEvents AnalyticsEvent[]          @relation("CampaignAnalyticsEvents")
+
+  @@index([merchantId])
+  @@index([status])
+  @@index([campaignType])
+  @@index([visibility])
+  @@index([featured])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([approvedAt])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("campaigns")
+}
+
+model CampaignTask {
+  id                 String           @id @default(uuid())
+  campaignId         String
+  title              String
+  description        String?          @db.Text
+  instructions       String?          @db.Text
+  taskType           TaskType
+  verificationType   VerificationType @default(AI)
+  taskOrder          Int              @default(0)
+  rewardAmount       Decimal?         @db.Decimal(12, 2)
+  required           Boolean          @default(true)
+  minimumTimeSeconds Int              @default(0)
+  proofRequired      Boolean          @default(true)
+  proofType          EvidenceType?
+  configuration      Json?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedAt          DateTime?
+
+  campaign    Campaign         @relation(fields: [campaignId], references: [id])
+  submissions TaskSubmission[]
+
+  @@index([campaignId])
+  @@index([taskOrder])
+  @@index([verificationType])
+  @@index([deletedAt])
+  @@map("campaign_tasks")
+}
+
+model CampaignMedia {
+  id           String            @id @default(uuid())
+  campaignId   String
+  type         CampaignMediaType
+  url          String
+  thumbnail    String?
+  displayOrder Int               @default(0)
+  metadata     Json?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([displayOrder])
+  @@index([deletedAt])
+  @@map("campaign_media")
+}
+
+model CampaignTarget {
+  id               String       @id @default(uuid())
+  campaignId       String
+  countryId        String?
+  stateId          String?
+  cityId           String?
+  minimumAge       Int?
+  maximumAge       Int?
+  minimumFollowers Int          @default(0)
+  minimumLevel     Int          @default(0)
+  gender           TargetGender @default(ALL)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([countryId])
+  @@index([stateId])
+  @@index([cityId])
+  @@index([deletedAt])
+  @@map("campaign_targets")
+}
+
+model CampaignCategory {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  icon        String?
+  color       String?
+  description String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  campaigns CampaignCategoryMapping[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("campaign_categories")
+}
+
+model CampaignCategoryMapping {
+  campaignId String
+  categoryId String
+  assignedAt DateTime @default(now())
+
+  campaign Campaign         @relation(fields: [campaignId], references: [id])
+  category CampaignCategory @relation(fields: [categoryId], references: [id])
+
+  @@id([campaignId, categoryId])
+  @@index([campaignId])
+  @@index([categoryId])
+  @@map("campaign_category_mappings")
+}
+
+model CampaignAudit {
+  id         String      @id @default(uuid())
+  campaignId String
+  userId     String
+  action     AuditAction
+  oldData    Json?
+  newData    Json?
+  ipAddress  String?
+  userAgent  String?     @db.Text
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  user     User     @relation("CampaignAuditUser", fields: [userId], references: [id])
+
+  @@index([campaignId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("campaign_audits")
+}
+
+model CampaignTag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaigns CampaignTagMap[]
+
+  @@index([slug])
+  @@map("campaign_tags")
+}
+
+model CampaignTagMap {
+  campaignId String
+  tagId      String
+  assignedAt DateTime @default(now())
+
+  campaign Campaign    @relation(fields: [campaignId], references: [id])
+  tag      CampaignTag @relation(fields: [tagId], references: [id])
+
+  @@id([campaignId, tagId])
+  @@index([campaignId])
+  @@index([tagId])
+  @@map("campaign_tag_map")
+}
+
+model CampaignParticipant {
+  id                 String            @id @default(uuid())
+  campaignId         String
+  userId             String
+  status             ParticipantStatus @default(JOINED)
+  joinedAt           DateTime          @default(now())
+  completedAt        DateTime?
+  rewardedAt         DateTime?
+  rewardEarned       Decimal?          @db.Decimal(12, 2)
+  progress           Int               @default(0)
+  tasksTotal         Int               @default(0)
+  tasksCompleted     Int               @default(0)
+  disqualifiedReason String?           @db.Text
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+
+  campaign    Campaign         @relation(fields: [campaignId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
+  submissions TaskSubmission[]
+
+  @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@index([userId])
+  @@index([status])
+  @@index([joinedAt])
+  @@index([deletedAt])
+  @@map("campaign_participants")
+}
+
+model CampaignAnalytics {
+  id               String    @id @default(uuid())
+  campaignId       String    @unique
+  views            Int       @default(0)
+  uniqueViews      Int       @default(0)
+  joins            Int       @default(0)
+  completions      Int       @default(0)
+  rejections       Int       @default(0)
+  completionRate   Decimal   @default(0) @db.Decimal(5, 4)
+  conversionRate   Decimal   @default(0) @db.Decimal(5, 4)
+  budgetUsed       Decimal   @default(0) @db.Decimal(12, 2)
+  rewardPaid       Decimal   @default(0) @db.Decimal(12, 2)
+  avgCompletionSec Int       @default(0)
+  lastActivityAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([deletedAt])
+  @@map("campaign_analytics")
+}
+
+model CampaignApproval {
+  id         String                 @id @default(uuid())
+  campaignId String
+  reviewerId String
+  status     CampaignApprovalStatus
+  comments   String?                @db.Text
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  deletedAt  DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  reviewer User     @relation("CampaignApprovalReviewer", fields: [reviewerId], references: [id])
+
+  @@index([campaignId])
+  @@index([reviewerId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("campaign_approvals")
+}
+
+model TaskSubmission {
+  id                 String             @id @default(uuid())
+  participantId      String
+  taskId             String
+  userId             String
+  status             SubmissionStatus   @default(PENDING)
+  verificationSource VerificationSource @default(AI)
+  attemptNumber      Int                @default(1)
+  fileUrl            String?
+  externalUrl        String?
+  textAnswer         String?            @db.Text
+  aiConfidence       Float?
+  rejectionReason    String?            @db.Text
+  reviewerId         String?
+  reviewedAt         DateTime?
+  rewardAmount       Decimal?           @db.Decimal(12, 2)
+  rewardCreditedAt   DateTime?
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+
+  participant CampaignParticipant    @relation(fields: [participantId], references: [id])
+  task        CampaignTask           @relation(fields: [taskId], references: [id])
+  user        User                   @relation("TaskSubmissionUser", fields: [userId], references: [id])
+  reviewer    User?                  @relation("TaskSubmissionReviewer", fields: [reviewerId], references: [id])
+  attachments SubmissionAttachment[]
+  aiJob       AIVerificationJob?
+  reward      Reward?
+  fraudFlags  SubmissionFraudFlag[]
+
+  @@unique([participantId, taskId, attemptNumber])
+  @@index([userId])
+  @@index([taskId])
+  @@index([participantId])
+  @@index([status])
+  @@index([reviewerId])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("task_submissions")
+}
+
+model SubmissionAttachment {
+  id           String   @id @default(uuid())
+  submissionId String
+  fileName     String
+  mimeType     String
+  fileSize     Int
+  storagePath  String
+  checksum     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  submission TaskSubmission @relation(fields: [submissionId], references: [id])
+
+  @@index([submissionId])
+  @@map("submission_attachments")
+}
+
+model AIVerificationJob {
+  id               String      @id @default(uuid())
+  submissionId     String      @unique
+  status           AIJobStatus @default(QUEUED)
+  engine           String?
+  model            String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  retries          Int         @default(0)
+  processingTimeMs Int?
+  rawResponse      Json?
+  errorMessage     String?     @db.Text
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  submission TaskSubmission @relation(fields: [submissionId], references: [id])
+  auditLog   AIAuditLog?
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("ai_verification_jobs")
+}
+
+model AIAuditLog {
+  id          String   @id @default(uuid())
+  jobId       String   @unique
+  confidence  Float
+  fraudScore  Float    @default(0)
+  decision    String
+  explanation String?  @db.Text
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  job AIVerificationJob @relation(fields: [jobId], references: [id])
+
+  @@index([decision])
+  @@map("ai_audit_logs")
+}
+
+model SubmissionFraudFlag {
+  id           String         @id @default(uuid())
+  submissionId String
+  userId       String
+  riskLevel    FraudRiskLevel
+  reason       String         @db.Text
+  resolved     Boolean        @default(false)
+  resolvedBy   String?
+  resolvedAt   DateTime?
+  metadata     Json?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  submission TaskSubmission @relation(fields: [submissionId], references: [id])
+  user       User           @relation("SubmissionFraudFlagUser", fields: [userId], references: [id])
+
+  @@index([submissionId])
+  @@index([userId])
+  @@index([riskLevel])
+  @@index([resolved])
+  @@map("submission_fraud_flags")
+}
+
+model UserWallet {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  availableBalance Decimal  @default(0) @db.Decimal(12, 2)
+  pendingBalance   Decimal  @default(0) @db.Decimal(12, 2)
+  lockedBalance    Decimal  @default(0) @db.Decimal(12, 2)
+  lifetimeEarnings Decimal  @default(0) @db.Decimal(12, 2)
+  totalWithdrawn   Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id])
+  transactions       WalletTransaction[]
+  withdrawalRequests WithdrawalRequest[]
+
+  @@map("user_wallets")
+}
+
+model MerchantWallet {
+  id               String   @id @default(uuid())
+  merchantId       String   @unique
+  availableBalance Decimal  @default(0) @db.Decimal(12, 2)
+  reservedBalance  Decimal  @default(0) @db.Decimal(12, 2)
+  totalTopUp       Decimal  @default(0) @db.Decimal(12, 2)
+  totalSpent       Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  merchant     Merchant            @relation(fields: [merchantId], references: [id], map: "merchant_wallet_merchant_fk")
+  transactions WalletTransaction[]
+
+  @@map("merchant_wallets")
+}
+
+model WalletTransaction {
+  id               String                  @id @default(uuid())
+  walletId         String?
+  merchantWalletId String?
+  type             WalletTransactionType
+  status           WalletTransactionStatus @default(PENDING)
+  amount           Decimal                 @db.Decimal(12, 2)
+  balanceBefore    Decimal                 @db.Decimal(12, 2)
+  balanceAfter     Decimal                 @db.Decimal(12, 2)
+  referenceType    String?
+  referenceId      String?
+  remarks          String?                 @db.Text
+  metadata         Json?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  wallet         UserWallet?     @relation(fields: [walletId], references: [id])
+  merchantWallet MerchantWallet? @relation(fields: [merchantWalletId], references: [id])
+  referralReward ReferralReward?
+
+  @@index([walletId])
+  @@index([merchantWalletId])
+  @@index([type])
+  @@index([status])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@map("wallet_transactions")
+}
+
+model Reward {
+  id           String       @id @default(uuid())
+  userId       String
+  campaignId   String
+  submissionId String       @unique
+  rewardType   RewardType
+  amount       Decimal      @db.Decimal(12, 2)
+  status       RewardStatus @default(PENDING)
+  approvedAt   DateTime?
+  creditedAt   DateTime?
+  failedReason String?      @db.Text
+  expiresAt    DateTime?
+  metadata     Json?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  user       User           @relation("RewardUser", fields: [userId], references: [id])
+  campaign   Campaign       @relation(fields: [campaignId], references: [id])
+  submission TaskSubmission @relation(fields: [submissionId], references: [id])
+
+  @@index([userId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([creditedAt])
+  @@index([deletedAt])
+  @@map("rewards")
+}
+
+model WithdrawalRequest {
+  id              String           @id @default(uuid())
+  walletId        String
+  bankAccountId   String?
+  amount          Decimal          @db.Decimal(12, 2)
+  processingFee   Decimal          @default(0) @db.Decimal(12, 2)
+  finalAmount     Decimal          @db.Decimal(12, 2)
+  status          WithdrawalStatus @default(PENDING)
+  rejectionReason String?          @db.Text
+  processedBy     String?
+  processedAt     DateTime?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  wallet      UserWallet       @relation(fields: [walletId], references: [id])
+  bankAccount UserBankAccount? @relation(fields: [bankAccountId], references: [id])
+  logs        WithdrawalLog[]
+
+  @@index([walletId])
+  @@index([status])
+  @@index([processedBy])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("withdrawal_requests")
+}
+
+model WithdrawalLog {
+  id           String           @id @default(uuid())
+  withdrawalId String
+  oldStatus    WithdrawalStatus
+  newStatus    WithdrawalStatus
+  remarks      String?          @db.Text
+  changedBy    String?
+  createdAt    DateTime         @default(now())
+
+  withdrawal WithdrawalRequest @relation(fields: [withdrawalId], references: [id])
+
+  @@index([withdrawalId])
+  @@index([createdAt])
+  @@map("withdrawal_logs")
+}
+
+model UserBankAccount {
+  id                 String                 @id @default(uuid())
+  userId             String
+  bankName           String
+  accountHolderName  String
+  accountNumber      String
+  ifscCode           String
+  branch             String?
+  upiId              String?
+  isPrimary          Boolean                @default(false)
+  verificationStatus BankVerificationStatus @default(PENDING)
+  verifiedAt         DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  deletedAt          DateTime?
+
+  user               User                @relation(fields: [userId], references: [id])
+  withdrawalRequests WithdrawalRequest[]
+
+  @@unique([userId, accountNumber, ifscCode])
+  @@index([userId])
+  @@index([verificationStatus])
+  @@index([deletedAt])
+  @@map("user_bank_accounts")
+}
+
+model Notification {
+  id           String              @id @default(uuid())
+  userId       String
+  templateId   String?
+  title        String
+  message      String              @db.Text
+  type         NotificationType
+  channel      NotificationChannel
+  status       NotificationStatus  @default(QUEUED)
+  data         Json?
+  scheduledAt  DateTime?
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  readAt       DateTime?
+  failedReason String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  deletedAt    DateTime?
+
+  user     User                  @relation(fields: [userId], references: [id])
+  template NotificationTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([channel])
+  @@index([scheduledAt])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("notifications")
+}
+
+model NotificationTemplate {
+  id        String              @id @default(uuid())
+  name      String
+  slug      String              @unique
+  subject   String?
+  title     String
+  body      String              @db.Text
+  channel   NotificationChannel
+  variables Json?
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  deletedAt DateTime?
+
+  notifications Notification[]
+
+  @@index([slug])
+  @@index([channel])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("notification_templates")
+}
+
+model NotificationPreference {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  emailEnabled Boolean   @default(true)
+  smsEnabled   Boolean   @default(true)
+  pushEnabled  Boolean   @default(true)
+  inAppEnabled Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("notification_preferences")
+}
+
+model Referral {
+  id             String    @id @default(uuid())
+  referrerId     String
+  referredUserId String    @unique
+  referralCode   String
+  rewardIssued   Boolean   @default(false)
+  rewardAmount   Decimal?  @db.Decimal(12, 2)
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  referrer     User             @relation("ReferralReferrer", fields: [referrerId], references: [id])
+  referredUser User             @relation("ReferralReferredUser", fields: [referredUserId], references: [id])
+  rewards      ReferralReward[]
+
+  @@index([referrerId])
+  @@index([referralCode])
+  @@index([rewardIssued])
+  @@index([deletedAt])
+  @@map("referrals")
+}
+
+model ReferralReward {
+  id                  String       @id @default(uuid())
+  referralId          String
+  walletTransactionId String?      @unique
+  amount              Decimal      @db.Decimal(12, 2)
+  status              RewardStatus @default(PENDING)
+  creditedAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  referral          Referral           @relation(fields: [referralId], references: [id])
+  walletTransaction WalletTransaction? @relation(fields: [walletTransactionId], references: [id])
+
+  @@index([referralId])
+  @@index([status])
+  @@map("referral_rewards")
+}
+
+model SupportTicket {
+  id           String              @id @default(uuid())
+  userId       String?
+  merchantId   String?
+  assignedToId String?
+  subject      String
+  description  String              @db.Text
+  category     SupportCategory     @default(GENERAL)
+  priority     SupportPriority     @default(MEDIUM)
+  status       SupportTicketStatus @default(OPEN)
+  resolvedAt   DateTime?
+  closedAt     DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  deletedAt    DateTime?
+
+  user     User?            @relation(fields: [userId], references: [id])
+  merchant Merchant?        @relation(fields: [merchantId], references: [id])
+  messages SupportMessage[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([assignedToId])
+  @@index([userId])
+  @@index([merchantId])
+  @@index([category])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id           String   @id @default(uuid())
+  ticketId     String
+  senderId     String
+  senderType   String
+  message      String   @db.Text
+  attachments  Json?
+  internalNote Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("support_messages")
+}
+
+model FraudFlag {
+  id           String         @id @default(uuid())
+  userId       String
+  submissionId String?
+  type         FraudFlagType
+  riskLevel    FraudRiskLevel
+  description  String?        @db.Text
+  metadata     Json?
+  resolved     Boolean        @default(false)
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([type])
+  @@index([riskLevel])
+  @@index([resolved])
+  @@map("fraud_flags")
+}
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("admin_users")
+}
+
+model CMSPage {
+  id              String        @id @default(uuid())
+  title           String
+  slug            String        @unique
+  content         String        @db.LongText
+  metaTitle       String?
+  metaDescription String?       @db.Text
+  status          CMSPageStatus @default(DRAFT)
+  publishedAt     DateTime?
+  createdBy       String?
+  updatedBy       String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  @@index([slug])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("cms_pages")
+}
+
+model FAQ {
+  id        String    @id @default(uuid())
+  category  String
+  question  String    @db.Text
+  answer    String    @db.LongText
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([category])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@index([deletedAt])
+  @@map("faqs")
+}
+
+model UploadedFile {
+  id              String    @id @default(uuid())
+  uploadedBy      String
+  fileName        String
+  originalName    String
+  mimeType        String
+  fileType        FileType  @default(OTHER)
+  extension       String
+  size            Int
+  storageProvider String    @default("local")
+  storagePath     String
+  publicUrl       String?
+  checksum        String?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  uploader User @relation("UploadedFileUser", fields: [uploadedBy], references: [id])
+
+  @@index([uploadedBy])
+  @@index([mimeType])
+  @@index([fileType])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("uploaded_files")
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  action      String
+  module      String
+  description String?  @db.Text
+  ipAddress   String?
+  device      String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  user User @relation("ActivityLogUser", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([module])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model AuditLog {
+  id        String      @id @default(uuid())
+  actorId   String
+  actorType String
+  entity    String
+  entityId  String?
+  action    AuditAction
+  before    Json?
+  after     Json?
+  ipAddress String?
+  userAgent String?     @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// BATCH 6 ENUMS
+// ============================================================
+
+enum ReportType {
+  USER_REPORT
+  CAMPAIGN_REPORT
+  FINANCIAL_REPORT
+  FRAUD_REPORT
+  MERCHANT_REPORT
+  PLATFORM_SUMMARY
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReportFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum JobType {
+  CAMPAIGN_EXPIRY
+  REWARD_PROCESSING
+  ANALYTICS_AGGREGATION
+  REPORT_GENERATION
+  NOTIFICATION_DISPATCH
+  FRAUD_SCAN
+  WALLET_RECONCILIATION
+  CLEANUP
+  CUSTOM
+}
+
+enum AIResponseStatus {
+  SUCCESS
+  FAILED
+  TIMEOUT
+  RATE_LIMITED
+}
+
+enum SettingDataType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+  ARRAY
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum HealthStatus {
+  HEALTHY
+  DEGRADED
+  DOWN
+}
+
+// ============================================================
+// ANALYTICS MODULE
+// ============================================================
+
+model AnalyticsEvent {
+  id            String    @id @default(uuid())
+  eventName     String
+  eventCategory String
+  entityType    String?
+  entityId      String?
+  userId        String?
+  merchantId    String?
+  campaignId    String?
+  metadata      Json?
+  ipAddress     String?
+  userAgent     String?   @db.Text
+  platform      String?
+  device        String?
+  country       String?
+  state         String?
+  city          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  campaign Campaign? @relation("CampaignAnalyticsEvents", fields: [campaignId], references: [id])
+
+  @@index([eventName])
+  @@index([createdAt])
+  @@index([campaignId])
+  @@index([merchantId])
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("analytics_events")
+}
+
+model DailyAnalytics {
+  id                 String    @id @default(uuid())
+  date               DateTime  @unique @db.Date
+  newUsers           Int       @default(0)
+  activeUsers        Int       @default(0)
+  campaignsCreated   Int       @default(0)
+  campaignsCompleted Int       @default(0)
+  submissions        Int       @default(0)
+  rewardsPaid        Decimal   @default(0) @db.Decimal(12, 2)
+  withdrawals        Decimal   @default(0) @db.Decimal(12, 2)
+  revenue            Decimal   @default(0) @db.Decimal(12, 2)
+  platformCommission Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  @@index([date])
+  @@index([deletedAt])
+  @@map("daily_analytics")
+}
+
+model MerchantAnalytics {
+  id                    String    @id @default(uuid())
+  merchantId            String    @unique
+  totalCampaigns        Int       @default(0)
+  totalParticipants     Int       @default(0)
+  totalBudget           Decimal   @default(0) @db.Decimal(12, 2)
+  totalSpent            Decimal   @default(0) @db.Decimal(12, 2)
+  averageCompletionRate Decimal   @default(0) @db.Decimal(5, 4)
+  totalRevenueGenerated Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@index([deletedAt])
+  @@map("merchant_analytics")
+}
+
+model UserAnalytics {
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  campaignsJoined    Int       @default(0)
+  campaignsCompleted Int       @default(0)
+  rewardsEarned      Decimal   @default(0) @db.Decimal(12, 2)
+  referrals          Int       @default(0)
+  withdrawals        Decimal   @default(0) @db.Decimal(12, 2)
+  fraudFlags         Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("user_analytics")
+}
+
+// ============================================================
+// REPORTS MODULE
+// ============================================================
+
+model Report {
+  id          String       @id @default(uuid())
+  name        String
+  reportType  ReportType
+  generatedBy String
+  fileId      String?
+  filters     Json?
+  status      ReportStatus @default(PENDING)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  schedule ReportSchedule?
+
+  @@index([reportType])
+  @@index([generatedBy])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("reports")
+}
+
+model ReportSchedule {
+  id         String          @id @default(uuid())
+  reportId   String          @unique
+  frequency  ReportFrequency
+  nextRun    DateTime
+  recipients Json
+  active     Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  deletedAt  DateTime?
+
+  report Report @relation(fields: [reportId], references: [id])
+
+  @@index([reportId])
+  @@index([nextRun])
+  @@index([active])
+  @@index([deletedAt])
+  @@map("report_schedules")
+}
+
+// ============================================================
+// SCHEDULER MODULE
+// ============================================================
+
+model ScheduledJob {
+  id             String    @id @default(uuid())
+  jobName        String    @unique
+  jobType        JobType
+  cronExpression String
+  enabled        Boolean   @default(true)
+  lastRun        DateTime?
+  nextRun        DateTime?
+  retries        Int       @default(0)
+  configuration  Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  executionLogs JobExecutionLog[]
+
+  @@index([jobType])
+  @@index([enabled])
+  @@index([nextRun])
+  @@index([deletedAt])
+  @@map("scheduled_jobs")
+}
+
+model JobExecutionLog {
+  id           String    @id @default(uuid())
+  jobId        String
+  startedAt    DateTime
+  completedAt  DateTime?
+  duration     Int?
+  success      Boolean   @default(false)
+  errorMessage String?   @db.Text
+  logs         Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  job ScheduledJob @relation(fields: [jobId], references: [id])
+
+  @@index([jobId])
+  @@index([success])
+  @@index([startedAt])
+  @@index([deletedAt])
+  @@map("job_execution_logs")
+}
+
+// ============================================================
+// AI CONFIGURATION MODULE
+// ============================================================
+
+model AIProvider {
+  id            String    @id @default(uuid())
+  name          String    @unique
+  provider      String
+  apiEndpoint   String?
+  model         String?
+  enabled       Boolean   @default(true)
+  priority      Int       @default(0)
+  timeout       Int       @default(30000)
+  configuration Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  models    AIModel[]
+  prompts   AIPromptTemplate[]
+  usageLogs AIUsageLog[]
+
+  @@index([enabled])
+  @@index([priority])
+  @@index([deletedAt])
+  @@map("ai_providers")
+}
+
+model AIModel {
+  id          String    @id @default(uuid())
+  providerId  String
+  modelName   String
+  version     String?
+  maxTokens   Int       @default(4096)
+  temperature Float     @default(0.7)
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  provider AIProvider @relation(fields: [providerId], references: [id])
+
+  @@unique([providerId, modelName, version])
+  @@index([providerId])
+  @@index([enabled])
+  @@index([deletedAt])
+  @@map("ai_models")
+}
+
+model AIPromptTemplate {
+  id         String    @id @default(uuid())
+  providerId String
+  name       String
+  prompt     String    @db.LongText
+  version    String    @default("1.0")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  provider AIProvider @relation(fields: [providerId], references: [id])
+
+  @@unique([providerId, name, version])
+  @@index([providerId])
+  @@index([active])
+  @@index([deletedAt])
+  @@map("ai_prompt_templates")
+}
+
+model AIUsageLog {
+  id             String           @id @default(uuid())
+  providerId     String
+  userId         String?
+  submissionId   String?
+  tokens         Int              @default(0)
+  latency        Int              @default(0)
+  cost           Decimal          @default(0) @db.Decimal(10, 6)
+  responseStatus AIResponseStatus @default(SUCCESS)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  provider AIProvider @relation(fields: [providerId], references: [id])
+
+  @@index([providerId])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([submissionId])
+  @@index([deletedAt])
+  @@map("ai_usage_logs")
+}
+
+// ============================================================
+// PLATFORM CONFIGURATION
+// ============================================================
+
+model SystemSetting {
+  id          String          @id @default(uuid())
+  key         String          @unique
+  value       Json
+  dataType    SettingDataType @default(STRING)
+  category    String?
+  description String?         @db.Text
+  editable    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  @@index([category])
+  @@index([editable])
+  @@index([deletedAt])
+  @@map("system_settings")
+}
+
+model FeatureFlag {
+  id                String    @id @default(uuid())
+  key               String    @unique
+  description       String?   @db.Text
+  enabled           Boolean   @default(false)
+  rolloutPercentage Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  @@index([enabled])
+  @@index([deletedAt])
+  @@map("feature_flags")
+}
+
+model PlatformConfiguration {
+  id                   String    @id @default(uuid())
+  platformName         String    @default("ReviewHub")
+  supportEmail         String?
+  supportPhone         String?
+  commissionPercentage Decimal   @default(0) @db.Decimal(5, 4)
+  minimumWithdrawal    Decimal   @default(100) @db.Decimal(12, 2)
+  maximumWithdrawal    Decimal   @default(50000) @db.Decimal(12, 2)
+  maintenanceMode      Boolean   @default(false)
+  appVersion           String    @default("1.0.0")
+  apiVersion           String    @default("v1")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+
+  @@index([deletedAt])
+  @@map("platform_configuration")
+}
+
+// ============================================================
+// SECURITY
+// ============================================================
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  name        String
+  key         String    @unique
+  secret      String
+  permissions Json?
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([key])
+  @@index([active])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@map("api_keys")
+}
+
+model Webhook {
+  id         String    @id @default(uuid())
+  merchantId String
+  url        String
+  secret     String
+  events     Json
+  enabled    Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  merchant   Merchant          @relation(fields: [merchantId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([merchantId])
+  @@index([enabled])
+  @@index([deletedAt])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id           String    @id @default(uuid())
+  webhookId    String
+  payload      Json
+  responseCode Int?
+  success      Boolean   @default(false)
+  attempts     Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  webhook Webhook @relation(fields: [webhookId], references: [id])
+
+  @@index([webhookId])
+  @@index([success])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("webhook_deliveries")
+}
+
+// ============================================================
+// PLATFORM HEALTH
+// ============================================================
+
+model HealthCheck {
+  id        String       @id @default(uuid())
+  service   String
+  status    HealthStatus @default(HEALTHY)
+  latency   Int          @default(0)
+  checkedAt DateTime     @default(now())
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  deletedAt DateTime?
+
+  @@index([service])
+  @@index([status])
+  @@index([checkedAt])
+  @@index([deletedAt])
+  @@map("health_checks")
+}
+
+model SystemMetric {
+  id        String    @id @default(uuid())
+  metric    String
+  value     Decimal   @db.Decimal(20, 6)
+  unit      String?
+  timestamp DateTime  @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([metric])
+  @@index([timestamp])
+  @@index([deletedAt])
+  @@map("system_metrics")
+}

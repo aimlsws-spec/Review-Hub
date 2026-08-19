@@ -1,0 +1,61 @@
+export const AUTH_ERRORS = {
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  USER_EXISTS: 'USER_EXISTS',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  ACCOUNT_SUSPENDED: 'ACCOUNT_SUSPENDED',
+  ACCOUNT_BANNED: 'ACCOUNT_BANNED',
+  ACCOUNT_LOCKED: 'ACCOUNT_LOCKED',
+  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+  TOKEN_INVALID: 'TOKEN_INVALID',
+  REFRESH_TOKEN_INVALID: 'REFRESH_TOKEN_INVALID',
+  SESSION_EXPIRED: 'SESSION_EXPIRED',
+  OTP_INVALID: 'OTP_INVALID',
+  OTP_EXPIRED: 'OTP_EXPIRED',
+  OTP_MAX_ATTEMPTS: 'OTP_MAX_ATTEMPTS',
+  OTP_RESEND_COOLDOWN: 'OTP_RESEND_COOLDOWN',
+  PASSWORD_MISMATCH: 'PASSWORD_MISMATCH',
+  PASSWORD_SAME_AS_OLD: 'PASSWORD_SAME_AS_OLD',
+  EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
+  PHONE_NOT_VERIFIED: 'PHONE_NOT_VERIFIED',
+  INVALID_RESET_TOKEN: 'INVALID_RESET_TOKEN',
+  PROFILE_UPDATE_FAILED: 'PROFILE_UPDATE_FAILED',
+  ACCOUNT_DELETE_FAILED: 'ACCOUNT_DELETE_FAILED',
+} as const;
+
+export const AUTH_EVENTS = {
+  USER_REGISTERED: 'auth.user.registered',
+  USER_LOGGED_IN: 'auth.user.logged_in',
+  USER_LOGGED_OUT: 'auth.user.logged_out',
+  PASSWORD_CHANGED: 'auth.password.changed',
+  PASSWORD_RESET: 'auth.password.reset',
+  OTP_VERIFIED: 'auth.otp.verified',
+  ACCOUNT_DELETED: 'auth.account.deleted',
+  PROFILE_UPDATED: 'auth.profile.updated',
+  LOGIN_FAILED: 'auth.login.failed',
+} as const;
+
+export const ACCOUNT_LOCK = {
+  MAX_FAILED_ATTEMPTS: 5,
+  LOCK_DURATION_MINUTES: 30,
+} as const;
+
+// Blocklist, not an allowlist: PENDING_VERIFICATION must stay usable everywhere this
+// is checked, since email/phone verification is optional at signup and only required
+// before withdrawals — an unverified user is otherwise a normal, logged-in user.
+export const BLOCKED_ACCOUNT_STATUSES = ['SUSPENDED', 'BANNED', 'DEACTIVATED'] as const;
+
+export const PASSWORD_POLICY = {
+  MIN_LENGTH: 8,
+  MAX_LENGTH: 72,
+  REQUIRE_UPPERCASE: true,
+  REQUIRE_LOWERCASE: true,
+  REQUIRE_NUMBER: true,
+  REQUIRE_SPECIAL: true,
+} as const;
+
+export const TOKEN_CONFIG = {
+  ACCESS_TOKEN_EXPIRY: '15m',
+  REFRESH_TOKEN_EXPIRY: '7d',
+  REFRESH_TOKEN_EXPIRY_SECONDS: 7 * 24 * 60 * 60,
+  RESET_TOKEN_EXPIRY: 60,
+} as const;

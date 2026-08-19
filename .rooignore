@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+android/
+ios/
+.next/
+.git/
+logs/
+uploads/
+*.log
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.gif
