@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { WALLET_CONSTANTS } from '../constants';
 import { AddUserBankDto, UpdateUserBankDto } from '../dto';
@@ -58,7 +60,7 @@ export class BankAccountService {
 
   private async getOwned(userId: string, bankId: string) {
     const bank = await this.bankRepository.findById(bankId);
-    if (!bank || bank.userId !== userId) throw new NotFoundException('Bank account not found');
+    if (!bank || bank.userId !== userId) throw new NotFoundException('Bank account');
     return bank;
   }
 }

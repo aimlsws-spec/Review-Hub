@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { CreateFaqDto, FaqQueryDto, UpdateFaqDto } from '../dto';
@@ -22,7 +24,7 @@ export class FaqService {
 
   async getById(id: string) {
     const faq = await this.faqRepository.findById(id);
-    if (!faq) throw new NotFoundException('FAQ not found');
+    if (!faq) throw new NotFoundException('FAQ');
     return faq;
   }
 

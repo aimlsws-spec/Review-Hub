@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { CampaignRepository } from '../../campaign/repositories';
@@ -33,7 +35,7 @@ export class SubmissionService {
     // A submission owned by someone else is reported as not found, not
     // forbidden, so ids can't be used to probe for other users' activity.
     if (!submission || submission.userId !== userId) {
-      throw new NotFoundException('Submission not found');
+      throw new NotFoundException('Submission');
     }
     return submission;
   }
@@ -44,18 +46,58 @@ export class SubmissionService {
    * action; this is not that dashboard.
    */
   async approve(submissionId: string, reviewerId: string) {
+    return this.finalizeApproval(submissionId, { actorId: reviewerId, actorType: 'ADMIN' });
+  }
+
+  async reject(submissionId: string, reviewerId: string, dto: RejectSubmissionDto) {
+    return this.finalizeRejection(submissionId, dto.rejectionReason, { actorId: reviewerId, actorType: 'ADMIN' });
+  }
+
+  /** Same outcome as {@link approve}, but for the AI service's own auto-decision — no human reviewer to connect. */
+  async aiApprove(submissionId: string) {
+    return this.finalizeApproval(submissionId, { actorType: 'SYSTEM' });
+  }
+
+  /** Same outcome as {@link reject}, but for the AI service's own auto-decision. */
+  async aiReject(submissionId: string, reason: string) {
+    return this.finalizeRejection(submissionId, reason, { actorType: 'SYSTEM' });
+  }
+
+  /** AI confidence was too low (or fraud risk too high) to auto-decide — escalate to a human reviewer. */
+  async deferToManualReview(submissionId: string) {
+    const submission = await this.getReviewable(submissionId);
+
+    const updated = await this.submissionRepository.update(submissionId, { status: 'PENDING_MANUAL' });
+
+    await this.auditLogService.record({
+      actorId: 'ai-verification-service',
+      actorType: 'SYSTEM',
+      entity: 'TaskSubmission',
+      entityId: submissionId,
+      action: 'UPDATE',
+      before: { status: submission.status },
+      after: { status: 'PENDING_MANUAL' },
+    });
+
+    return updated;
+  }
+
+  private async finalizeApproval(
+    submissionId: string,
+    actor: { actorType: 'ADMIN' | 'SYSTEM'; actorId?: string },
+  ) {
     const submission = await this.getReviewable(submissionId);
 
     const task = await this.campaignTaskRepository.findById(submission.taskId);
-    if (!task) throw new NotFoundException('Task not found');
+    if (!task) throw new NotFoundException('Task');
     const campaign = await this.campaignRepository.findById(task.campaignId);
-    if (!campaign) throw new NotFoundException('Campaign not found');
+    if (!campaign) throw new NotFoundException('Campaign');
 
     const rewardAmount = Number(task.rewardAmount ?? campaign.rewardAmount);
 
     const updated = await this.submissionRepository.update(submissionId, {
       status: 'APPROVED',
-      reviewer: { connect: { id: reviewerId } },
+      reviewer: actor.actorId ? { connect: { id: actor.actorId } } : undefined,
       reviewedAt: new Date(),
       rewardAmount,
     });
@@ -68,8 +110,8 @@ export class SubmissionService {
     );
 
     await this.auditLogService.record({
-      actorId: reviewerId,
-      actorType: 'ADMIN',
+      actorId: actor.actorId ?? 'ai-verification-service',
+      actorType: actor.actorType,
       entity: 'TaskSubmission',
       entityId: submissionId,
       action: 'APPROVE',
@@ -80,29 +122,33 @@ export class SubmissionService {
     return updated;
   }
 
-  async reject(submissionId: string, reviewerId: string, dto: RejectSubmissionDto) {
+  private async finalizeRejection(
+    submissionId: string,
+    reason: string,
+    actor: { actorType: 'ADMIN' | 'SYSTEM'; actorId?: string },
+  ) {
     const submission = await this.getReviewable(submissionId);
 
     const updated = await this.submissionRepository.update(submissionId, {
       status: 'REJECTED',
-      reviewer: { connect: { id: reviewerId } },
+      reviewer: actor.actorId ? { connect: { id: actor.actorId } } : undefined,
       reviewedAt: new Date(),
-      rejectionReason: dto.rejectionReason,
+      rejectionReason: reason,
     });
 
     this.eventEmitter.emit(
       'task.submission.rejected',
-      new SubmissionRejectedEvent(submissionId, submission.taskId, submission.userId, dto.rejectionReason),
+      new SubmissionRejectedEvent(submissionId, submission.taskId, submission.userId, reason),
     );
 
     await this.auditLogService.record({
-      actorId: reviewerId,
-      actorType: 'ADMIN',
+      actorId: actor.actorId ?? 'ai-verification-service',
+      actorType: actor.actorType,
       entity: 'TaskSubmission',
       entityId: submissionId,
       action: 'REJECT',
       before: { status: submission.status },
-      after: { status: 'REJECTED', reason: dto.rejectionReason },
+      after: { status: 'REJECTED', reason },
     });
 
     return updated;
@@ -110,7 +156,7 @@ export class SubmissionService {
 
   private async getReviewable(submissionId: string) {
     const submission = await this.submissionRepository.findById(submissionId);
-    if (!submission) throw new NotFoundException('Submission not found');
+    if (!submission) throw new NotFoundException('Submission');
     if (!REVIEWABLE_SUBMISSION_STATUSES.includes(submission.status)) {
       throw new BadRequestException(`Submission is already ${submission.status.toLowerCase()}`);
     }

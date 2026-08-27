@@ -1,10 +1,14 @@
 import { createHash } from 'crypto';
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
 import { CampaignRepository } from '../../campaign/repositories';
+import { AiAssistService } from '../../ai/services/ai-assist.service';
+import { TEXT_ASSIST_SUPPORTED_TASK_TYPES } from '../../ai/constants';
 import { BLOCKING_SUBMISSION_STATUSES, SUBMISSION_STORAGE } from '../constants';
 import { SubmitTaskDto } from '../dto';
 import { TaskStartedEvent, TaskSubmittedEvent } from '../events';
@@ -12,9 +16,10 @@ import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRe
 
 /**
  * Handles a user joining a campaign through its first task, and submitting
- * evidence for a task. Verification is manual-only in this phase: every
- * submission lands at PENDING_MANUAL with a QUEUED AIVerificationJob row
- * that Phase 8's AI service will later pick up and complete instead.
+ * evidence for a task. Every submission lands at PENDING with a QUEUED
+ * AIVerificationJob row; the AI service (apps/ai-services) claims it,
+ * moves the submission through AI_PROCESSING, and either auto-decides it
+ * or defers to PENDING_MANUAL for a human reviewer.
  */
 @Injectable()
 export class TaskParticipationService {
@@ -25,6 +30,7 @@ export class TaskParticipationService {
     private readonly submissionRepository: TaskSubmissionRepository,
     private readonly storageService: LocalStorageService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly aiAssistService: AiAssistService,
   ) {}
 
   async startTask(taskId: string, userId: string) {
@@ -46,6 +52,23 @@ export class TaskParticipationService {
     this.eventEmitter.emit('task.started', new TaskStartedEvent(task.id, campaign.id, userId, participant.id));
 
     return { task, participant };
+  }
+
+  /** Drafts suggested text (review/caption) for tasks where that's meaningful — never for e.g. a follow/install task. */
+  async suggestText(taskId: string) {
+    const { task, campaign } = await this.getActiveTask(taskId);
+
+    if (!TEXT_ASSIST_SUPPORTED_TASK_TYPES.includes(task.taskType as (typeof TEXT_ASSIST_SUPPORTED_TASK_TYPES)[number])) {
+      throw new BadRequestException(`Text suggestions aren't available for ${task.taskType} tasks`);
+    }
+
+    return this.aiAssistService.suggestText({
+      taskType: task.taskType,
+      campaignTitle: campaign.title,
+      campaignDescription: campaign.description,
+      taskTitle: task.title,
+      taskInstructions: task.instructions ?? undefined,
+    });
   }
 
   async submitTask(taskId: string, userId: string, dto: SubmitTaskDto, file?: Express.Multer.File) {
@@ -86,8 +109,8 @@ export class TaskParticipationService {
       participant: { connect: { id: participant.id } },
       task: { connect: { id: taskId } },
       user: { connect: { id: userId } },
-      status: 'PENDING_MANUAL',
-      verificationSource: 'MANUAL',
+      status: 'PENDING',
+      verificationSource: 'AI',
       attemptNumber: (latestAttempt?.attemptNumber ?? 0) + 1,
       fileUrl,
       externalUrl: dto.externalUrl,
@@ -133,10 +156,10 @@ export class TaskParticipationService {
 
   private async getActiveTask(taskId: string) {
     const task = await this.campaignTaskRepository.findById(taskId);
-    if (!task) throw new NotFoundException('Task not found');
+    if (!task) throw new NotFoundException('Task');
 
     const campaign = await this.campaignRepository.findById(task.campaignId);
-    if (!campaign) throw new NotFoundException('Campaign not found');
+    if (!campaign) throw new NotFoundException('Campaign');
     if (campaign.status !== 'ACTIVE') {
       throw new BadRequestException('This campaign is not currently active');
     }

@@ -1,8 +1,10 @@
 import * as path from 'path';
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DocumentVerificationStatus, MerchantVerificationStatus } from '@prisma/client';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
 import { DOCUMENT_STORAGE } from '../constants';
@@ -21,7 +23,7 @@ export class KycService {
 
   async uploadDocument(merchantId: string, dto: KycUploadDto, file: Express.Multer.File) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
 
     const allowedMimeTypes: readonly string[] = DOCUMENT_STORAGE.ALLOWED_MIME_TYPES;
     if (!allowedMimeTypes.includes(file.mimetype)) {
@@ -68,7 +70,7 @@ export class KycService {
 
   async getDocuments(merchantId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
     return this.documentRepository.findByMerchantId(merchantId);
   }
 
@@ -83,11 +85,11 @@ export class KycService {
     // A document belonging to a different merchant is reported as not found, not
     // forbidden, so ids can't be used to probe for other merchants' documents.
     if (!document || document.merchantId !== merchantId || document.deletedAt || !document.fileUploadId) {
-      throw new NotFoundException('Document not found');
+      throw new NotFoundException('Document');
     }
 
     const exists = await this.storageService.fileExists(document.fileUploadId);
-    if (!exists) throw new NotFoundException('Document file not found');
+    if (!exists) throw new NotFoundException('Document file');
 
     // storage.localPath is configured relative to cwd (e.g. "./uploads"), but
     // Express's res.sendFile() requires an absolute path or it throws.

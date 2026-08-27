@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { EmailQueueService } from '../../../mail/email-queue.service';
 import { UserRepository } from '../../auth/repositories/user.repository';
@@ -85,7 +87,7 @@ export class NotificationService {
   async markRead(notificationId: string, userId: string) {
     const notification = await this.notificationRepository.findById(notificationId);
     if (!notification || notification.userId !== userId) {
-      throw new NotFoundException('Notification not found');
+      throw new NotFoundException('Notification');
     }
     return this.notificationRepository.markRead(notificationId);
   }

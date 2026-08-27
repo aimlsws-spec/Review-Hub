@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MerchantStatus, MerchantVerificationStatus } from '@prisma/client';
+
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { ApproveMerchantDto, RejectMerchantDto, RequestDocumentsDto } from '../dto';
@@ -18,7 +20,7 @@ export class AdminService {
 
   async approveMerchant(dto: ApproveMerchantDto, approvedBy: string) {
     const merchant = await this.merchantRepository.findById(dto.merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
 
     const updated = await this.merchantRepository.update(dto.merchantId, {
       status: 'ACTIVE' as MerchantStatus,
@@ -48,7 +50,7 @@ export class AdminService {
 
   async rejectMerchant(dto: RejectMerchantDto, rejectedBy: string) {
     const merchant = await this.merchantRepository.findById(dto.merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
 
     const updated = await this.merchantRepository.update(dto.merchantId, {
       status: 'SUSPENDED' as MerchantStatus,
@@ -74,7 +76,7 @@ export class AdminService {
 
   async requestDocuments(dto: RequestDocumentsDto) {
     const merchant = await this.merchantRepository.findById(dto.merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
 
     return this.merchantRepository.update(dto.merchantId, {
       verificationStatus: 'UNDER_REVIEW' as MerchantVerificationStatus,
@@ -91,14 +93,14 @@ export class AdminService {
 
   async getMerchantDetail(merchantId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
     const documents = await this.documentRepository.findByMerchantId(merchantId);
     return { ...merchant, documents };
   }
 
   async toggleMerchantStatus(merchantId: string, status: MerchantStatus, actorId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
     const updated = await this.merchantRepository.update(merchantId, { status });
 
     await this.auditLogService.record({

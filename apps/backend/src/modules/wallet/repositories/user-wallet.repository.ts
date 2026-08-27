@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma, WalletTransactionType } from '@prisma/client';
+
+import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 

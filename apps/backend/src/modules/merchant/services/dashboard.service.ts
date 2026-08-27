@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import {
   MerchantCampaignStatsRepository,
@@ -18,7 +20,7 @@ export class DashboardService {
 
   async getDashboard(merchantId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
 
     const wallet = await this.walletRepository.findByMerchantId(merchantId);
     const teamMembers = await this.teamRepository.findByMerchantId(merchantId);

@@ -16,9 +16,7 @@ Full-stack platform for review & task-based reward campaigns.
 
 | Package | Path | Description |
 |---|---|---|
-| `@reviewhub/shared-types` | `packages/shared-types` | Shared TypeScript types |
-| `@reviewhub/shared-constants` | `packages/shared-constants` | Shared constants |
-| `@reviewhub/shared-utils` | `packages/shared-utils` | Shared utility functions |
+| `@reviewhub/shared-ui` | `packages/shared-ui` | Shared React UI components (Badge, Modal, PageHeader, etc.) used by both portals |
 
 ## Quick Start
 
@@ -27,7 +25,7 @@ Full-stack platform for review & task-based reward campaigns.
 npm install
 
 # Start backend
-cd apps/backend && npm run start:dev
+cd apps/backend && npm run dev
 ```
 
 ## Development

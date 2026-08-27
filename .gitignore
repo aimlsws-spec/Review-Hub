@@ -66,17 +66,18 @@ apps/mobile/ios/Flutter/Flutter.framework
 apps/mobile/ios/Flutter/Flutter.podspec
 
 # Python
-apps/ai-services/__pycache__/
-apps/ai-services/*.pyc
-apps/ai-services/*.pyo
-apps/ai-services/*.pyd
+apps/ai-services/**/__pycache__/
+apps/ai-services/**/*.pyc
+apps/ai-services/**/*.pyo
+apps/ai-services/**/*.pyd
 apps/ai-services/.Python
 apps/ai-services/venv/
 apps/ai-services/.venv/
-apps/ai-services/*.egg-info/
+apps/ai-services/**/*.egg-info/
 apps/ai-services/dist/
-apps/ai-services/.pytest_cache/
-apps/ai-services/.mypy_cache/
+apps/ai-services/**/.pytest_cache/
+apps/ai-services/**/.mypy_cache/
+apps/ai-services/.env
 
 # Coverage
 coverage/

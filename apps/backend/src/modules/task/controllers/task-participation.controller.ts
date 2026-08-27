@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 
@@ -19,6 +19,14 @@ export class TaskParticipationController {
   @ApiOperation({ summary: 'Join the campaign and start this task' })
   async start(@Param('taskId') taskId: string, @CurrentUser('id') userId: string) {
     return this.participationService.startTask(taskId, userId);
+  }
+
+  @Get(':taskId/text-suggestion')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get an AI-drafted review/caption suggestion for this task (free, optional to use)' })
+  async textSuggestion(@Param('taskId') taskId: string) {
+    return this.participationService.suggestText(taskId);
   }
 
   @Post(':taskId/submit')

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -120,14 +120,19 @@ export default function LoginPage() {
               {errors.password && <p className="error-text" role="alert">{errors.password.message}</p>}
             </div>
 
-            <label className="flex cursor-pointer items-center gap-2.5 select-none pt-1">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                {...register('rememberMe')}
-              />
-              <span className="text-sm text-slate-600">Remember me on this device</span>
-            </label>
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex cursor-pointer items-center gap-2.5 select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                  {...register('rememberMe')}
+                />
+                <span className="text-sm text-slate-600">Remember me on this device</span>
+              </label>
+              <Link to={ROUTES.FORGOT_PASSWORD} className="text-sm font-medium text-primary-600 hover:text-primary-700">
+                Forgot password?
+              </Link>
+            </div>
 
             <button type="submit" disabled={isPending} className="btn-primary w-full">
               {isPending ? (

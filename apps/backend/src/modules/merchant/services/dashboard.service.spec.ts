@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import {

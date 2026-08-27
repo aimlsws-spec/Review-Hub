@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AuditAction, UserStatus } from '@prisma/client';
+
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { UpdateUserStatusDto, UserQueryDto } from '../dto';
@@ -23,7 +25,7 @@ export class UserManagementService {
 
   async getById(userId: string) {
     const user = await this.userAdminRepository.findById(userId);
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException('User');
     return user;
   }
 

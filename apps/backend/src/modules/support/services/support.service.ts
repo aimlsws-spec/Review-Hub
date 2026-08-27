@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SupportTicket } from '@prisma/client';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { REPLYABLE_STATUSES, SUPPORT_EVENTS } from '../constants';
@@ -68,7 +70,7 @@ export class SupportService {
 
   async getForAdmin(ticketId: string) {
     const ticket = await this.ticketRepository.findById(ticketId);
-    if (!ticket) throw new NotFoundException('Support ticket not found');
+    if (!ticket) throw new NotFoundException('Support ticket');
     return ticket;
   }
 
@@ -175,7 +177,7 @@ export class SupportService {
     const ticket = await this.ticketRepository.findById(ticketId);
     // Not found and "not yours" are reported identically so ids can't be used to probe other tickets.
     if (!ticket || !isOwner(ticket)) {
-      throw new NotFoundException('Support ticket not found');
+      throw new NotFoundException('Support ticket');
     }
     return ticket;
   }

@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { EDITABLE_CAMPAIGN_STATUSES } from '../../campaign/constants';
 import { CampaignRepository } from '../../campaign/repositories';
@@ -66,7 +68,7 @@ export class CampaignTaskService {
   async listPublic(campaignId: string) {
     const campaign = await this.campaignRepository.findById(campaignId);
     if (!campaign || campaign.status !== 'ACTIVE' || campaign.visibility !== 'PUBLIC') {
-      throw new NotFoundException('Campaign not found');
+      throw new NotFoundException('Campaign');
     }
     return this.campaignTaskRepository.findByCampaignId(campaignId);
   }
@@ -74,14 +76,14 @@ export class CampaignTaskService {
   private async getTaskInCampaign(campaignId: string, taskId: string) {
     const task = await this.campaignTaskRepository.findById(taskId);
     if (!task || task.campaignId !== campaignId) {
-      throw new NotFoundException('Task not found');
+      throw new NotFoundException('Task');
     }
     return task;
   }
 
   private async assertEditableCampaign(campaignId: string) {
     const campaign = await this.campaignRepository.findById(campaignId);
-    if (!campaign) throw new NotFoundException('Campaign not found');
+    if (!campaign) throw new NotFoundException('Campaign');
     if (!EDITABLE_CAMPAIGN_STATUSES.includes(campaign.status)) {
       throw new BadRequestException(`Cannot change tasks on a campaign in ${campaign.status} status`);
     }

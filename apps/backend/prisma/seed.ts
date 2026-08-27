@@ -246,6 +246,28 @@ async function main() {
   }
   console.log('✅ Platform configuration seeded');
 
+  // ── AI Service API Key (local dev only) ────────────────────
+  // Not upserted like the rest of this file — re-running the seed must not
+  // silently rotate a key a developer has already put in apps/ai-services/.env.
+  const existingAiKey = await prisma.apiKey.findUnique({ where: { key: 'ai-service-dev' } });
+  if (!existingAiKey) {
+    const devSecret = 'dev-only-secret-change-me';
+    await prisma.apiKey.create({
+      data: {
+        name: 'AI Verification Service (local dev)',
+        key: 'ai-service-dev',
+        secret: await bcrypt.hash(devSecret, 12),
+        permissions: { scopes: ['ai:verification-jobs'] },
+      },
+    });
+    console.log('✅ AI service API key seeded — set in apps/ai-services/.env:');
+    console.log('   AI_SERVICE_API_KEY=ai-service-dev');
+    console.log(`   AI_SERVICE_API_SECRET=${devSecret}`);
+    console.log('   (production deployments must provision their own key via the admin API, not this seed value)');
+  } else {
+    console.log('✅ AI service API key already present — skipped');
+  }
+
   console.log('\n🎉 Database seeding completed successfully!');
 }
 

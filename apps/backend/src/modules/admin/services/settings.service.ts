@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { CreateSystemSettingDto, UpdateSystemSettingDto } from '../dto';
@@ -18,7 +20,7 @@ export class SettingsService {
 
   async getByKey(key: string) {
     const setting = await this.settingRepository.findByKey(key);
-    if (!setting) throw new NotFoundException('Setting not found');
+    if (!setting) throw new NotFoundException('Setting');
     return setting;
   }
 

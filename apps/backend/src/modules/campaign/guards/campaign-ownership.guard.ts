@@ -1,4 +1,6 @@
-import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { MerchantRepository, MerchantTeamRepository } from '../../merchant/repositories';
 import { CampaignRepository } from '../repositories';
@@ -25,10 +27,10 @@ export class CampaignOwnershipGuard implements CanActivate {
     if (!campaignId) return false;
 
     const campaign = await this.campaignRepository.findById(campaignId);
-    if (!campaign) throw new NotFoundException('Campaign not found');
+    if (!campaign) throw new NotFoundException('Campaign');
 
     const merchant = await this.merchantRepository.findById(campaign.merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
 
     const isOwner = merchant.userId === user.id;
     if (!isOwner) {

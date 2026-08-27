@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';

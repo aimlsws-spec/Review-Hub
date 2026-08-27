@@ -1,5 +1,6 @@
 import { Logger, Module } from '@nestjs/common';
 
+import { AiAssistModule } from '../ai/ai-assist.module';
 import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
 import { MerchantModule } from '../merchant/merchant.module';
@@ -14,7 +15,7 @@ import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRe
 import { CampaignTaskService, SubmissionService, TaskParticipationService } from './services';
 
 @Module({
-  imports: [CampaignModule, AuthModule, MerchantModule],
+  imports: [CampaignModule, AuthModule, MerchantModule, AiAssistModule],
   controllers: [
     MerchantCampaignTaskController,
     CampaignTaskController,

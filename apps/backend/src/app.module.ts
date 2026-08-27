@@ -18,6 +18,7 @@ import { PrismaModule } from './database/prisma/prisma.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { CampaignModule } from './modules/campaign/campaign.module';
@@ -65,6 +66,7 @@ import { StorageModule } from './storage/storage.module';
     MerchantModule,
     CampaignModule,
     TaskModule,
+    AiModule,
     WalletModule,
     ReferralModule,
     NotificationModule,

@@ -1,6 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MerchantStatus, MerchantVerificationStatus } from '@prisma/client';
+
+import { ConflictException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { RegisterMerchantDto, UpdateMerchantDto } from '../dto';
 import { MerchantRegisteredEvent } from '../events';
@@ -21,16 +23,16 @@ export class MerchantService {
 
   async register(userId: string, dto: RegisterMerchantDto) {
     const existing = await this.merchantRepository.findByEmail(dto.email);
-    if (existing) throw new ConflictException('Merchant with this email already exists');
+    if (existing) throw new ConflictException('Merchant', 'email');
 
     if (dto.gstNumber) {
       const gstExists = await this.merchantRepository.findByGst(dto.gstNumber);
-      if (gstExists) throw new ConflictException('GST number already registered');
+      if (gstExists) throw new ConflictException('Merchant', 'GST number');
     }
 
     if (dto.panNumber) {
       const panExists = await this.merchantRepository.findByPan(dto.panNumber);
-      if (panExists) throw new ConflictException('PAN number already registered');
+      if (panExists) throw new ConflictException('Merchant', 'PAN number');
     }
 
     const merchant = await this.merchantRepository.create({
@@ -75,20 +77,20 @@ export class MerchantService {
 
   async getProfile(merchantId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
     return merchant;
   }
 
   /** Distinct from getProfile() — the `/merchants/me` route resolves the merchant from the JWT's user id, not a merchant id. */
   async getProfileByUserId(userId: string) {
     const merchant = await this.merchantRepository.findByUserId(userId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
     return merchant;
   }
 
   async updateProfile(merchantId: string, dto: UpdateMerchantDto) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
 
     const updated = await this.merchantRepository.update(merchantId, dto);
 
@@ -102,7 +104,7 @@ export class MerchantService {
 
   async getVerificationStatus(merchantId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
     return {
       status: merchant.status,
       verificationStatus: merchant.verificationStatus,

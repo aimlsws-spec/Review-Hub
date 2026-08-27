@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { RazorpayService } from '../../payment/services';
@@ -28,7 +30,7 @@ export class WithdrawalService {
 
     const bankAccount = await this.bankRepository.findById(dto.bankAccountId);
     if (!bankAccount || bankAccount.userId !== userId) {
-      throw new NotFoundException('Bank account not found');
+      throw new NotFoundException('Bank account');
     }
     // No user-facing identity-KYC workflow exists yet to ever flip a bank
     // account to VERIFIED, so this only excludes accounts already flagged
@@ -90,7 +92,7 @@ export class WithdrawalService {
   async getMine(withdrawalId: string, userId: string) {
     const withdrawal = await this.withdrawalRepository.findById(withdrawalId);
     if (!withdrawal || withdrawal.wallet.userId !== userId) {
-      throw new NotFoundException('Withdrawal request not found');
+      throw new NotFoundException('Withdrawal request');
     }
     return withdrawal;
   }
@@ -186,7 +188,7 @@ export class WithdrawalService {
 
   private async getReviewable(withdrawalId: string) {
     const withdrawal = await this.withdrawalRepository.findById(withdrawalId);
-    if (!withdrawal) throw new NotFoundException('Withdrawal request not found');
+    if (!withdrawal) throw new NotFoundException('Withdrawal request');
     if (!REVIEWABLE_WITHDRAWAL_STATUSES.includes(withdrawal.status)) {
       throw new BadRequestException(`Withdrawal is already ${withdrawal.status.toLowerCase()}`);
     }

@@ -25,12 +25,9 @@ import { QUEUE_NAMES } from './queue.constants';
       }),
     }),
     BullModule.registerQueue(
-      { name: QUEUE_NAMES.SUBMISSIONS },
       { name: QUEUE_NAMES.NOTIFICATIONS },
       { name: QUEUE_NAMES.REWARDS },
-      { name: QUEUE_NAMES.WITHDRAWALS },
       { name: QUEUE_NAMES.EMAILS },
-      { name: QUEUE_NAMES.ANALYTICS },
     ),
   ],
   exports: [BullModule],

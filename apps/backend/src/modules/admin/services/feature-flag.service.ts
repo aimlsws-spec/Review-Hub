@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { CreateFeatureFlagDto, UpdateFeatureFlagDto } from '../dto';
@@ -17,7 +19,7 @@ export class FeatureFlagService {
 
   async getByKey(key: string) {
     const flag = await this.featureFlagRepository.findByKey(key);
-    if (!flag) throw new NotFoundException('Feature flag not found');
+    if (!flag) throw new NotFoundException('Feature flag');
     return flag;
   }
 

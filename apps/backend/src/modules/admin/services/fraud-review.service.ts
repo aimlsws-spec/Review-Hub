@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { FraudFlagQueryDto } from '../dto';
@@ -22,7 +24,7 @@ export class FraudReviewService {
 
   async resolve(flagId: string, adminId: string) {
     const flag = await this.fraudFlagRepository.findById(flagId);
-    if (!flag) throw new NotFoundException('Fraud flag not found');
+    if (!flag) throw new NotFoundException('Fraud flag');
     if (flag.resolved) throw new BadRequestException('Fraud flag is already resolved');
 
     const updated = await this.fraudFlagRepository.resolve(flagId, adminId);

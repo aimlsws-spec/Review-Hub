@@ -7,6 +7,8 @@ import { ROUTES } from '@/constants'
 
 // Auth pages
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 
 // App pages
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
@@ -35,7 +37,11 @@ export const router = createBrowserRouter(
       children: [
         {
           element: <AuthLayout />,
-          children: [{ path: ROUTES.LOGIN, element: <LoginPage /> }],
+          children: [
+            { path: ROUTES.LOGIN, element: <LoginPage /> },
+            { path: ROUTES.FORGOT_PASSWORD, element: <ForgotPasswordPage /> },
+            { path: ROUTES.RESET_PASSWORD, element: <ResetPasswordPage /> },
+          ],
         },
       ],
     },

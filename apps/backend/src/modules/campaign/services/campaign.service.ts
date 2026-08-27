@@ -1,8 +1,10 @@
 import { randomBytes } from 'crypto';
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Campaign, CampaignStatus, Prisma } from '@prisma/client';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { CAMPAIGN_STATUS_TRANSITIONS, DELETABLE_CAMPAIGN_STATUSES, EDITABLE_CAMPAIGN_STATUSES } from '../constants';
@@ -73,7 +75,7 @@ export class CampaignService {
 
   async getById(campaignId: string) {
     const campaign = await this.campaignRepository.findById(campaignId);
-    if (!campaign) throw new NotFoundException('Campaign not found');
+    if (!campaign) throw new NotFoundException('Campaign');
     return campaign;
   }
 

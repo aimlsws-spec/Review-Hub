@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { MERCHANT_CONSTANTS } from '../constants';
 import { AddBankDto, UpdateBankDto } from '../dto';
@@ -16,7 +18,7 @@ export class BankService {
 
   async addBankAccount(merchantId: string, dto: AddBankDto) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
 
     const bankCount = await this.bankRepository.countByMerchantId(merchantId);
     if (bankCount >= MERCHANT_CONSTANTS.MAX_BANK_ACCOUNTS) {
@@ -51,13 +53,13 @@ export class BankService {
 
   async getBankAccounts(merchantId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
-    if (!merchant) throw new NotFoundException('Merchant not found');
+    if (!merchant) throw new NotFoundException('Merchant');
     return this.bankRepository.findByMerchantId(merchantId);
   }
 
   async updateBankAccount(merchantId: string, bankId: string, dto: UpdateBankDto) {
     const bank = await this.bankRepository.findById(bankId);
-    if (!bank || bank.merchantId !== merchantId) throw new NotFoundException('Bank account not found');
+    if (!bank || bank.merchantId !== merchantId) throw new NotFoundException('Bank account');
 
     if (dto.isPrimary) {
       await this.bankRepository.unsetPrimaryForMerchant(merchantId, bankId);
@@ -68,7 +70,7 @@ export class BankService {
 
   async deleteBankAccount(merchantId: string, bankId: string) {
     const bank = await this.bankRepository.findById(bankId);
-    if (!bank || bank.merchantId !== merchantId) throw new NotFoundException('Bank account not found');
+    if (!bank || bank.merchantId !== merchantId) throw new NotFoundException('Bank account');
 
     await this.bankRepository.softDelete(bankId);
     return { message: 'Bank account removed successfully' };
@@ -76,7 +78,7 @@ export class BankService {
 
   async setDefaultBankAccount(merchantId: string, bankId: string) {
     const bank = await this.bankRepository.findById(bankId);
-    if (!bank || bank.merchantId !== merchantId) throw new NotFoundException('Bank account not found');
+    if (!bank || bank.merchantId !== merchantId) throw new NotFoundException('Bank account');
 
     await this.bankRepository.unsetPrimaryForMerchant(merchantId, bankId);
     return this.bankRepository.update(bankId, { isPrimary: true });

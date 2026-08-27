@@ -7,9 +7,6 @@
     "apps/backend",
     "apps/merchant-portal",
     "apps/admin-portal",
-    "packages/shared-types",
-    "packages/shared-constants",
-    "packages/shared-utils",
     "packages/shared-ui"
   ],
   "scripts": {
@@ -18,8 +15,7 @@
     "admin": "npm run dev --workspace=apps/admin-portal",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "build:shared": "npm run build --workspace=packages/shared-types && npm run build --workspace=packages/shared-constants && npm run build --workspace=packages/shared-utils"
+    "test": "npm run test --workspaces --if-present"
   },
   "engines": {
     "node": ">=20.0.0",

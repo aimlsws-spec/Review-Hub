@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { CmsPageQueryDto, CreateCmsPageDto, UpdateCmsPageDto } from '../dto';
@@ -17,7 +19,7 @@ export class CmsPageService {
 
   async getById(id: string) {
     const page = await this.cmsPageRepository.findById(id);
-    if (!page) throw new NotFoundException('CMS page not found');
+    if (!page) throw new NotFoundException('CMS page');
     return page;
   }
 

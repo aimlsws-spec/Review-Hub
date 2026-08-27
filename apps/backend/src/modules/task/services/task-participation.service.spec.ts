@@ -1,9 +1,10 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { LocalStorageService } from '../../../storage/storage.service';
 import { CampaignRepository } from '../../campaign/repositories';
+import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
 import { TaskParticipationService } from './task-participation.service';
@@ -28,9 +29,17 @@ describe('TaskParticipationService', () => {
   };
   const mockStorageService = { saveFile: jest.fn() };
   const mockEventEmitter = { emit: jest.fn() };
+  const mockAiAssistService = { suggestText: jest.fn() };
 
-  const activeCampaign = { id: 'campaign-1', status: 'ACTIVE' };
-  const task = { id: 'task-1', campaignId: 'campaign-1', proofRequired: true };
+  const activeCampaign = { id: 'campaign-1', status: 'ACTIVE', title: 'Summer Launch', description: 'A great new product.' };
+  const task = {
+    id: 'task-1',
+    campaignId: 'campaign-1',
+    proofRequired: true,
+    taskType: 'TEXT',
+    title: 'Write a short review',
+    instructions: 'Keep it honest',
+  };
   const participant = { id: 'participant-1', campaignId: 'campaign-1', userId: 'user-1', status: 'IN_PROGRESS' };
 
   beforeEach(async () => {
@@ -43,6 +52,7 @@ describe('TaskParticipationService', () => {
         { provide: TaskSubmissionRepository, useValue: mockSubmissionRepository },
         { provide: LocalStorageService, useValue: mockStorageService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: AiAssistService, useValue: mockAiAssistService },
       ],
     }).compile();
 
@@ -87,6 +97,41 @@ describe('TaskParticipationService', () => {
     });
   });
 
+  describe('suggestText', () => {
+    beforeEach(() => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(task);
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+    });
+
+    it('delegates to AiAssistService with the task/campaign context for a supported task type', async () => {
+      mockAiAssistService.suggestText.mockResolvedValue({ suggestion: 'Loved it!', source: 'template' });
+
+      const result = await service.suggestText('task-1');
+
+      expect(mockAiAssistService.suggestText).toHaveBeenCalledWith({
+        taskType: 'TEXT',
+        campaignTitle: 'Summer Launch',
+        campaignDescription: 'A great new product.',
+        taskTitle: 'Write a short review',
+        taskInstructions: 'Keep it honest',
+      });
+      expect(result).toEqual({ suggestion: 'Loved it!', source: 'template' });
+    });
+
+    it('rejects a task type that a text suggestion makes no sense for', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, taskType: 'APP_INSTALL' });
+
+      await expect(service.suggestText('task-1')).rejects.toThrow(BadRequestException);
+      expect(mockAiAssistService.suggestText).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown task', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(null);
+
+      await expect(service.suggestText('unknown')).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('submitTask', () => {
     beforeEach(() => {
       mockCampaignTaskRepository.findById.mockResolvedValue(task);
@@ -113,7 +158,7 @@ describe('TaskParticipationService', () => {
 
       expect(result).toHaveProperty('id', 'submission-1');
       expect(mockSubmissionRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'PENDING_MANUAL', attemptNumber: 1 }),
+        expect.objectContaining({ status: 'PENDING', attemptNumber: 1 }),
       );
       expect(mockSubmissionRepository.createVerificationJob).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'QUEUED' }),
