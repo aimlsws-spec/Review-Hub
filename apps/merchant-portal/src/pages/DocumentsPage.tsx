@@ -1,6 +1,8 @@
+import { Input, Select, Spinner, StatusBadge, EmptyState, ErrorState, Modal, ConfirmDialog } from '@reviewhub/shared-ui'
 import { useState, useRef } from 'react'
 import { useForm } from 'react-hook-form'
-import { useAuthStore } from '@/stores/auth.store'
+
+import { DOCUMENT_TYPE_LABELS } from '@/constants'
 import {
   useDocumentsQuery,
   useBankAccountsQuery,
@@ -9,10 +11,9 @@ import {
   useRemoveBankAccountMutation,
   useSetPrimaryBankAccountMutation,
 } from '@/hooks/useDocuments'
-import { DOCUMENT_TYPE_LABELS } from '@/constants'
-import { Input, Select, Spinner, StatusBadge, EmptyState, ErrorState, Modal, ConfirmDialog } from '@reviewhub/shared-ui'
-import { formatDate } from '@/utils'
+import { useAuthStore } from '@/stores/auth.store'
 import type { MerchantBankAccount } from '@/types'
+import { formatDate } from '@/utils'
 
 const documentTypeOptions = Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => ({ value, label }))
 

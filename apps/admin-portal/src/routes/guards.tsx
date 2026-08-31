@@ -1,7 +1,8 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
-import { ROUTES } from '@/constants'
 import { Spinner } from '@reviewhub/shared-ui'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
+
+import { ROUTES } from '@/constants'
+import { useAuth } from '@/contexts/AuthContext'
 
 export function ProtectedRoute() {
   const { isAuthenticated, loading, isInitialized } = useAuth()

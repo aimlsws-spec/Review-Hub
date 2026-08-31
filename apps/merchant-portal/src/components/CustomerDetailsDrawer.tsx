@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+
 import { CustomerStatusBadge, CustomerTypeBadge } from '@/components/CustomerBadges'
 import { StarRating } from '@/components/ReviewCard'
 import type { Customer } from '@/types/customer'

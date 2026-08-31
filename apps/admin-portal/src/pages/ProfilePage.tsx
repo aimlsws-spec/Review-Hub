@@ -1,8 +1,9 @@
+import { PageHeader } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { useAuthStore } from '@/stores/auth.store'
-import { PageHeader } from '@reviewhub/shared-ui'
+
 import { useChangePasswordMutation } from '@/hooks/useChangePassword'
+import { useAuthStore } from '@/stores/auth.store'
 import { getInitials } from '@/utils'
 
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,72}$/

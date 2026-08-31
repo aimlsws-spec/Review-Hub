@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
+
 import { Providers } from './providers'
 import { router } from './routes'
 import './styles/globals.css'

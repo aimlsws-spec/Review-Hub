@@ -1,6 +1,7 @@
-import { ConflictException, NotFoundException } from '@common/exceptions/domain.exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { ConflictException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { MerchantRepository, MerchantDocumentRepository, MerchantTeamRepository } from '../repositories';
 

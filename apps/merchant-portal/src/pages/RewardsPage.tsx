@@ -1,9 +1,10 @@
+import { StatusBadge, EmptyState, ErrorState, TableSkeleton, Pagination } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuthStore } from '@/stores/auth.store'
-import { useMerchantRewardsQuery } from '@/hooks/useRewards'
+
 import { ROUTES, ITEMS_PER_PAGE, REWARD_TYPE_LABELS } from '@/constants'
-import { StatusBadge, EmptyState, ErrorState, TableSkeleton, Pagination } from '@reviewhub/shared-ui'
+import { useMerchantRewardsQuery } from '@/hooks/useRewards'
+import { useAuthStore } from '@/stores/auth.store'
 import { formatCurrency, formatDateTime, getInitials } from '@/utils'
 
 export default function RewardsPage() {

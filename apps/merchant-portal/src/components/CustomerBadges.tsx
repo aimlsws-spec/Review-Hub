@@ -1,4 +1,5 @@
 import { Badge } from '@reviewhub/shared-ui'
+
 import type { CustomerStatus, CustomerType } from '@/types/customer'
 import { cn } from '@/utils'
 

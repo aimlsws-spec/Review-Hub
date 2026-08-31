@@ -1,5 +1,6 @@
-import { NotFoundException } from '@common/exceptions/domain.exceptions';
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import {
   MerchantCampaignStatsRepository,

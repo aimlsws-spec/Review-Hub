@@ -1,0 +1,146 @@
+name: CI — Backend & Portals
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/backend/**"
+      - "apps/admin-portal/**"
+      - "apps/merchant-portal/**"
+      - "packages/shared-ui/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ci-node.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/backend/**"
+      - "apps/admin-portal/**"
+      - "apps/merchant-portal/**"
+      - "packages/shared-ui/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ci-node.yml"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: viral_kar_root_ci
+          MYSQL_DATABASE: viral_kar_test
+          MYSQL_USER: viral_kar
+          MYSQL_PASSWORD: viral_kar_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -pviral_kar_root_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: viral_kar
+          RABBITMQ_DEFAULT_PASS: viral_kar_ci
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: mysql://viral_kar:viral_kar_ci@127.0.0.1:3306/viral_kar_test
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      RABBITMQ_URL: amqp://viral_kar:viral_kar_ci@127.0.0.1:5672
+      JWT_ACCESS_SECRET: ci-only-access-secret-not-used-anywhere-real
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-not-used-anywhere-real
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        working-directory: apps/backend
+        run: npx prisma generate
+
+      - name: Prisma migrate deploy
+        working-directory: apps/backend
+        run: npx prisma migrate deploy
+
+      - name: Lint
+        run: npm run lint --workspace=apps/backend
+
+      - name: Typecheck
+        run: npm run typecheck --workspace=apps/backend
+
+      - name: Unit tests
+        run: npm run test --workspace=apps/backend
+
+      - name: E2E tests
+        run: npm run test:e2e --workspace=apps/backend
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint — admin portal
+        run: npm run lint --workspace=apps/admin-portal
+
+      - name: Lint — merchant portal
+        run: npm run lint --workspace=apps/merchant-portal
+
+      - name: Typecheck — admin portal
+        run: npm run typecheck --workspace=apps/admin-portal
+
+      - name: Typecheck — merchant portal
+        run: npm run typecheck --workspace=apps/merchant-portal
+
+      - name: Test — admin portal
+        run: npm run test --workspace=apps/admin-portal
+
+      - name: Test — merchant portal
+        run: npm run test --workspace=apps/merchant-portal
+
+      - name: Build — admin portal
+        run: npm run build --workspace=apps/admin-portal
+        env:
+          VITE_API_URL: http://localhost:3000/api/v1
+
+      - name: Build — merchant portal
+        run: npm run build --workspace=apps/merchant-portal
+        env:
+          VITE_API_URL: http://localhost:3000/api/v1

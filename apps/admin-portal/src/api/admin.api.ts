@@ -1,4 +1,3 @@
-import apiClient from './client'
 import type {
   AdminUser,
   ApiResponse,
@@ -22,6 +21,8 @@ import type {
   SupportCategory,
   SupportPriority,
 } from '@/types'
+
+import apiClient from './client'
 
 export const adminApi = {
   // ── Users ──────────────────────────────────────────────────────────────

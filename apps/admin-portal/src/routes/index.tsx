@@ -1,9 +1,11 @@
 import { lazy } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+
+import { ROUTES } from '@/constants'
 import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
+
 import { ProtectedRoute, GuestRoute } from './guards'
-import { ROUTES } from '@/constants'
 
 // Auth pages
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))

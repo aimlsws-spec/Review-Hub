@@ -1,4 +1,3 @@
-import apiClient from './client'
 import type {
   ApiResponse,
   Merchant,
@@ -21,6 +20,8 @@ import type {
 } from '@/types'
 import type { Customer, CustomerType, CustomerStatus } from '@/types/customer'
 import type { ApiReview, ApiReviewSource, ApiReviewStatus, ReviewStats } from '@/types/review'
+
+import apiClient from './client'
 
 export interface ReviewQueryParams {
   page?: number

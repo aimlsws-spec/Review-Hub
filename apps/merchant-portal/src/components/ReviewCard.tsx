@@ -1,10 +1,11 @@
-import { memo } from 'react'
-import { cn } from '@/utils'
 import { Badge } from '@reviewhub/shared-ui'
+import { memo } from 'react'
+
+import type { ApiReviewSource, ApiReviewStatus } from '@/types/review'
+import { cn } from '@/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-import type { ApiReviewSource, ApiReviewStatus } from '@/types/review'
 
 export type ReviewStatus = ApiReviewStatus
 export type ReviewSource = ApiReviewSource

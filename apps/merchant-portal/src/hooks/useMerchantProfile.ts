@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+
 import { merchantApi } from '@/api/merchant.api'
-import { useAuthStore } from '@/stores/auth.store'
 import { QUERY_KEYS } from '@/constants'
+import { useAuthStore } from '@/stores/auth.store'
 import type { Merchant } from '@/types'
 
 /** The merchant's own business profile (ProfilePage). */

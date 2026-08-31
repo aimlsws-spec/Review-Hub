@@ -1,11 +1,12 @@
-import { useForm } from 'react-hook-form'
-import { Link } from 'react-router-dom'
-import toast from 'react-hot-toast'
-import { useForgotPasswordMutation } from '@/hooks/useAuthMutations'
 import { Input, Spinner } from '@reviewhub/shared-ui'
+import { useForm } from 'react-hook-form'
+import toast from 'react-hot-toast'
+import { Link } from 'react-router-dom'
+
 import { ROUTES } from '@/constants'
-import { getApiErrorMessage } from '@/utils'
+import { useForgotPasswordMutation } from '@/hooks/useAuthMutations'
 import { AuthCard } from '@/layouts/AuthCard'
+import { getApiErrorMessage } from '@/utils'
 
 export default function ForgotPasswordPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<{ email: string }>()

@@ -1,8 +1,9 @@
+import { PageLoader } from '@reviewhub/shared-ui'
 import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router-dom'
+
 import { Sidebar } from './Sidebar'
 import { TopNavbar } from './TopNavbar'
-import { PageLoader } from '@reviewhub/shared-ui'
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)

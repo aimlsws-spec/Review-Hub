@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
-import { getApiErrorMessage } from '@/utils'
 import type { SupportCategory, SupportPriority } from '@/types'
+import { getApiErrorMessage } from '@/utils'
 
 export function useSupportTicketsQuery(merchantId: string | undefined, page: number, limit: number) {
   return useQuery({

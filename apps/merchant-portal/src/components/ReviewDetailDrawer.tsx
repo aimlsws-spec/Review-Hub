@@ -1,9 +1,10 @@
-import { memo, useEffect, useRef, useState } from 'react'
-import { cn } from '@/utils'
 import { Badge } from '@reviewhub/shared-ui'
-import { StarRating, SOURCE_BADGE, type Review } from '@/components/ReviewCard'
-import { ReplyComposer } from '@/components/reply/ReplyComposer'
+import { memo, useEffect, useRef, useState } from 'react'
+
 import { ReplyCard, type PublishedReply } from '@/components/reply/ReplyCard'
+import { ReplyComposer } from '@/components/reply/ReplyComposer'
+import { StarRating, SOURCE_BADGE, type Review } from '@/components/ReviewCard'
+import { cn } from '@/utils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

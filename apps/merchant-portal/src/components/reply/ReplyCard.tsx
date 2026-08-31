@@ -1,5 +1,5 @@
-import { memo } from 'react'
 import { Badge } from '@reviewhub/shared-ui'
+import { memo } from 'react'
 
 export interface PublishedReply {
   text:        string

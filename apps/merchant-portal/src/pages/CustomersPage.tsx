@@ -1,9 +1,10 @@
+import { EmptyState, PageHeader, Pagination, Skeleton } from '@reviewhub/shared-ui'
 import { useMemo, useState } from 'react'
+
 import { CustomerStatusBadge, CustomerTypeBadge } from '@/components/CustomerBadges'
 import { CustomerDetailsDrawer } from '@/components/CustomerDetailsDrawer'
-import { EmptyState, PageHeader, Pagination, Skeleton } from '@reviewhub/shared-ui'
-import { useAuthStore } from '@/stores/auth.store'
 import { useCustomersQuery, useCustomerStatsQuery } from '@/hooks/useCustomers'
+import { useAuthStore } from '@/stores/auth.store'
 import type { Customer, CustomerStatus, CustomerType } from '@/types/customer'
 import { cn, formatCurrency, formatDate } from '@/utils'
 

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
+import type { Merchant } from '@/types'
 import { getApiErrorMessage } from '@/utils'
 import { loadRazorpayCheckout, openRazorpayCheckout } from '@/utils/razorpay'
-import type { Merchant } from '@/types'
 
 export function useWalletQuery(merchantId: string | undefined) {
   return useQuery({

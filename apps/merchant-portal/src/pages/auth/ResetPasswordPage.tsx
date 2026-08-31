@@ -1,11 +1,12 @@
-import { useForm } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
-import toast from 'react-hot-toast'
-import { useResetPasswordMutation } from '@/hooks/useAuthMutations'
 import { Input, Spinner } from '@reviewhub/shared-ui'
+import { useForm } from 'react-hook-form'
+import toast from 'react-hot-toast'
+import { Link, useNavigate } from 'react-router-dom'
+
 import { ROUTES } from '@/constants'
-import { getApiErrorMessage } from '@/utils'
+import { useResetPasswordMutation } from '@/hooks/useAuthMutations'
 import { AuthCard } from '@/layouts/AuthCard'
+import { getApiErrorMessage } from '@/utils'
 
 interface ResetForm {
   email: string

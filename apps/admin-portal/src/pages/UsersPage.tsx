@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ITEMS_PER_PAGE, USER_STATUS_LABELS } from '@/constants'
 import {
   PageHeader,
   EmptyState,
@@ -12,9 +10,12 @@ import {
   Modal,
   Select,
 } from '@reviewhub/shared-ui'
-import { formatDate, getInitials } from '@/utils'
+import { useState } from 'react'
+
+import { ITEMS_PER_PAGE, USER_STATUS_LABELS } from '@/constants'
 import { useUserActionMutation, useUserDetailQuery, useUsersQuery } from '@/hooks/useUsers'
 import type { AdminUser, UserStatus } from '@/types'
+import { formatDate, getInitials } from '@/utils'
 
 type ActionKind = 'suspend' | 'ban' | 'reactivate'
 

@@ -1,10 +1,11 @@
-import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
+
 import { LocalStorageService } from '../../../storage/storage.service';
-import { CampaignRepository } from '../../campaign/repositories';
 import { AiAssistService } from '../../ai/services/ai-assist.service';
+import { CampaignRepository } from '../../campaign/repositories';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
 import { TaskParticipationService } from './task-participation.service';

@@ -1,8 +1,9 @@
 import * as path from 'path';
 
-import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
 import { MerchantRepository, MerchantDocumentRepository } from '../repositories';

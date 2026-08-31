@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ITEMS_PER_PAGE } from '@/constants'
 import {
   PageHeader,
   EmptyState,
@@ -14,7 +12,9 @@ import {
   Textarea,
   Spinner,
 } from '@reviewhub/shared-ui'
-import { cn, formatDate } from '@/utils'
+import { useState } from 'react'
+
+import { ITEMS_PER_PAGE } from '@/constants'
 import {
   useAllMerchantsQuery,
   useMerchantDetailQuery,
@@ -23,6 +23,7 @@ import {
   useViewMerchantDocumentMutation,
 } from '@/hooks/useMerchants'
 import type { Merchant, MerchantDetail } from '@/types'
+import { cn, formatDate } from '@/utils'
 
 type Tab = 'pending' | 'all'
 type ReviewKind = 'approve' | 'reject' | 'request-documents'

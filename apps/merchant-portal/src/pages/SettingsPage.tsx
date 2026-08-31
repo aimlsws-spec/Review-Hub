@@ -1,7 +1,8 @@
-import { useForm } from 'react-hook-form'
-import { useAuthStore } from '@/stores/auth.store'
-import { useUpdateAccountProfileMutation, useChangePasswordMutation, useSendOtpMutation } from '@/hooks/useAccountSettings'
 import { Input, Spinner } from '@reviewhub/shared-ui'
+import { useForm } from 'react-hook-form'
+
+import { useUpdateAccountProfileMutation, useChangePasswordMutation, useSendOtpMutation } from '@/hooks/useAccountSettings'
+import { useAuthStore } from '@/stores/auth.store'
 
 interface ProfileForm {
   firstName: string

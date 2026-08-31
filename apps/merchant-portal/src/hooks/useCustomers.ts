@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
 import type { CustomerStatus, CustomerType } from '@/types/customer'

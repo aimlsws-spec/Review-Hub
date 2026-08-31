@@ -1,0 +1,66 @@
+name: viral-kar
+
+# Local development infra only — MySQL, Redis, and RabbitMQ that the backend
+# needs to actually run. Not used for production deployment; a deployer may
+# reuse these image/version choices or provision managed equivalents instead.
+#
+# Credentials below are dev-only placeholders, safe to commit — match them in
+# apps/backend/.env.example (and your real apps/backend/.env).
+#
+# MySQL is mapped to host port 3307, not the default 3306, because a
+# separately-installed native MySQL is commonly already running on 3306 on a
+# dev machine — mapping to 3307 avoids fighting over the port or silently
+# talking to the wrong database. If you already have a working native MySQL
+# (e.g. one Prisma has already migrated against), it's simplest to keep using
+# that on 3306 and only rely on this compose file for Redis/RabbitMQ — see
+# apps/backend/.env.example for both options.
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: viral_kar_root_dev
+      MYSQL_DATABASE: viral_kar
+      MYSQL_USER: viral_kar
+      MYSQL_PASSWORD: viral_kar_dev
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pviral_kar_root_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: viral_kar
+      RABBITMQ_DEFAULT_PASS: viral_kar_dev
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI — http://localhost:15672
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:
+  rabbitmq_data:

@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ITEMS_PER_PAGE, SUPPORT_CATEGORY_LABELS, SUPPORT_PRIORITY_LABELS, SUPPORT_STATUS_LABELS } from '@/constants'
 import {
   PageHeader,
   EmptyState,
@@ -11,7 +9,9 @@ import {
   Select,
   Spinner,
 } from '@reviewhub/shared-ui'
-import { formatDateTime } from '@/utils'
+import { useState } from 'react'
+
+import { ITEMS_PER_PAGE, SUPPORT_CATEGORY_LABELS, SUPPORT_PRIORITY_LABELS, SUPPORT_STATUS_LABELS } from '@/constants'
 import {
   useReplySupportTicketMutation,
   useSupportTicketDetailQuery,
@@ -19,6 +19,7 @@ import {
   useUpdateSupportTicketStatusMutation,
 } from '@/hooks/useSupportTickets'
 import type { SupportTicketStatus } from '@/types'
+import { formatDateTime } from '@/utils'
 
 const STATUS_OPTIONS = Object.entries(SUPPORT_STATUS_LABELS).map(([value, label]) => ({ value, label }))
 

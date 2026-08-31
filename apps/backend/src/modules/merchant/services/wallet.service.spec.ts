@@ -1,5 +1,6 @@
-import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { RazorpayService } from '../../payment/services';
 import { MerchantRepository, MerchantWalletRepository } from '../repositories';

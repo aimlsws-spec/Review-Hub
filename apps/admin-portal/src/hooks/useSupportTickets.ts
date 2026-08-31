@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+
 import { adminApi } from '@/api/admin.api'
 import { QUERY_KEYS } from '@/constants'
-import { getApiErrorMessage } from '@/utils'
 import type { SupportTicketStatus } from '@/types'
+import { getApiErrorMessage } from '@/utils'
 
 /** Fetches the paginated, filterable list of support tickets. */
 export function useSupportTicketsQuery(params: { page: number; limit: number; status?: SupportTicketStatus | '' }) {

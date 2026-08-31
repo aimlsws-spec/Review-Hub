@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ITEMS_PER_PAGE } from '@/constants'
 import {
   PageHeader,
   EmptyState,
@@ -10,9 +8,12 @@ import {
   Textarea,
   Spinner,
 } from '@reviewhub/shared-ui'
-import { formatCurrency, formatDate } from '@/utils'
+import { useState } from 'react'
+
+import { ITEMS_PER_PAGE } from '@/constants'
 import { useCampaignQueueQuery, useCampaignReviewMutation } from '@/hooks/useCampaignQueue'
 import type { Campaign } from '@/types'
+import { formatCurrency, formatDate } from '@/utils'
 
 type ReviewKind = 'approve' | 'reject' | 'request-changes'
 

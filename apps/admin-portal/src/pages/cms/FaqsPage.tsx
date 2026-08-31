@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ITEMS_PER_PAGE } from '@/constants'
 import {
   PageHeader,
   EmptyState,
@@ -13,6 +11,9 @@ import {
   Textarea,
   Spinner,
 } from '@reviewhub/shared-ui'
+import { useState } from 'react'
+
+import { ITEMS_PER_PAGE } from '@/constants'
 import { useDeleteFaqMutation, useFaqsQuery, useSaveFaqMutation } from '@/hooks/useFaqs'
 import type { FAQ } from '@/types'
 

@@ -1,6 +1,7 @@
-import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { MerchantRepository, MerchantBankRepository } from '../repositories';
 

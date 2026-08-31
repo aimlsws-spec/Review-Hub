@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ITEMS_PER_PAGE } from '@/constants'
 import {
   PageHeader,
   EmptyState,
@@ -14,9 +12,12 @@ import {
   Textarea,
   Spinner,
 } from '@reviewhub/shared-ui'
-import { formatDate } from '@/utils'
+import { useState } from 'react'
+
+import { ITEMS_PER_PAGE } from '@/constants'
 import { useCmsPagesQuery, useDeleteCmsPageMutation, useSaveCmsPageMutation } from '@/hooks/useCmsPages'
 import type { CMSPage, CMSPageStatus } from '@/types'
+import { formatDate } from '@/utils'
 
 interface PageFormState {
   title: string

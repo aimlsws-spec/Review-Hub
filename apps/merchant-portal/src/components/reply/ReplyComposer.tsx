@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+
 import { cn } from '@/utils'
-import { ReplyTemplates } from './ReplyTemplates'
+
 import { AISuggestions } from './AISuggestions'
 import { ReplyPreview } from './ReplyPreview'
+import { ReplyTemplates } from './ReplyTemplates'
 
 const MAX_CHARS = 1000
 

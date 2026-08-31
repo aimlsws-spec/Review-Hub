@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
-import { useAuthStore } from '@/stores/auth.store'
+import toast from 'react-hot-toast'
+
 import { authApi } from '@/api/auth.api'
 import { merchantApi } from '@/api/merchant.api'
+import { useAuthStore } from '@/stores/auth.store'
 import type { User } from '@/types'
-import toast from 'react-hot-toast'
+
 
 interface LoginCredentials {
   email: string
@@ -53,7 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const login = useCallback(async (credentials: LoginCredentials) => {

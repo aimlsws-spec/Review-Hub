@@ -1,5 +1,6 @@
-import apiClient from './client'
 import type { ApiResponse, PaginatedResponse } from '@/types'
+
+import apiClient from './client'
 
 export interface ApiNotification {
   id: string

@@ -17,7 +17,7 @@
     "import/resolver": {
       "typescript": {
         "alwaysTryTypes": true,
-        "project": ["apps/backend/tsconfig.json", "libs/*/tsconfig.json"]
+        "project": ["apps/backend/tsconfig.json"]
       }
     }
   },
@@ -36,6 +36,7 @@
       }
     ],
     "import/no-cycle": "error",
+    "import/default": "off",
     "no-console": "warn",
     "no-debugger": "error",
     "prefer-const": "error",

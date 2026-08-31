@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ITEMS_PER_PAGE } from '@/constants'
 import {
   PageHeader,
   EmptyState,
@@ -11,9 +9,12 @@ import {
   Textarea,
   Spinner,
 } from '@reviewhub/shared-ui'
-import { formatCurrency, formatDate } from '@/utils'
+import { useState } from 'react'
+
+import { ITEMS_PER_PAGE } from '@/constants'
 import { useApproveWithdrawalMutation, useRejectWithdrawalMutation, useWithdrawalQueueQuery } from '@/hooks/useWithdrawalQueue'
 import type { WithdrawalRequest } from '@/types'
+import { formatCurrency, formatDate } from '@/utils'
 
 export default function WithdrawalQueuePage() {
   const [page, setPage] = useState(1)

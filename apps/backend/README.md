@@ -27,7 +27,7 @@ npx prisma generate
 npx prisma migrate dev
 
 # Start development server
-npm run start:dev
+npm run dev
 ```
 
 ## Environment Variables
@@ -81,12 +81,12 @@ Swagger UI is available at `http://localhost:3000/api/docs` in non-production en
 ## Scripts
 
 ```bash
-npm run start:dev      # Development with hot reload
-npm run build          # Production build
-npm run start:prod     # Start production build
-npm run lint           # ESLint
-npm run test           # Unit tests
-npm run test:e2e       # End-to-end tests
-npx prisma studio      # Prisma database GUI
-npx prisma migrate dev # Run migrations
+npm run dev             # Development with hot reload
+npm run build           # Production build
+npm run start            # Start production build
+npm run lint             # ESLint
+npm run test              # Unit tests
+npm run test:e2e          # End-to-end tests
+npx prisma studio         # Prisma database GUI
+npx prisma migrate dev    # Run migrations
 ```

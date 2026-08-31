@@ -1,12 +1,13 @@
-import { Link } from 'react-router-dom'
-import { formatDistanceToNow } from 'date-fns'
-import { useAuthStore } from '@/stores/auth.store'
 import { Skeleton, StatusBadge, Badge, PageHeader } from '@reviewhub/shared-ui'
+import { formatDistanceToNow } from 'date-fns'
+import { Link } from 'react-router-dom'
+
 import { StarRating } from '@/components/ReviewCard'
+import { ROUTES } from '@/constants'
 import { useDashboardStatsQuery } from '@/hooks/useDashboard'
 import { useNotificationsQuery } from '@/hooks/useNotifications'
 import { useRecentReviewsQuery } from '@/hooks/useReviews'
-import { ROUTES } from '@/constants'
+import { useAuthStore } from '@/stores/auth.store'
 import { cn, formatCurrency } from '@/utils'
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────

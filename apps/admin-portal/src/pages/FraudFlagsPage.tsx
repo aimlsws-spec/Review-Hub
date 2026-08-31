@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { FRAUD_RISK_LABELS, ITEMS_PER_PAGE } from '@/constants'
 import {
   PageHeader,
   EmptyState,
@@ -10,9 +8,12 @@ import {
   ConfirmDialog,
   Select,
 } from '@reviewhub/shared-ui'
-import { formatDateTime } from '@/utils'
+import { useState } from 'react'
+
+import { FRAUD_RISK_LABELS, ITEMS_PER_PAGE } from '@/constants'
 import { useFraudFlagsQuery, useResolveFraudFlagMutation } from '@/hooks/useFraudFlags'
 import type { FraudRiskLevel } from '@/types'
+import { formatDateTime } from '@/utils'
 
 const RISK_OPTIONS = Object.entries(FRAUD_RISK_LABELS).map(([value, label]) => ({ value, label }))
 

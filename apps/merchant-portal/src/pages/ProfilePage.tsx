@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
 import { PageHeader, Badge, StatusBadge, Skeleton } from '@reviewhub/shared-ui'
+import { useEffect, useState } from 'react'
+
 import { useMerchantProfileQuery, useUpdateMerchantProfileMutation } from '@/hooks/useMerchantProfile'
 import type { Merchant } from '@/types'
 import { cn } from '@/utils'

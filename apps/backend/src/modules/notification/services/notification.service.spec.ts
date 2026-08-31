@@ -1,5 +1,6 @@
-import { NotFoundException } from '@common/exceptions/domain.exceptions';
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { EmailQueueService } from '../../../mail/email-queue.service';
 import { UserRepository } from '../../auth/repositories/user.repository';

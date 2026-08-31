@@ -1,0 +1,12 @@
+{
+  "plugins": ["react-hooks"],
+  "extends": ["plugin:react-hooks/recommended"],
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true,
+        "project": "./tsconfig.json"
+      }
+    }
+  }
+}

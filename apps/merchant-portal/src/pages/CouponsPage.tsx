@@ -1,11 +1,12 @@
+import { StatusBadge, EmptyState, ErrorState, TableSkeleton } from '@reviewhub/shared-ui'
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuthStore } from '@/stores/auth.store'
-import { useCampaignsQuery } from '@/hooks/useCampaigns'
+
 import { ROUTES, REWARD_TYPE_LABELS } from '@/constants'
-import { StatusBadge, EmptyState, ErrorState, TableSkeleton } from '@reviewhub/shared-ui'
-import { formatCurrency } from '@/utils'
+import { useCampaignsQuery } from '@/hooks/useCampaigns'
+import { useAuthStore } from '@/stores/auth.store'
 import type { RewardType } from '@/types'
+import { formatCurrency } from '@/utils'
 
 const COUPON_REWARD_TYPES: RewardType[] = ['COUPON', 'GIFT_CARD', 'DISCOUNT']
 

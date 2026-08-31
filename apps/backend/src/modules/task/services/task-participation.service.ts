@@ -6,9 +6,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
-import { CampaignRepository } from '../../campaign/repositories';
-import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { TEXT_ASSIST_SUPPORTED_TASK_TYPES } from '../../ai/constants';
+import { AiAssistService } from '../../ai/services/ai-assist.service';
+import { CampaignRepository } from '../../campaign/repositories';
 import { BLOCKING_SUBMISSION_STATUSES, SUBMISSION_STORAGE } from '../constants';
 import { SubmitTaskDto } from '../dto';
 import { TaskStartedEvent, TaskSubmittedEvent } from '../events';

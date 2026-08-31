@@ -1,16 +1,17 @@
+import { Input, Select, Textarea, Spinner, StatusBadge, EmptyState, ErrorState, Modal, TableSkeleton, Pagination } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useAuthStore } from '@/stores/auth.store'
+
+import { ITEMS_PER_PAGE, SUPPORT_CATEGORY_LABELS, SUPPORT_PRIORITY_LABELS, SUPPORT_STATUS_LABELS } from '@/constants'
 import {
   useSupportTicketsQuery,
   useSupportTicketQuery,
   useCreateTicketMutation,
   useReplyToTicketMutation,
 } from '@/hooks/useSupport'
-import { ITEMS_PER_PAGE, SUPPORT_CATEGORY_LABELS, SUPPORT_PRIORITY_LABELS, SUPPORT_STATUS_LABELS } from '@/constants'
-import { Input, Select, Textarea, Spinner, StatusBadge, EmptyState, ErrorState, Modal, TableSkeleton, Pagination } from '@reviewhub/shared-ui'
-import { formatDateTime } from '@/utils'
+import { useAuthStore } from '@/stores/auth.store'
 import type { SupportCategory, SupportPriority } from '@/types'
+import { formatDateTime } from '@/utils'
 
 const categoryOptions = Object.entries(SUPPORT_CATEGORY_LABELS).map(([value, label]) => ({ value, label }))
 const priorityOptions = Object.entries(SUPPORT_PRIORITY_LABELS).map(([value, label]) => ({ value, label }))
