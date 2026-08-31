@@ -15,11 +15,16 @@ import '../../features/campaigns/data/models/campaign_task_model.dart';
 import '../../features/campaigns/presentation/screens/campaign_detail_screen.dart';
 import '../../features/campaigns/presentation/screens/campaigns_screen.dart';
 import '../../features/dashboard/presentation/screens/home_screen.dart';
+import '../../features/kyc/presentation/screens/kyc_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/referral/presentation/screens/referral_screen.dart';
 import '../../features/settings/presentation/screens/change_password_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/support/presentation/screens/new_support_ticket_screen.dart';
+import '../../features/support/presentation/screens/support_ticket_detail_screen.dart';
+import '../../features/support/presentation/screens/support_tickets_screen.dart';
 import '../../features/tasks/presentation/screens/my_submissions_screen.dart';
 import '../../features/tasks/presentation/screens/task_detail_screen.dart';
 import '../../features/tasks/presentation/screens/task_submission_screen.dart';
@@ -145,6 +150,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: RoutePaths.editProfile, builder: (context, state) => const EditProfileScreen()),
       GoRoute(path: RoutePaths.settings, builder: (context, state) => const SettingsScreen()),
       GoRoute(path: RoutePaths.changePassword, builder: (context, state) => const ChangePasswordScreen()),
+      GoRoute(path: RoutePaths.kyc, builder: (context, state) => const KycScreen()),
+
+      GoRoute(path: RoutePaths.notifications, builder: (context, state) => const NotificationsScreen()),
+
+      GoRoute(path: RoutePaths.support, builder: (context, state) => const SupportTicketsScreen()),
+      // Registered before the `:ticketId` route below so the literal "new"
+      // segment isn't swallowed by the param match.
+      GoRoute(path: RoutePaths.newSupportTicket, builder: (context, state) => const NewSupportTicketScreen()),
+      GoRoute(
+        path: RoutePaths.supportTicketDetail,
+        builder: (context, state) => SupportTicketDetailScreen(ticketId: state.pathParameters['ticketId']!),
+      ),
     ],
   );
 });

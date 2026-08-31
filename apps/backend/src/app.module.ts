@@ -28,6 +28,7 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { SupportModule } from './modules/support/support.module';
 import { TaskModule } from './modules/task/task.module';
+import { UserKycModule } from './modules/user-kyc/user-kyc.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { QueueModule } from './queues/queue.module';
 import { AuditModule } from './shared/audit/audit.module';
@@ -71,6 +72,7 @@ import { StorageModule } from './storage/storage.module';
     ReferralModule,
     NotificationModule,
     SupportModule,
+    UserKycModule,
     JobsModule,
     AdminModule,
     HealthModule,

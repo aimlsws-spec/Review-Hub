@@ -14,6 +14,7 @@ class RoutePaths {
   static const String wallet = '/wallet';
   static const String referral = '/referral';
   static const String profile = '/profile';
+  static const String notifications = '/notifications';
 
   static const String campaignDetail = '/campaigns/:campaignId';
   static String campaignDetailPath(String campaignId) => '/campaigns/$campaignId';
@@ -36,4 +37,10 @@ class RoutePaths {
   static const String editProfile = '/profile/edit';
   static const String settings = '/profile/settings';
   static const String changePassword = '/profile/settings/change-password';
+  static const String kyc = '/profile/kyc';
+
+  static const String support = '/support/tickets';
+  static const String newSupportTicket = '/support/tickets/new';
+  static const String supportTicketDetail = '/support/tickets/:ticketId';
+  static String supportTicketDetailPath(String ticketId) => '/support/tickets/$ticketId';
 }

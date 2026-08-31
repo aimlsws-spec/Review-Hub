@@ -139,6 +139,7 @@ export const SWAGGER_TAGS = {
   REFERRALS: 'Referrals',
   NOTIFICATIONS: 'Notifications',
   SUPPORT: 'Support',
+  USER_KYC: 'User KYC',
   ANALYTICS: 'Analytics',
   REPORTS: 'Reports',
   FRAUD: 'Fraud',

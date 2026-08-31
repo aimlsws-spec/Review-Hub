@@ -93,6 +93,14 @@ enum DocumentVerificationStatus {
   EXPIRED
 }
 
+enum UserDocumentType {
+  PAN
+  AADHAAR
+  PASSPORT
+  DRIVING_LICENCE
+  SELFIE
+}
+
 enum BankVerificationStatus {
   PENDING
   VERIFIED
@@ -469,6 +477,7 @@ model User {
   referralsMade          Referral[]              @relation("ReferralReferrer")
   referralReceived       Referral?               @relation("ReferralReferredUser")
   supportTickets         SupportTicket[]
+  kycDocuments           UserKycDocument[]
   fraudFlags             FraudFlag[]
   uploadedFiles          UploadedFile[]          @relation("UploadedFileUser")
   activityLogs           ActivityLog[]           @relation("ActivityLogUser")
@@ -766,6 +775,30 @@ model MerchantDocument {
   @@index([verificationStatus])
   @@index([deletedAt])
   @@map("merchant_documents")
+}
+
+model UserKycDocument {
+  id                 String                     @id @default(uuid())
+  userId             String
+  documentType       UserDocumentType
+  fileUploadId       String?
+  documentNumber     String?
+  verificationStatus DocumentVerificationStatus @default(PENDING)
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  rejectionReason    String?                    @db.Text
+  expiresAt          DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  deletedAt          DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([documentType])
+  @@index([verificationStatus])
+  @@index([deletedAt])
+  @@map("user_kyc_documents")
 }
 
 model MerchantBankAccount {

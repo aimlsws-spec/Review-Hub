@@ -10,6 +10,7 @@ import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../campaigns/presentation/widgets/campaign_card.dart';
 import '../../../campaigns/providers/campaign_providers.dart';
+import '../../../notifications/providers/notification_providers.dart';
 import '../../../wallet/data/models/wallet_summary_model.dart';
 import '../../../wallet/providers/wallet_providers.dart';
 
@@ -26,7 +27,10 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.slate50,
-      appBar: AppBar(title: Text('Hi, $firstName 👋')),
+      appBar: AppBar(
+        title: Text('Hi, $firstName 👋'),
+        actions: const [_NotificationBellButton()],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(walletSummaryProvider);
@@ -169,6 +173,42 @@ class _ReferralBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Bell icon in the home app bar showing an unread-count badge.
+class _NotificationBellButton extends ConsumerWidget {
+  const _NotificationBellButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCountAsync = ref.watch(unreadCountProvider);
+    final unreadCount = unreadCountAsync.value?.valueOrNull ?? 0;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined),
+          onPressed: () => context.push(RoutePaths.notifications),
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              decoration: const BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+              child: Text(
+                unreadCount > 99 ? '99+' : '$unreadCount',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

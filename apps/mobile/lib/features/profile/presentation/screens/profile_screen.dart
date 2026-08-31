@@ -80,6 +80,20 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.verified_user_outlined, color: AppColors.primary600),
+                  title: const Text('KYC / Verification'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(RoutePaths.kyc),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.support_agent_outlined, color: AppColors.primary600),
+                  title: const Text('Help & Support'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(RoutePaths.support),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.settings_outlined, color: AppColors.primary600),
                   title: const Text('Settings'),
                   trailing: const Icon(Icons.chevron_right),

@@ -53,6 +53,15 @@ class ApiEndpoints {
   static String notificationRead(String notificationId) => '/notifications/$notificationId/read';
   static const String notificationReadAll = '/notifications/read-all';
 
+  // KYC — user-kyc/controllers/user-kyc.controller.ts
+  static const String kycDocuments = '/kyc/documents';
+  static String kycDocumentFile(String documentId) => '/kyc/documents/$documentId/file';
+
+  // Support — support/controllers/support.controller.ts
+  static const String supportTickets = '/support/tickets';
+  static String supportTicket(String ticketId) => '/support/tickets/$ticketId';
+  static String supportTicketMessages(String ticketId) => '/support/tickets/$ticketId/messages';
+
   // Health
   static const String health = '/health';
 }

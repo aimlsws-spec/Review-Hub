@@ -31,6 +31,7 @@ export class LocalStorageService implements OnModuleInit {
       this.basePath,
       path.join(this.basePath, 'profile'),
       path.join(this.basePath, 'merchant'),
+      path.join(this.basePath, 'user'),
       path.join(this.basePath, 'campaign'),
       path.join(this.basePath, 'task-proof'),
       path.join(this.basePath, 'submissions'),
