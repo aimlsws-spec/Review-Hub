@@ -60,6 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (credentials: LoginCredentials) => {
     const res = await authApi.login(credentials.email, credentials.password, credentials.rememberMe)
     const { user, tokens } = res.data.data
+
+    // The request interceptor reads the access token from the auth store, so
+    // it has to land there before any authenticated call (getProfile below)
+    // can succeed — otherwise that request goes out unauthenticated and
+    // silently fails, leaving `merchant` permanently null for the session.
+    useAuthStore.getState().setTokens(tokens.accessToken, tokens.refreshToken)
+
     let merchant = null
     try {
       const mRes = await merchantApi.getProfile()

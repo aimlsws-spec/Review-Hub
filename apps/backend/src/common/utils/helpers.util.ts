@@ -78,3 +78,33 @@ export function pickKeys<T extends object, K extends keyof T>(obj: T, keys: K[])
     {} as Pick<T, K>,
   );
 }
+
+/**
+ * Third-party SDKs (Razorpay included) often reject with a plain object
+ * instead of a real Error, so `.message`/`.stack` can't be trusted blindly —
+ * this pulls a useful string out regardless of what shape the thrown value
+ * turns out to have, instead of silently logging "undefined" or "[object Object]".
+ */
+export function describeError(exception: unknown): string {
+  if (exception instanceof Error) return exception.message;
+
+  if (typeof exception === 'object' && exception !== null) {
+    const err = exception as Record<string, unknown>;
+
+    // Razorpay SDK shape: { error: { description, code } }
+    const nested = err['error'];
+    if (typeof nested === 'object' && nested !== null && typeof (nested as Record<string, unknown>)['description'] === 'string') {
+      return (nested as Record<string, unknown>)['description'] as string;
+    }
+
+    if (typeof err['message'] === 'string') return err['message'];
+
+    try {
+      return JSON.stringify(exception);
+    } catch {
+      // fall through to String() below
+    }
+  }
+
+  return String(exception);
+}

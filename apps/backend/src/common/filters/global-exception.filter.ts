@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 
 import { ERROR_CODES } from '../constants';
 import { ApiErrorResponse } from '../interfaces/api-response.interface';
+import { describeError } from '../utils';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -34,9 +35,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     };
 
     if (statusCode >= 500) {
+      // Real Errors get their full stack; anything else (a plain object thrown
+      // by a third-party SDK, e.g. Razorpay) gets a readable description instead
+      // of the useless "[object Object]" String(exception) used to produce.
+      const detail = exception instanceof Error ? exception.stack : describeError(exception);
       this.logger.error(
         `[${request.method}] ${request.url} → ${statusCode} ${code}: ${message}`,
-        exception instanceof Error ? exception.stack : String(exception),
+        detail,
       );
     } else {
       this.logger.warn(

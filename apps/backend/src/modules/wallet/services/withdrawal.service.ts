@@ -5,6 +5,7 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { RazorpayService } from '../../payment/services';
+import { UserKycService } from '../../user-kyc/services';
 import { REVIEWABLE_WITHDRAWAL_STATUSES, WALLET_CONSTANTS } from '../constants';
 import { CreateWithdrawalDto, RejectWithdrawalDto } from '../dto';
 import { WithdrawalRequestedEvent, WithdrawalReviewedEvent } from '../events';
@@ -21,6 +22,7 @@ export class WithdrawalService {
     private readonly eventEmitter: EventEmitter2,
     private readonly auditLogService: AuditLogService,
     private readonly razorpayService: RazorpayService,
+    private readonly userKycService: UserKycService,
   ) {}
 
   async request(userId: string, dto: CreateWithdrawalDto) {
@@ -28,13 +30,22 @@ export class WithdrawalService {
       throw new BadRequestException(`Minimum withdrawal amount is ₹${WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT}`);
     }
 
+    // PAN verification before withdrawals — a product requirement, not just a
+    // nice-to-have (see the original spec's "PAN verification (before
+    // withdrawals)" registration step).
+    const panVerified = await this.userKycService.isPanVerified(userId);
+    if (!panVerified) {
+      throw new BadRequestException('PAN verification is required before you can withdraw. Upload and verify your PAN in KYC settings first.');
+    }
+
     const bankAccount = await this.bankRepository.findById(dto.bankAccountId);
     if (!bankAccount || bankAccount.userId !== userId) {
       throw new NotFoundException('Bank account');
     }
-    // No user-facing identity-KYC workflow exists yet to ever flip a bank
-    // account to VERIFIED, so this only excludes accounts already flagged
-    // FAILED rather than hard-gating on verificationStatus === VERIFIED.
+    // Bank account verification (e.g. penny-drop) isn't built yet either, so
+    // this still only excludes accounts already flagged FAILED rather than
+    // hard-gating on verificationStatus === VERIFIED — identity KYC (above)
+    // is the real gate for now.
     if (bankAccount.verificationStatus === 'FAILED') {
       throw new BadRequestException('This bank account failed verification and cannot receive payouts');
     }

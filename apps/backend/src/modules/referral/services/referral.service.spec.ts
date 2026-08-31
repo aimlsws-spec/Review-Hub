@@ -10,6 +10,7 @@ describe('ReferralService', () => {
   const mockReferralRepository = {
     findByReferrer: jest.fn(),
     getStats: jest.fn(),
+    getLeaderboard: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -41,6 +42,16 @@ describe('ReferralService', () => {
 
       const result = await service.getMyStats('user-1');
       expect(result).toEqual({ totalReferred: 2, totalRewarded: 1, totalRewardEarned: 50 });
+    });
+  });
+
+  describe('getLeaderboard', () => {
+    it('should delegate to the repository with the given limit', async () => {
+      mockReferralRepository.getLeaderboard.mockResolvedValue([{ rank: 1, user: null, totalReferred: 5, totalRewardEarned: 250 }]);
+
+      const result = await service.getLeaderboard(20);
+      expect(mockReferralRepository.getLeaderboard).toHaveBeenCalledWith(20);
+      expect(result).toHaveLength(1);
     });
   });
 });

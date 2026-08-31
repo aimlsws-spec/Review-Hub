@@ -18,4 +18,8 @@ export class ReferralService {
   async getMyStats(userId: string) {
     return this.referralRepository.getStats(userId);
   }
+
+  async getLeaderboard(limit: number) {
+    return this.referralRepository.getLeaderboard(limit);
+  }
 }

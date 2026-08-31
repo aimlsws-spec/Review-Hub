@@ -63,9 +63,9 @@ describe('WalletService', () => {
   });
 
   describe('getWallet', () => {
-    it('should return wallet', async () => {
+    it('should return the wallet', async () => {
       mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
-      mockWalletRepository.findByMerchantId.mockResolvedValue(mockWallet);
+      mockWalletRepository.getOrCreate.mockResolvedValue(mockWallet);
 
       const result = await service.getWallet('merchant-1');
       expect(result).toEqual(mockWallet);
@@ -77,18 +77,20 @@ describe('WalletService', () => {
       await expect(service.getWallet('unknown')).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw NotFoundException when wallet not found', async () => {
+    it('should auto-create a wallet on first view rather than 404 before any recharge', async () => {
       mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
-      mockWalletRepository.findByMerchantId.mockResolvedValue(null);
+      mockWalletRepository.getOrCreate.mockResolvedValue({ ...mockWallet, availableBalance: 0, totalTopUp: 0 });
 
-      await expect(service.getWallet('merchant-1')).rejects.toThrow(NotFoundException);
+      const result = await service.getWallet('merchant-1');
+      expect(mockWalletRepository.getOrCreate).toHaveBeenCalledWith('merchant-1');
+      expect(result.availableBalance).toBe(0);
     });
   });
 
   describe('getTransactions', () => {
     it('should return paginated transactions', async () => {
       mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
-      mockWalletRepository.findByMerchantId.mockResolvedValue(mockWallet);
+      mockWalletRepository.getOrCreate.mockResolvedValue(mockWallet);
       mockWalletRepository.findTransactions.mockResolvedValue({
         data: [],
         total: 0,

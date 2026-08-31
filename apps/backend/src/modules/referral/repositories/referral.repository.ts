@@ -51,6 +51,32 @@ export class ReferralRepository {
     });
   }
 
+  /** Top referrers ranked by successful-referral count, most first. */
+  async getLeaderboard(limit: number) {
+    const grouped = await this.prisma.referral.groupBy({
+      by: ['referrerId'],
+      where: { deletedAt: null },
+      _count: { referrerId: true },
+      _sum: { rewardAmount: true },
+      orderBy: { _count: { referrerId: 'desc' } },
+      take: limit,
+    });
+
+    const userIds = grouped.map((g) => g.referrerId);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+    });
+    const userById = new Map(users.map((u) => [u.id, u]));
+
+    return grouped.map((g, index) => ({
+      rank: index + 1,
+      user: userById.get(g.referrerId) ?? null,
+      totalReferred: g._count.referrerId,
+      totalRewardEarned: Number(g._sum.rewardAmount ?? 0),
+    }));
+  }
+
   async getStats(referrerId: string) {
     const [totalReferred, rewarded] = await Promise.all([
       this.prisma.referral.count({ where: { referrerId, deletedAt: null } }),

@@ -14,21 +14,19 @@ export class WalletService {
     private readonly razorpayService: RazorpayService,
   ) {}
 
+  /** Every merchant has a wallet from first view onward — getOrCreate rather than
+   * 404ing before their first recharge, matching createRechargeOrder's own behavior. */
   async getWallet(merchantId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
-    const wallet = await this.walletRepository.findByMerchantId(merchantId);
-    if (!wallet) throw new NotFoundException('Wallet');
-    return wallet;
+    return this.walletRepository.getOrCreate(merchantId);
   }
 
   async getTransactions(merchantId: string, page = 1, limit = 20) {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
 
-    const wallet = await this.walletRepository.findByMerchantId(merchantId);
-    if (!wallet) throw new NotFoundException('Wallet');
-
+    const wallet = await this.walletRepository.getOrCreate(merchantId);
     return this.walletRepository.findTransactions(wallet.id, page, limit);
   }
 
@@ -38,7 +36,9 @@ export class WalletService {
     if (!merchant) throw new NotFoundException('Merchant');
 
     const wallet = await this.walletRepository.getOrCreate(merchantId);
-    const order = await this.razorpayService.createOrder(amount, `recharge-${wallet.id}-${Date.now()}`);
+    // Razorpay caps `receipt` at 56 characters — a full UUID plus prefix/timestamp
+    // would exceed that, so only a short slice of the wallet id is used.
+    const order = await this.razorpayService.createOrder(amount, `recharge-${wallet.id.slice(0, 8)}-${Date.now()}`);
     await this.walletRepository.createPendingTopUp({ merchantWalletId: wallet.id, amount, razorpayOrderId: order.id });
 
     return { razorpayOrderId: order.id, amount, currency: order.currency };

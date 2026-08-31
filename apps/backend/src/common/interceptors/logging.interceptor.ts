@@ -9,6 +9,8 @@ import { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
+import { describeError } from '../utils';
+
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
@@ -31,10 +33,10 @@ export class LoggingInterceptor implements NestInterceptor {
             `${method} ${url} ${statusCode} ${duration}ms — ${ip} ${userAgent}`,
           );
         },
-        error: (error: Error) => {
+        error: (error: unknown) => {
           const duration = Date.now() - startTime;
           this.logger.error(
-            `${method} ${url} ERROR ${duration}ms — ${ip} ${userAgent}: ${error.message}`,
+            `${method} ${url} ERROR ${duration}ms — ${ip} ${userAgent}: ${describeError(error)}`,
           );
         },
       }),

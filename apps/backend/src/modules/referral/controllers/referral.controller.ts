@@ -27,4 +27,12 @@ export class ReferralController {
   async getMyStats(@CurrentUser('id') userId: string) {
     return this.referralService.getMyStats(userId);
   }
+
+  @Get('leaderboard')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Top referrers, ranked by successful-referral count' })
+  async getLeaderboard(@Query('limit') limit = '20') {
+    return this.referralService.getLeaderboard(Number(limit));
+  }
 }

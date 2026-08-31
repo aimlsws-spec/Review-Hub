@@ -53,6 +53,12 @@ export class UserKycService {
     return this.documentRepository.findByUserId(userId);
   }
 
+  /** PAN is the specific document withdrawals gate on — matches the product's own "PAN verification (before withdrawals)" requirement. */
+  async isPanVerified(userId: string): Promise<boolean> {
+    const pan = await this.documentRepository.findByUserAndType(userId, 'PAN');
+    return pan?.verificationStatus === 'APPROVED';
+  }
+
   /**
    * Resolves a KYC document to an absolute path on disk for streaming back to
    * an authorized caller (the document's owner). These files are deliberately

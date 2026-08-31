@@ -15,10 +15,14 @@ describe('ReferralRepository', () => {
       count: jest.fn(),
       update: jest.fn(),
       aggregate: jest.fn(),
+      groupBy: jest.fn(),
     },
     referralReward: {
       create: jest.fn(),
       update: jest.fn(),
+    },
+    user: {
+      findMany: jest.fn(),
     },
   };
 
@@ -71,6 +75,39 @@ describe('ReferralRepository', () => {
 
       const result = await repository.getStats('user-1');
       expect(result.totalRewardEarned).toBe(0);
+    });
+  });
+
+  describe('getLeaderboard', () => {
+    it('should rank grouped referrers and attach their user info, most-referrals first', async () => {
+      mockPrisma.referral.groupBy.mockResolvedValue([
+        { referrerId: 'user-1', _count: { referrerId: 5 }, _sum: { rewardAmount: 250 } },
+        { referrerId: 'user-2', _count: { referrerId: 2 }, _sum: { rewardAmount: 100 } },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([
+        { id: 'user-1', firstName: 'Asha', lastName: 'Rao', avatarUrl: null },
+        { id: 'user-2', firstName: 'Ben', lastName: 'Fox', avatarUrl: null },
+      ]);
+
+      const result = await repository.getLeaderboard(20);
+
+      expect(mockPrisma.referral.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({ by: ['referrerId'], take: 20 }),
+      );
+      expect(result).toEqual([
+        { rank: 1, user: { id: 'user-1', firstName: 'Asha', lastName: 'Rao', avatarUrl: null }, totalReferred: 5, totalRewardEarned: 250 },
+        { rank: 2, user: { id: 'user-2', firstName: 'Ben', lastName: 'Fox', avatarUrl: null }, totalReferred: 2, totalRewardEarned: 100 },
+      ]);
+    });
+
+    it('should default reward to zero and user to null when nothing matches', async () => {
+      mockPrisma.referral.groupBy.mockResolvedValue([
+        { referrerId: 'user-3', _count: { referrerId: 1 }, _sum: { rewardAmount: null } },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
+      const result = await repository.getLeaderboard(20);
+      expect(result).toEqual([{ rank: 1, user: null, totalReferred: 1, totalRewardEarned: 0 }]);
     });
   });
 });

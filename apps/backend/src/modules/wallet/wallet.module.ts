@@ -3,6 +3,7 @@ import { Logger, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { MerchantModule } from '../merchant/merchant.module';
 import { PaymentModule } from '../payment/payment.module';
+import { UserKycModule } from '../user-kyc/user-kyc.module';
 
 import { BankAccountController, MerchantRewardController, WalletController, WithdrawalController } from './controllers';
 import { PayoutListener, RewardListener } from './listeners';
@@ -10,7 +11,7 @@ import { RewardRepository, UserBankAccountRepository, UserWalletRepository, With
 import { BankAccountService, WalletService, WithdrawalService } from './services';
 
 @Module({
-  imports: [AuthModule, MerchantModule, PaymentModule],
+  imports: [AuthModule, MerchantModule, PaymentModule, UserKycModule],
   controllers: [WalletController, BankAccountController, WithdrawalController, MerchantRewardController],
   providers: [
     WalletService,

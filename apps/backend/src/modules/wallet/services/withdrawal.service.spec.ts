@@ -5,6 +5,7 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { RazorpayService } from '../../payment/services';
+import { UserKycService } from '../../user-kyc/services';
 import { UserBankAccountRepository, UserWalletRepository, WithdrawalRepository } from '../repositories';
 
 import { WithdrawalService } from './withdrawal.service';
@@ -34,6 +35,7 @@ describe('WithdrawalService', () => {
     createFundAccount: jest.fn(),
     createPayout: jest.fn(),
   };
+  const mockUserKycService = { isPanVerified: jest.fn() };
 
   const wallet = { id: 'wallet-1', availableBalance: 5000 };
   const bankAccount = { id: 'bank-1', userId: 'user-1', verificationStatus: 'PENDING' };
@@ -48,16 +50,27 @@ describe('WithdrawalService', () => {
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AuditLogService, useValue: mockAuditLogService },
         { provide: RazorpayService, useValue: mockRazorpayService },
+        { provide: UserKycService, useValue: mockUserKycService },
       ],
     }).compile();
 
     service = module.get<WithdrawalService>(WithdrawalService);
     jest.clearAllMocks();
+    // Default every test to PAN-verified so the pre-existing request() specs
+    // (written before this gate existed) don't all need to opt in individually.
+    mockUserKycService.isPanVerified.mockResolvedValue(true);
   });
 
   describe('request', () => {
     it('should reject amounts below the minimum', async () => {
       await expect(service.request('user-1', { amount: 500, bankAccountId: 'bank-1' })).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject when PAN has not been verified', async () => {
+      mockUserKycService.isPanVerified.mockResolvedValue(false);
+
+      await expect(service.request('user-1', { amount: 1500, bankAccountId: 'bank-1' })).rejects.toThrow(BadRequestException);
+      expect(mockBankRepository.findById).not.toHaveBeenCalled();
     });
 
     it('should reject a bank account owned by someone else', async () => {

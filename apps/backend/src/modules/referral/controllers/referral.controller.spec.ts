@@ -10,6 +10,7 @@ describe('ReferralController', () => {
   const mockReferralService = {
     listMine: jest.fn(),
     getMyStats: jest.fn(),
+    getLeaderboard: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -38,6 +39,18 @@ describe('ReferralController', () => {
     it('should call referralService.getMyStats', async () => {
       await controller.getMyStats('user-1');
       expect(mockReferralService.getMyStats).toHaveBeenCalledWith('user-1');
+    });
+  });
+
+  describe('getLeaderboard', () => {
+    it('should call referralService.getLeaderboard with a numeric limit, defaulting to 20', async () => {
+      await controller.getLeaderboard();
+      expect(mockReferralService.getLeaderboard).toHaveBeenCalledWith(20);
+    });
+
+    it('should coerce a string query param to a number', async () => {
+      await controller.getLeaderboard('5');
+      expect(mockReferralService.getLeaderboard).toHaveBeenCalledWith(5);
     });
   });
 });
