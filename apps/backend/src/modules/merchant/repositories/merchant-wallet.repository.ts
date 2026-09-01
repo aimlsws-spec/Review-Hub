@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import { BadRequestException } from '@common/exceptions/domain.exceptions';
+
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
 @Injectable()
@@ -96,6 +98,137 @@ export class MerchantWalletRepository {
     return this.prisma.walletTransaction.update({
       where: { id: transactionId },
       data: { status: 'FAILED', remarks: reason },
+    });
+  }
+
+  /**
+   * Holds a campaign's total budget out of the merchant's available balance
+   * for the lifetime of the campaign. Validated inside the transaction, not
+   * before it, so two concurrent activations can't both pass a balance check
+   * against the same stale read.
+   */
+  async reserveCampaignBudget(params: { merchantId: string; campaignId: string; amount: number }) {
+    const { merchantId, campaignId, amount } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { merchantId } });
+      if (Number(wallet.availableBalance) < amount) {
+        throw new BadRequestException('Insufficient wallet balance to activate this campaign');
+      }
+
+      const balanceBefore = wallet.availableBalance;
+      const availableAfter = Number(balanceBefore) - amount;
+
+      await tx.merchantWallet.update({
+        where: { id: wallet.id },
+        data: {
+          availableBalance: availableAfter,
+          reservedBalance: { increment: amount },
+        },
+      });
+      await tx.campaign.update({
+        where: { id: campaignId },
+        data: { reservedBudget: amount },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          merchantWallet: { connect: { id: wallet.id } },
+          type: 'HOLD',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter: availableAfter,
+          referenceType: 'Campaign',
+          referenceId: campaignId,
+          remarks: 'Campaign activated — budget reserved',
+        },
+      });
+    });
+  }
+
+  /** Moves one reward payout's worth of budget from reserved to spent, on both the wallet and the campaign. */
+  async spendCampaignBudget(params: { campaignId: string; amount: number; rewardId: string }) {
+    const { campaignId, amount, rewardId } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const campaign = await tx.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+      const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { merchantId: campaign.merchantId } });
+      const balanceBefore = wallet.reservedBalance;
+      const reservedAfter = Number(balanceBefore) - amount;
+
+      await tx.merchantWallet.update({
+        where: { id: wallet.id },
+        data: {
+          reservedBalance: reservedAfter,
+          totalSpent: { increment: amount },
+        },
+      });
+
+      const spentBudget = Number(campaign.spentBudget) + amount;
+      await tx.campaign.update({
+        where: { id: campaignId },
+        data: {
+          reservedBudget: { decrement: amount },
+          spentBudget,
+          remainingBudget: Number(campaign.totalBudget) - spentBudget,
+        },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          merchantWallet: { connect: { id: wallet.id } },
+          type: 'SPEND',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter: reservedAfter,
+          referenceType: 'Reward',
+          referenceId: rewardId,
+          remarks: 'Reward paid out of campaign budget',
+        },
+      });
+    });
+  }
+
+  /** Releases whatever budget a campaign never spent back to the merchant's available balance — cancel/expire/complete. */
+  async releaseCampaignBudget(params: { merchantId: string; campaignId: string }) {
+    const { merchantId, campaignId } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const campaign = await tx.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+      const amount = Number(campaign.reservedBudget);
+      if (amount <= 0) return null;
+
+      const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { merchantId } });
+      const balanceBefore = wallet.availableBalance;
+      const balanceAfter = Number(balanceBefore) + amount;
+
+      await tx.merchantWallet.update({
+        where: { id: wallet.id },
+        data: {
+          availableBalance: balanceAfter,
+          reservedBalance: { decrement: amount },
+        },
+      });
+      await tx.campaign.update({
+        where: { id: campaignId },
+        data: { reservedBudget: 0 },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          merchantWallet: { connect: { id: wallet.id } },
+          type: 'RELEASE',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter,
+          referenceType: 'Campaign',
+          referenceId: campaignId,
+          remarks: 'Unused campaign budget released back to wallet',
+        },
+      });
     });
   }
 }

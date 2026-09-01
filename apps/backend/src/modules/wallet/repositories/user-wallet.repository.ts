@@ -79,6 +79,46 @@ export class UserWalletRepository {
   }
 
   /**
+   * Debits the available balance immediately, in one step (no hold) — for
+   * marketplace redemptions, which are instant rather than admin-reviewed
+   * like a withdrawal. Validated inside the transaction, not before it, so
+   * two concurrent redemptions can't both pass a balance check against the
+   * same stale read.
+   */
+  async debitForRedemption(params: { walletId: string; amount: number; referenceType: string; referenceId: string; remarks?: string }) {
+    const { walletId, amount, referenceType, referenceId, remarks } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
+      if (Number(wallet.availableBalance) < amount) {
+        throw new BadRequestException('Insufficient wallet balance');
+      }
+
+      const balanceBefore = wallet.availableBalance;
+      const balanceAfter = Number(balanceBefore) - amount;
+
+      await tx.userWallet.update({
+        where: { id: walletId },
+        data: { availableBalance: balanceAfter },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          wallet: { connect: { id: walletId } },
+          type: 'DEBIT',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter,
+          referenceType,
+          referenceId,
+          remarks,
+        },
+      });
+    });
+  }
+
+  /**
    * Moves an amount from available to locked balance, for a pending
    * withdrawal request. Validated inside the transaction, not before it, so
    * two concurrent withdrawal requests can't both pass a balance check

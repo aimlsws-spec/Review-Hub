@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Job } from 'bullmq';
 
+import { MerchantWalletRepository } from '../../modules/merchant/repositories';
 import { RewardCreditedEvent } from '../../modules/wallet/events';
 import { RewardJobData } from '../../modules/wallet/interfaces';
 import { RewardRepository, UserWalletRepository } from '../../modules/wallet/repositories';
@@ -16,6 +17,7 @@ export class RewardProcessor extends WorkerHost {
   constructor(
     private readonly rewardRepository: RewardRepository,
     private readonly walletRepository: UserWalletRepository,
+    private readonly merchantWalletRepository: MerchantWalletRepository,
     private readonly eventEmitter: EventEmitter2,
   ) {
     super();
@@ -50,6 +52,11 @@ export class RewardProcessor extends WorkerHost {
       remarks: 'Task reward',
     });
     await this.rewardRepository.markCredited(reward.id);
+    await this.merchantWalletRepository.spendCampaignBudget({
+      campaignId: event.campaignId,
+      amount: event.rewardAmount,
+      rewardId: reward.id,
+    });
 
     this.logger.log(`Credited ₹${event.rewardAmount} to user ${event.userId} for submission ${event.submissionId}`);
 

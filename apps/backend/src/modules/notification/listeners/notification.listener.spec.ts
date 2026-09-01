@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { CampaignStatusChangedEvent } from '../../campaign/events';
+import { BadgeEarnedEvent, LevelUpEvent } from '../../gamification/events';
+import { MarketplaceRedeemedEvent } from '../../marketplace/events';
 import { MerchantRepository } from '../../merchant/repositories';
 import { SubmissionRejectedEvent } from '../../task/events';
 import { RewardCreditedEvent, WithdrawalReviewedEvent } from '../../wallet/events';
@@ -56,6 +58,30 @@ describe('NotificationListener', () => {
 
     expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'user-1', type: 'SYSTEM', message: expect.stringContaining('Blurry photo') }),
+    );
+  });
+
+  it('should queue a GAMIFICATION notification on gamification.level_up', async () => {
+    await listener.handleLevelUp(new LevelUpEvent('user-1', 5));
+
+    expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', type: 'GAMIFICATION', message: expect.stringContaining('level 5') }),
+    );
+  });
+
+  it('should queue a GAMIFICATION notification on gamification.badge_earned', async () => {
+    await listener.handleBadgeEarned(new BadgeEarnedEvent('user-1', 'badge-1', 'First Reward'));
+
+    expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', type: 'GAMIFICATION', message: expect.stringContaining('First Reward') }),
+    );
+  });
+
+  it('should queue a MARKETPLACE notification on marketplace.redeemed', async () => {
+    await listener.handleMarketplaceRedeemed(new MarketplaceRedeemedEvent('user-1', 'redemption-1', 'Gift Card', 100));
+
+    expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', type: 'MARKETPLACE', channels: ['IN_APP', 'EMAIL'] }),
     );
   });
 

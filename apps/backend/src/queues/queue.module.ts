@@ -28,6 +28,7 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.NOTIFICATIONS },
       { name: QUEUE_NAMES.REWARDS },
       { name: QUEUE_NAMES.EMAILS },
+      { name: QUEUE_NAMES.SETTLEMENT },
     ),
   ],
   exports: [BullModule],

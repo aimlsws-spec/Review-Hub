@@ -22,10 +22,13 @@ import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { CampaignModule } from './modules/campaign/campaign.module';
+import { GamificationModule } from './modules/gamification/gamification.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { MerchantModule } from './modules/merchant/merchant.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ReferralModule } from './modules/referral/referral.module';
+import { SettlementModule } from './modules/settlement/settlement.module';
 import { SupportModule } from './modules/support/support.module';
 import { TaskModule } from './modules/task/task.module';
 import { UserKycModule } from './modules/user-kyc/user-kyc.module';
@@ -73,6 +76,9 @@ import { StorageModule } from './storage/storage.module';
     NotificationModule,
     SupportModule,
     UserKycModule,
+    SettlementModule,
+    GamificationModule,
+    MarketplaceModule,
     JobsModule,
     AdminModule,
     HealthModule,

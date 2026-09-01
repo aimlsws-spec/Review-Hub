@@ -1,6 +1,7 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { MerchantWalletRepository } from '../../modules/merchant/repositories';
 import { RewardRepository, UserWalletRepository } from '../../modules/wallet/repositories';
 
 import { RewardProcessor } from './reward.processor';
@@ -17,6 +18,9 @@ describe('RewardProcessor', () => {
     getOrCreate: jest.fn(),
     creditAvailable: jest.fn(),
   };
+  const mockMerchantWalletRepository = {
+    spendCampaignBudget: jest.fn(),
+  };
   const mockEventEmitter = { emit: jest.fn() };
 
   const jobData = { submissionId: 'submission-1', taskId: 'task-1', campaignId: 'campaign-1', userId: 'user-1', rewardAmount: 50 };
@@ -27,6 +31,7 @@ describe('RewardProcessor', () => {
         RewardProcessor,
         { provide: RewardRepository, useValue: mockRewardRepository },
         { provide: UserWalletRepository, useValue: mockWalletRepository },
+        { provide: MerchantWalletRepository, useValue: mockMerchantWalletRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
@@ -49,6 +54,11 @@ describe('RewardProcessor', () => {
       expect.objectContaining({ walletId: 'wallet-1', amount: 50, referenceId: 'reward-1' }),
     );
     expect(mockRewardRepository.markCredited).toHaveBeenCalledWith('reward-1');
+    expect(mockMerchantWalletRepository.spendCampaignBudget).toHaveBeenCalledWith({
+      campaignId: 'campaign-1',
+      amount: 50,
+      rewardId: 'reward-1',
+    });
     expect(mockEventEmitter.emit).toHaveBeenCalledWith(
       'wallet.reward.credited',
       expect.objectContaining({ userId: 'user-1', amount: 50 }),
@@ -62,6 +72,7 @@ describe('RewardProcessor', () => {
 
     expect(mockRewardRepository.create).not.toHaveBeenCalled();
     expect(mockWalletRepository.creditAvailable).not.toHaveBeenCalled();
+    expect(mockMerchantWalletRepository.spendCampaignBudget).not.toHaveBeenCalled();
     expect(mockEventEmitter.emit).not.toHaveBeenCalled();
   });
 });

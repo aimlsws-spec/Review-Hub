@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { BadRequestException } from '@common/exceptions/domain.exceptions';
+
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
 import { MerchantWalletRepository } from './merchant-wallet.repository';
@@ -10,6 +12,7 @@ describe('MerchantWalletRepository', () => {
   const mockTx = {
     merchantWallet: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
     walletTransaction: { create: jest.fn(), update: jest.fn(), findUniqueOrThrow: jest.fn() },
+    campaign: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
   };
 
   const mockPrisma = {
@@ -132,6 +135,87 @@ describe('MerchantWalletRepository', () => {
         where: { id: 'txn-1' },
         data: { status: 'FAILED', remarks: 'Signature mismatch' },
       });
+    });
+  });
+
+  describe('reserveCampaignBudget', () => {
+    it('should move the budget from available to reserved and log a HOLD transaction', async () => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 5000 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'HOLD' });
+
+      await repository.reserveCampaignBudget({ merchantId: 'merchant-1', campaignId: 'campaign-1', amount: 2000 });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { availableBalance: 3000, reservedBalance: { increment: 2000 } },
+      });
+      expect(mockTx.campaign.update).toHaveBeenCalledWith({
+        where: { id: 'campaign-1' },
+        data: { reservedBudget: 2000 },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'HOLD', amount: 2000, referenceType: 'Campaign', referenceId: 'campaign-1' }),
+      });
+    });
+
+    it('should reject when the wallet balance is insufficient, without moving anything', async () => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 500 });
+
+      await expect(
+        repository.reserveCampaignBudget({ merchantId: 'merchant-1', campaignId: 'campaign-1', amount: 2000 }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTx.merchantWallet.update).not.toHaveBeenCalled();
+      expect(mockTx.campaign.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('spendCampaignBudget', () => {
+    it('should move the amount from reserved to spent on both the wallet and the campaign', async () => {
+      mockTx.campaign.findUniqueOrThrow.mockResolvedValue({ id: 'campaign-1', merchantId: 'merchant-1', totalBudget: 2000, spentBudget: 0 });
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', reservedBalance: 2000 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'SPEND' });
+
+      await repository.spendCampaignBudget({ campaignId: 'campaign-1', amount: 300, rewardId: 'reward-1' });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { reservedBalance: 1700, totalSpent: { increment: 300 } },
+      });
+      expect(mockTx.campaign.update).toHaveBeenCalledWith({
+        where: { id: 'campaign-1' },
+        data: { reservedBudget: { decrement: 300 }, spentBudget: 300, remainingBudget: 1700 },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'SPEND', amount: 300, referenceType: 'Reward', referenceId: 'reward-1' }),
+      });
+    });
+  });
+
+  describe('releaseCampaignBudget', () => {
+    it('should release the remaining reserved budget back to available balance', async () => {
+      mockTx.campaign.findUniqueOrThrow.mockResolvedValue({ id: 'campaign-1', reservedBudget: 1700 });
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 3000 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'RELEASE' });
+
+      await repository.releaseCampaignBudget({ merchantId: 'merchant-1', campaignId: 'campaign-1' });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { availableBalance: 4700, reservedBalance: { decrement: 1700 } },
+      });
+      expect(mockTx.campaign.update).toHaveBeenCalledWith({
+        where: { id: 'campaign-1' },
+        data: { reservedBudget: 0 },
+      });
+    });
+
+    it('should no-op when nothing is reserved', async () => {
+      mockTx.campaign.findUniqueOrThrow.mockResolvedValue({ id: 'campaign-1', reservedBudget: 0 });
+
+      const result = await repository.releaseCampaignBudget({ merchantId: 'merchant-1', campaignId: 'campaign-1' });
+
+      expect(result).toBeNull();
+      expect(mockTx.merchantWallet.update).not.toHaveBeenCalled();
     });
   });
 });

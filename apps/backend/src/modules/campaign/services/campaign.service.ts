@@ -7,6 +7,7 @@ import { Campaign, CampaignStatus, Prisma } from '@prisma/client';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
+import { MerchantWalletRepository } from '../../merchant/repositories';
 import { CAMPAIGN_STATUS_TRANSITIONS, DELETABLE_CAMPAIGN_STATUSES, EDITABLE_CAMPAIGN_STATUSES } from '../constants';
 import {
   ApproveCampaignDto,
@@ -29,6 +30,7 @@ import { CampaignRepository } from '../repositories';
 export class CampaignService {
   constructor(
     private readonly campaignRepository: CampaignRepository,
+    private readonly merchantWalletRepository: MerchantWalletRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly auditLogService: AuditLogService,
   ) {}
@@ -243,7 +245,25 @@ export class CampaignService {
       throw new BadRequestException(`Cannot move a campaign from ${campaign.status} to ${toStatus}`);
     }
 
+    // First entry into ACTIVE reserves the full budget out of the merchant's wallet.
+    // Resuming from PAUSED skips this — the budget is already held from first activation.
+    const isFirstActivation = toStatus === 'ACTIVE' && campaign.status !== 'PAUSED';
+    if (isFirstActivation) {
+      await this.merchantWalletRepository.reserveCampaignBudget({
+        merchantId: campaign.merchantId,
+        campaignId,
+        amount: Number(campaign.totalBudget),
+      });
+    }
+
     const updated = await this.campaignRepository.update(campaignId, { status: toStatus, ...extra });
+
+    // Terminal statuses release whatever budget the campaign never spent.
+    const isTerminal = (CAMPAIGN_STATUS_TRANSITIONS[toStatus] ?? []).length === 0;
+    if (isTerminal) {
+      await this.merchantWalletRepository.releaseCampaignBudget({ merchantId: campaign.merchantId, campaignId });
+    }
+
     this.emitStatusChanged(campaign, toStatus);
     return updated;
   }

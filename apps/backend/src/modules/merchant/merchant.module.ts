@@ -69,6 +69,7 @@ import {
     MerchantService,
     MerchantRepository,
     MerchantTeamRepository,
+    MerchantWalletRepository,
   ],
 })
 export class MerchantModule {

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `wallet_transactions` MODIFY `type` ENUM('CREDIT', 'DEBIT', 'HOLD', 'RELEASE', 'REFUND', 'WITHDRAWAL', 'BONUS', 'REFERRAL', 'SPEND') NOT NULL;

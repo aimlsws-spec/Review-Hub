@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
+import { MerchantWalletRepository } from '../../merchant/repositories';
 import { CampaignRepository } from '../repositories';
 
 import { CampaignService } from './campaign.service';
@@ -21,6 +22,12 @@ describe('CampaignService', () => {
     findPublic: jest.fn(),
     createApproval: jest.fn(),
     findPendingReview: jest.fn(),
+  };
+
+  const mockMerchantWalletRepository = {
+    reserveCampaignBudget: jest.fn(),
+    spendCampaignBudget: jest.fn(),
+    releaseCampaignBudget: jest.fn(),
   };
 
   const mockEventEmitter = {
@@ -46,6 +53,7 @@ describe('CampaignService', () => {
       providers: [
         CampaignService,
         { provide: CampaignRepository, useValue: mockCampaignRepository },
+        { provide: MerchantWalletRepository, useValue: mockMerchantWalletRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AuditLogService, useValue: mockAuditLogService },
       ],
@@ -136,12 +144,17 @@ describe('CampaignService', () => {
   });
 
   describe('status transitions', () => {
-    it('should activate an APPROVED campaign', async () => {
+    it('should activate an APPROVED campaign and reserve its full budget from the merchant wallet', async () => {
       mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'APPROVED' });
       mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'ACTIVE' });
 
       const result = await service.activate('campaign-1');
       expect(result).toHaveProperty('status', 'ACTIVE');
+      expect(mockMerchantWalletRepository.reserveCampaignBudget).toHaveBeenCalledWith({
+        merchantId: 'merchant-1',
+        campaignId: 'campaign-1',
+        amount: 5000,
+      });
     });
 
     it('should reject activating a DRAFT campaign', async () => {
@@ -150,7 +163,15 @@ describe('CampaignService', () => {
       await expect(service.activate('campaign-1')).rejects.toThrow(BadRequestException);
     });
 
-    it('should pause an ACTIVE campaign and resume it again', async () => {
+    it('should surface an insufficient-balance rejection from the wallet and leave the campaign status unchanged', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'APPROVED' });
+      mockMerchantWalletRepository.reserveCampaignBudget.mockRejectedValue(new BadRequestException('Insufficient wallet balance to activate this campaign'));
+
+      await expect(service.activate('campaign-1')).rejects.toThrow(BadRequestException);
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('should pause an ACTIVE campaign and resume it again without re-reserving the budget', async () => {
       mockCampaignRepository.findById.mockResolvedValueOnce({ ...draftCampaign, status: 'ACTIVE' });
       mockCampaignRepository.update.mockResolvedValueOnce({ ...draftCampaign, status: 'PAUSED' });
       await expect(service.pause('campaign-1')).resolves.toHaveProperty('status', 'PAUSED');
@@ -158,14 +179,20 @@ describe('CampaignService', () => {
       mockCampaignRepository.findById.mockResolvedValueOnce({ ...draftCampaign, status: 'PAUSED' });
       mockCampaignRepository.update.mockResolvedValueOnce({ ...draftCampaign, status: 'ACTIVE' });
       await expect(service.resume('campaign-1')).resolves.toHaveProperty('status', 'ACTIVE');
+
+      expect(mockMerchantWalletRepository.reserveCampaignBudget).not.toHaveBeenCalled();
     });
 
-    it('should cancel a DRAFT campaign', async () => {
+    it('should cancel a DRAFT campaign and release any reserved budget', async () => {
       mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
       mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'CANCELLED' });
 
       const result = await service.cancel('campaign-1');
       expect(result).toHaveProperty('status', 'CANCELLED');
+      expect(mockMerchantWalletRepository.releaseCampaignBudget).toHaveBeenCalledWith({
+        merchantId: 'merchant-1',
+        campaignId: 'campaign-1',
+      });
     });
   });
 

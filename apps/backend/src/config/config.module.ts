@@ -8,6 +8,7 @@ import { databaseConfig } from './envs/database.config';
 import { jwtConfig } from './envs/jwt.config';
 import { oauthConfig } from './envs/oauth.config';
 import { paymentConfig } from './envs/payment.config';
+import { platformConfig } from './envs/platform.config';
 import { queueConfig } from './envs/queue.config';
 import { redisConfig } from './envs/redis.config';
 import { smtpConfig } from './envs/smtp.config';
@@ -45,6 +46,7 @@ const validationSchema = Joi.object({
         queueConfig,
         aiConfig,
         paymentConfig,
+        platformConfig,
         oauthConfig,
       ],
       validationSchema,

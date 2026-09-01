@@ -87,6 +87,37 @@ describe('UserWalletRepository', () => {
     });
   });
 
+  describe('debitForRedemption', () => {
+    it('should decrement availableBalance and write a DEBIT transaction', async () => {
+      mockTx.userWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 500 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'DEBIT' });
+
+      await repository.debitForRedemption({
+        walletId: 'wallet-1', amount: 100, referenceType: 'MarketplaceItem', referenceId: 'item-1', remarks: 'Redeemed: x',
+      });
+
+      expect(mockTx.userWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { availableBalance: 400 },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          type: 'DEBIT', status: 'SUCCESS', amount: 100, balanceBefore: 500, balanceAfter: 400,
+          referenceType: 'MarketplaceItem', referenceId: 'item-1',
+        }),
+      });
+    });
+
+    it('should reject debiting more than the available balance', async () => {
+      mockTx.userWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 50 });
+
+      await expect(
+        repository.debitForRedemption({ walletId: 'wallet-1', amount: 100, referenceType: 'MarketplaceItem', referenceId: 'item-1' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTx.userWallet.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('holdForWithdrawal', () => {
     it('should move funds from available to locked', async () => {
       mockTx.userWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 2000 });
