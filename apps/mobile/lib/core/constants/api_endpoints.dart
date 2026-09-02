@@ -17,6 +17,7 @@ class ApiEndpoints {
   static const String profile = '/auth/profile';
   static const String changePassword = '/auth/change-password';
   static const String me = '/auth/me';
+  static const String devicePushToken = '/auth/devices/push-token';
 
   // Wallet — apps/backend/src/modules/wallet/controllers/wallet.controller.ts
   static const String wallet = '/wallet';

@@ -37,6 +37,7 @@ import { QueueModule } from './queues/queue.module';
 import { AuditModule } from './shared/audit/audit.module';
 import { HealthModule } from './shared/health/health.module';
 import { LoggerModule } from './shared/logger/logger.module';
+import { SmsModule } from './sms/sms.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -63,6 +64,7 @@ import { StorageModule } from './storage/storage.module';
       },
     }),
     MailModule,
+    SmsModule,
     AuditModule,
     EventEmitterModule.forRoot(),
     AuthModule,

@@ -110,6 +110,15 @@ class AuthRepository {
     }
   }
 
+  Future<Result<void>> updatePushToken(String pushToken) async {
+    try {
+      await _dio.patch<void>(ApiEndpoints.devicePushToken, data: {'pushToken': pushToken});
+      return const Result.success(null);
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
   Future<Result<void>> logout() async {
     try {
       await _dio.post<void>(ApiEndpoints.logout);

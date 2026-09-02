@@ -9,6 +9,7 @@ import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
 import { CacheService } from '../../../cache/cache.service';
 import { MailService } from '../../../mail/mail.service';
+import { SmsService } from '../../../sms/sms.service';
 import { OtpRepository } from '../repositories/otp.repository';
 import { UserRepository } from '../repositories/user.repository';
 
@@ -41,6 +42,10 @@ describe('OtpService', () => {
     send: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockSmsService = {
+    send: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockConfigService = {
     get: jest.fn(),
   };
@@ -57,6 +62,7 @@ describe('OtpService', () => {
         { provide: UserRepository, useValue: mockUserRepository },
         { provide: CacheService, useValue: mockCacheService },
         { provide: MailService, useValue: mockMailService },
+        { provide: SmsService, useValue: mockSmsService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
@@ -65,14 +71,18 @@ describe('OtpService', () => {
     service = module.get<OtpService>(OtpService);
 
     jest.clearAllMocks();
-    mockConfigService.get.mockImplementation((key: string, defaultValue?: unknown) => {
-      const config: Record<string, unknown> = {
-        OTP_LENGTH: 6,
-        OTP_EXPIRY_MINUTES: 5,
-        OTP_MAX_ATTEMPTS: 5,
-        OTP_RESEND_COOLDOWN_SECONDS: 60,
+    // Real env vars are always strings — mocking with actual numbers here
+    // masked the exact bug this regresses against (ConfigService.get<number>()
+    // doesn't coerce; ../otp.service.ts used to pass the raw string straight
+    // to Prisma's Int field and blew up at runtime).
+    mockConfigService.get.mockImplementation((key: string) => {
+      const config: Record<string, string> = {
+        OTP_LENGTH: '6',
+        OTP_EXPIRY_MINUTES: '5',
+        OTP_MAX_ATTEMPTS: '5',
+        OTP_RESEND_COOLDOWN_SECONDS: '60',
       };
-      return (config[key] ?? defaultValue) as number;
+      return config[key];
     });
   });
 
@@ -103,8 +113,33 @@ describe('OtpService', () => {
       expect(mockMailService.send).toHaveBeenCalledWith(
         expect.objectContaining({ to: 'test@example.com', subject: expect.stringContaining('OTP') }),
       );
+      expect(mockSmsService.send).not.toHaveBeenCalled();
       expect(result).toHaveProperty('message', 'OTP sent successfully');
       expect(result).toHaveProperty('expiresIn', 300);
+    });
+
+    it('should send SMS when the user has a phone number (email-less accounts must still get an OTP)', async () => {
+      mockCacheService.get.mockResolvedValue(null);
+      const user = { id: 'user-1', phone: '+919876543210' };
+      mockUserRepository.findById.mockResolvedValue(user);
+      mockOtpRepository.create.mockResolvedValue({ id: 'otp-1' });
+
+      await service.sendOtp('user-1', OtpType.REGISTRATION);
+
+      expect(mockMailService.send).not.toHaveBeenCalled();
+      expect(mockSmsService.send).toHaveBeenCalledWith('+919876543210', expect.stringContaining('OTP'));
+    });
+
+    it('should send both email and SMS when the user has both', async () => {
+      mockCacheService.get.mockResolvedValue(null);
+      const user = { id: 'user-1', email: 'test@example.com', phone: '+919876543210' };
+      mockUserRepository.findById.mockResolvedValue(user);
+      mockOtpRepository.create.mockResolvedValue({ id: 'otp-1' });
+
+      await service.sendOtp('user-1', OtpType.REGISTRATION);
+
+      expect(mockMailService.send).toHaveBeenCalled();
+      expect(mockSmsService.send).toHaveBeenCalled();
     });
   });
 

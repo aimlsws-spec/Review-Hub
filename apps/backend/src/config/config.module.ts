@@ -15,6 +15,7 @@ import { redisConfig } from './envs/redis.config';
 import { smtpConfig } from './envs/smtp.config';
 import { storageConfig } from './envs/storage.config';
 import { throttleConfig } from './envs/throttle.config';
+import { twilioConfig } from './envs/twilio.config';
 
 const validationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test', 'staging').required(),
@@ -50,6 +51,7 @@ const validationSchema = Joi.object({
         paymentConfig,
         platformConfig,
         oauthConfig,
+        twilioConfig,
       ],
       validationSchema,
       validationOptions: { allowUnknown: true, abortEarly: false },

@@ -91,7 +91,9 @@ export class NotificationService {
         await this.pushService.sendToTokens(tokens, {
           title: payload.title,
           body: payload.message,
-          data: payload.data ? stringifyPushData(payload.data) : undefined,
+          // `type` rides along in `data` (not just the stored row) so the client can
+          // deep-link a tap without a round-trip — e.g. REWARD -> wallet screen.
+          data: stringifyPushData({ ...payload.data, type: payload.type }),
         });
 
         created.push(notification);

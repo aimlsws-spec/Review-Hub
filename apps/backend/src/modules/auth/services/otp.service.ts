@@ -9,6 +9,7 @@ import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
 import { CacheService } from '../../../cache/cache.service';
 import { MailService } from '../../../mail/mail.service';
+import { SmsService } from '../../../sms/sms.service';
 import { AUTH_EVENTS, AUTH_ERRORS } from '../constants';
 import { OtpRepository } from '../repositories/otp.repository';
 import { UserRepository } from '../repositories/user.repository';
@@ -27,13 +28,25 @@ export class OtpService {
     private readonly userRepository: UserRepository,
     private readonly cacheService: CacheService,
     private readonly mailService: MailService,
+    private readonly smsService: SmsService,
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
   ) {
-    this.otpLength = this.configService.get<number>('OTP_LENGTH', 6);
-    this.otpExpiryMinutes = this.configService.get<number>('OTP_EXPIRY_MINUTES', 5);
-    this.maxAttempts = this.configService.get<number>('OTP_MAX_ATTEMPTS', 5);
-    this.resendCooldownSeconds = this.configService.get<number>('OTP_RESEND_COOLDOWN_SECONDS', 60);
+    // ConfigService.get<number>() does NOT coerce — process.env values are
+    // always strings, and the generic type param is a compile-time-only lie.
+    // That was invisible everywhere these get multiplied (JS coerces "3" * 60
+    // fine) but broke hard the moment maxAttempts hit Prisma's strict Int
+    // check, since Prisma doesn't coerce. Parse explicitly instead.
+    this.otpLength = this.parseNumberEnv('OTP_LENGTH', 6);
+    this.otpExpiryMinutes = this.parseNumberEnv('OTP_EXPIRY_MINUTES', 5);
+    this.maxAttempts = this.parseNumberEnv('OTP_MAX_ATTEMPTS', 5);
+    this.resendCooldownSeconds = this.parseNumberEnv('OTP_RESEND_COOLDOWN_SECONDS', 60);
+  }
+
+  private parseNumberEnv(key: string, defaultValue: number): number {
+    const raw = this.configService.get<string>(key);
+    const parsed = raw === undefined ? NaN : parseInt(raw, 10);
+    return Number.isNaN(parsed) ? defaultValue : parsed;
   }
 
   private generateCode(): string {
@@ -80,6 +93,14 @@ export class OtpService {
         subject: `Your OTP: ${plainCode}`,
         html: `<p>Your OTP is <strong>${plainCode}</strong>. It expires in ${this.otpExpiryMinutes} minutes.</p>`,
       }).catch((err: Error) => this.logger.error('Failed to send OTP email', err.message));
+    }
+    // Phone-only accounts (no email on file) would otherwise never receive an
+    // OTP at all — send by SMS too whenever there's a phone number, not only
+    // when there's no email.
+    if (user?.phone) {
+      this.smsService
+        .send(user.phone, `Your VIRAL KAR OTP is ${plainCode}. It expires in ${this.otpExpiryMinutes} minutes.`)
+        .catch((err: Error) => this.logger.error('Failed to send OTP SMS', err.message));
     }
 
     return { message: 'OTP sent successfully', expiresIn: this.otpExpiryMinutes * 60 };

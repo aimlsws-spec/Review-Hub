@@ -114,7 +114,11 @@ describe('NotificationService', () => {
       );
       expect(mockPushService.sendToTokens).toHaveBeenCalledWith(
         ['token-1'],
-        expect.objectContaining({ title: basePayload.title, body: basePayload.message }),
+        expect.objectContaining({
+          title: basePayload.title,
+          body: basePayload.message,
+          data: expect.objectContaining({ type: basePayload.type }),
+        }),
       );
     });
 
