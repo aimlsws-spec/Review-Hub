@@ -34,7 +34,7 @@ export class NotificationListener {
       type: 'REWARD',
       title: 'Reward credited',
       message: `₹${event.amount} has been credited to your wallet.`,
-      channels: ['IN_APP', 'EMAIL'],
+      channels: ['IN_APP', 'EMAIL', 'PUSH'],
       data: { rewardId: event.rewardId, amount: event.amount },
     });
   }
@@ -46,7 +46,7 @@ export class NotificationListener {
       type: 'WITHDRAWAL',
       title: 'Withdrawal approved',
       message: 'Your withdrawal request has been approved and processed.',
-      channels: ['IN_APP', 'EMAIL'],
+      channels: ['IN_APP', 'EMAIL', 'PUSH'],
       data: { withdrawalId: event.withdrawalId },
     });
   }
@@ -58,7 +58,7 @@ export class NotificationListener {
       type: 'WITHDRAWAL',
       title: 'Withdrawal rejected',
       message: 'Your withdrawal request could not be processed.',
-      channels: ['IN_APP', 'EMAIL'],
+      channels: ['IN_APP', 'EMAIL', 'PUSH'],
       data: { withdrawalId: event.withdrawalId },
     });
   }
@@ -82,7 +82,7 @@ export class NotificationListener {
       type: 'GAMIFICATION',
       title: 'Level up!',
       message: `You've reached level ${event.newLevel}.`,
-      channels: ['IN_APP'],
+      channels: ['IN_APP', 'PUSH'],
       data: { newLevel: event.newLevel },
     });
   }
@@ -94,7 +94,7 @@ export class NotificationListener {
       type: 'GAMIFICATION',
       title: 'Badge earned!',
       message: `You've earned the "${event.badgeName}" badge.`,
-      channels: ['IN_APP'],
+      channels: ['IN_APP', 'PUSH'],
       data: { badgeId: event.badgeId },
     });
   }

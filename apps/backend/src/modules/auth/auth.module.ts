@@ -72,6 +72,7 @@ import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy';
     RolesGuard,
     PermissionsGuard,
     UserRepository,
+    DeviceRepository,
   ],
 })
 export class AuthModule {}

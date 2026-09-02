@@ -132,14 +132,14 @@ export class AuthService {
     await this.userRepository.updateLastLogin(user.id, ipAddress ?? '');
     await this.loginHistoryRepository.create({ userId: user.id, ipAddress, userAgent, isSuccess: true });
 
-    const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, undefined, rememberMe);
-    // Register/update device and create session
+    // Register/update device before the session, so the session can link to it
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
-    await this.deviceService.registerDevice(user.id, {
+    const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
     } as DeviceMetadata);
+    const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId, rememberMe);
     const roles = await this.userRepository.getRoleNames(user.id);
     const tokens = this.sessionService.generateTokens(user.id, sessionId, roles);
 
@@ -210,13 +210,13 @@ export class AuthService {
     await this.userRepository.updateLastLogin(user.id, ipAddress ?? '');
     await this.loginHistoryRepository.create({ userId: user.id, ipAddress, userAgent, isSuccess: true });
 
-    const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent);
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
-    await this.deviceService.registerDevice(user.id, {
+    const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
     } as DeviceMetadata);
+    const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId);
     const roles = await this.userRepository.getRoleNames(user.id);
     const tokens = this.sessionService.generateTokens(user.id, sessionId, roles);
 
@@ -243,6 +243,14 @@ export class AuthService {
 
     await this.sessionService.revokeSession(validation.sessionId);
     this.eventEmitter.emit(AUTH_EVENTS.USER_LOGGED_OUT, { userId: validation.userId, sessionId: validation.sessionId });
+  }
+
+  /** Called by the mobile app once it has an FCM token — not always available at login time. */
+  async updatePushToken(sessionId: string | undefined, pushToken: string): Promise<void> {
+    if (!sessionId) return;
+    const session = await this.sessionService.getSessionById(sessionId);
+    if (!session?.deviceId) return;
+    await this.deviceService.updatePushToken(session.deviceId, pushToken);
   }
 
   async logout(userId: string, sessionId?: string): Promise<void> {

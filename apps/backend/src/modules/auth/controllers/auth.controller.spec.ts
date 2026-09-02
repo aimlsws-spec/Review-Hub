@@ -32,6 +32,7 @@ describe('AuthController', () => {
     getUserPermissions: jest.fn(),
     getUserRoles: jest.fn(),
     revokeRefreshToken: jest.fn(),
+    updatePushToken: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -120,6 +121,16 @@ describe('AuthController', () => {
         ipAddress: '127.0.0.1',
         userAgent: 'Mozilla/5.0',
       });
+    });
+  });
+
+  describe('updatePushToken', () => {
+    it('should call authService.updatePushToken with the session id and token', async () => {
+      const user = { id: 'user-1', sessionId: 'session-1' };
+
+      await controller.updatePushToken(user, { pushToken: 'fcm-token' });
+
+      expect(mockAuthService.updatePushToken).toHaveBeenCalledWith('session-1', 'fcm-token');
     });
   });
 

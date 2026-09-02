@@ -33,7 +33,7 @@ describe('NotificationListener', () => {
     await listener.handleRewardCredited(new RewardCreditedEvent('user-1', 'reward-1', 50));
 
     expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', type: 'REWARD', channels: ['IN_APP', 'EMAIL'] }),
+      expect.objectContaining({ userId: 'user-1', type: 'REWARD', channels: ['IN_APP', 'EMAIL', 'PUSH'] }),
     );
   });
 
@@ -41,7 +41,7 @@ describe('NotificationListener', () => {
     await listener.handleWithdrawalApproved(new WithdrawalReviewedEvent('wd-1', 'user-1', true));
 
     expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', type: 'WITHDRAWAL', title: 'Withdrawal approved' }),
+      expect.objectContaining({ userId: 'user-1', type: 'WITHDRAWAL', title: 'Withdrawal approved', channels: ['IN_APP', 'EMAIL', 'PUSH'] }),
     );
   });
 
@@ -49,7 +49,7 @@ describe('NotificationListener', () => {
     await listener.handleWithdrawalRejected(new WithdrawalReviewedEvent('wd-1', 'user-1', false));
 
     expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', type: 'WITHDRAWAL', title: 'Withdrawal rejected' }),
+      expect.objectContaining({ userId: 'user-1', type: 'WITHDRAWAL', title: 'Withdrawal rejected', channels: ['IN_APP', 'EMAIL', 'PUSH'] }),
     );
   });
 
@@ -65,7 +65,7 @@ describe('NotificationListener', () => {
     await listener.handleLevelUp(new LevelUpEvent('user-1', 5));
 
     expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', type: 'GAMIFICATION', message: expect.stringContaining('level 5') }),
+      expect.objectContaining({ userId: 'user-1', type: 'GAMIFICATION', message: expect.stringContaining('level 5'), channels: ['IN_APP', 'PUSH'] }),
     );
   });
 
@@ -73,7 +73,7 @@ describe('NotificationListener', () => {
     await listener.handleBadgeEarned(new BadgeEarnedEvent('user-1', 'badge-1', 'First Reward'));
 
     expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', type: 'GAMIFICATION', message: expect.stringContaining('First Reward') }),
+      expect.objectContaining({ userId: 'user-1', type: 'GAMIFICATION', message: expect.stringContaining('First Reward'), channels: ['IN_APP', 'PUSH'] }),
     );
   });
 

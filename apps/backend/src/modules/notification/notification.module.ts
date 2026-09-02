@@ -6,7 +6,7 @@ import { MerchantModule } from '../merchant/merchant.module';
 import { NotificationController } from './controllers';
 import { NotificationListener } from './listeners';
 import { NotificationPreferenceRepository, NotificationRepository } from './repositories';
-import { NotificationQueueService, NotificationService } from './services';
+import { NotificationQueueService, NotificationService, PushService } from './services';
 
 @Module({
   imports: [AuthModule, MerchantModule],
@@ -17,6 +17,7 @@ import { NotificationQueueService, NotificationService } from './services';
     NotificationRepository,
     NotificationPreferenceRepository,
     NotificationListener,
+    PushService,
   ],
   exports: [NotificationService, NotificationQueueService, NotificationRepository],
 })

@@ -3,10 +3,13 @@ import { Injectable } from '@nestjs/common';
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { EmailQueueService } from '../../../mail/email-queue.service';
+import { DeviceRepository } from '../../auth/repositories/device.repository';
 import { UserRepository } from '../../auth/repositories/user.repository';
 import { NotificationQueryDto, UpdatePreferencesDto } from '../dto';
 import { DispatchNotificationPayload } from '../interfaces';
 import { NotificationPreferenceRepository, NotificationRepository } from '../repositories';
+
+import { PushService } from './push.service';
 
 @Injectable()
 export class NotificationService {
@@ -15,6 +18,8 @@ export class NotificationService {
     private readonly preferenceRepository: NotificationPreferenceRepository,
     private readonly userRepository: UserRepository,
     private readonly emailQueueService: EmailQueueService,
+    private readonly deviceRepository: DeviceRepository,
+    private readonly pushService: PushService,
   ) {}
 
   /**
@@ -67,6 +72,32 @@ export class NotificationService {
       }
     }
 
+    if (channels.includes('PUSH') && preference.pushEnabled) {
+      const devices = await this.deviceRepository.findByUserId(payload.userId);
+      const tokens = devices.map((d) => d.pushToken).filter((t): t is string => !!t);
+
+      if (tokens.length > 0) {
+        const notification = await this.notificationRepository.create({
+          user: { connect: { id: payload.userId } },
+          title: payload.title,
+          message: payload.message,
+          type: payload.type,
+          channel: 'PUSH',
+          status: 'SENT',
+          sentAt: new Date(),
+          data: payload.data as never,
+        });
+
+        await this.pushService.sendToTokens(tokens, {
+          title: payload.title,
+          body: payload.message,
+          data: payload.data ? stringifyPushData(payload.data) : undefined,
+        });
+
+        created.push(notification);
+      }
+    }
+
     return created;
   }
 
@@ -105,4 +136,9 @@ export class NotificationService {
     await this.preferenceRepository.getOrCreate(userId);
     return this.preferenceRepository.update(userId, dto);
   }
+}
+
+/** FCM's data payload requires every value to be a string. */
+function stringifyPushData(data: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, String(value)]));
 }

@@ -29,6 +29,7 @@ import {
   ResendOtpDto,
   ChangePasswordDto,
   UpdateProfileDto,
+  UpdatePushTokenDto,
 } from '../dto';
 import { AuthService } from '../services/auth.service';
 import { AppleProfile } from '../strategies/apple.strategy';
@@ -110,6 +111,16 @@ export class AuthController {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     });
+  }
+
+  @Patch('devices/push-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Register or update the current device's push notification token" })
+  @ApiBody({ type: UpdatePushTokenDto })
+  async updatePushToken(@CurrentUser() user: { id: string; sessionId?: string }, @Body() dto: UpdatePushTokenDto) {
+    await this.authService.updatePushToken(user.sessionId, dto.pushToken);
+    return { message: 'Push token updated' };
   }
 
   @Post('logout')

@@ -3,10 +3,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { EmailQueueService } from '../../../mail/email-queue.service';
+import { DeviceRepository } from '../../auth/repositories/device.repository';
 import { UserRepository } from '../../auth/repositories/user.repository';
 import { NotificationPreferenceRepository, NotificationRepository } from '../repositories';
 
 import { NotificationService } from './notification.service';
+import { PushService } from './push.service';
 
 describe('NotificationService', () => {
   let service: NotificationService;
@@ -25,6 +27,8 @@ describe('NotificationService', () => {
   };
   const mockUserRepository = { findByIdSimple: jest.fn() };
   const mockEmailQueueService = { enqueue: jest.fn() };
+  const mockDeviceRepository = { findByUserId: jest.fn() };
+  const mockPushService = { sendToTokens: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -34,6 +38,8 @@ describe('NotificationService', () => {
         { provide: NotificationPreferenceRepository, useValue: mockPreferenceRepository },
         { provide: UserRepository, useValue: mockUserRepository },
         { provide: EmailQueueService, useValue: mockEmailQueueService },
+        { provide: DeviceRepository, useValue: mockDeviceRepository },
+        { provide: PushService, useValue: mockPushService },
       ],
     }).compile();
 
@@ -90,6 +96,36 @@ describe('NotificationService', () => {
 
       expect(result).toHaveLength(0);
       expect(mockEmailQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('should create a SENT PUSH notification and send it when the user has registered devices', async () => {
+      mockPreferenceRepository.getOrCreate.mockResolvedValue({ inAppEnabled: false, emailEnabled: false, pushEnabled: true });
+      mockDeviceRepository.findByUserId.mockResolvedValue([
+        { id: 'device-1', pushToken: 'token-1' },
+        { id: 'device-2', pushToken: null },
+      ]);
+      mockNotificationRepository.create.mockResolvedValue({ id: 'notif-3' });
+
+      const result = await service.dispatch({ ...basePayload, channels: ['PUSH'] });
+
+      expect(result).toHaveLength(1);
+      expect(mockNotificationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ channel: 'PUSH', status: 'SENT' }),
+      );
+      expect(mockPushService.sendToTokens).toHaveBeenCalledWith(
+        ['token-1'],
+        expect.objectContaining({ title: basePayload.title, body: basePayload.message }),
+      );
+    });
+
+    it('should skip PUSH silently when the user has no registered device tokens', async () => {
+      mockPreferenceRepository.getOrCreate.mockResolvedValue({ inAppEnabled: false, emailEnabled: false, pushEnabled: true });
+      mockDeviceRepository.findByUserId.mockResolvedValue([]);
+
+      const result = await service.dispatch({ ...basePayload, channels: ['PUSH'] });
+
+      expect(result).toHaveLength(0);
+      expect(mockPushService.sendToTokens).not.toHaveBeenCalled();
     });
   });
 

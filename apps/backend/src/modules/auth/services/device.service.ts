@@ -78,6 +78,15 @@ export class DeviceService {
   }
 
   /**
+   * Update a device's FCM push token — called by the mobile app once it obtains
+   * or refreshes its token, separately from login (the token isn't always ready
+   * at auth time).
+   */
+  async updatePushToken(deviceId: string, pushToken: string) {
+    return this.deviceRepository.update(deviceId, { pushToken });
+  }
+
+  /**
    * Deactivate a specific device
    */
   async deactivateDevice(deviceId: string) {

@@ -50,6 +50,7 @@ describe('AuthService', () => {
     deactivateDevice: jest.fn().mockResolvedValue(undefined),
     deactivateAllDevices: jest.fn().mockResolvedValue(undefined),
     getUserDevices: jest.fn().mockResolvedValue([]),
+    updatePushToken: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockPasswordService = {
@@ -161,6 +162,12 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('tokens');
       expect(mockUserRepository.resetFailedAttempts).toHaveBeenCalled();
       expect(mockUserRepository.updateLastLogin).toHaveBeenCalled();
+      // Regression: the session must link to the device registered for this login,
+      // otherwise nothing that targets "this session's device" (e.g. push tokens) works.
+      expect(mockDeviceService.registerDevice).toHaveBeenCalled();
+      expect(mockSessionService.createSession).toHaveBeenCalledWith(
+        user.id, '127.0.0.1', 'Mozilla/5.0', 'device-1', false,
+      );
     });
 
     it('should throw UnauthorizedException for invalid credentials', async () => {
@@ -193,6 +200,32 @@ describe('AuthService', () => {
       await service.logout('user-1');
 
       expect(mockSessionService.revokeAllUserSessions).toHaveBeenCalledWith('user-1');
+    });
+  });
+
+  describe('updatePushToken', () => {
+    it('should update the session device push token', async () => {
+      mockSessionService.getSessionById.mockResolvedValue({ id: 'session-1', deviceId: 'device-1' });
+
+      await service.updatePushToken('session-1', 'fcm-token');
+
+      expect(mockSessionService.getSessionById).toHaveBeenCalledWith('session-1');
+      expect(mockDeviceService.updatePushToken).toHaveBeenCalledWith('device-1', 'fcm-token');
+    });
+
+    it('should no-op when no sessionId is given', async () => {
+      await service.updatePushToken(undefined, 'fcm-token');
+
+      expect(mockSessionService.getSessionById).not.toHaveBeenCalled();
+      expect(mockDeviceService.updatePushToken).not.toHaveBeenCalled();
+    });
+
+    it('should no-op when the session has no linked device', async () => {
+      mockSessionService.getSessionById.mockResolvedValue({ id: 'session-1', deviceId: null });
+
+      await service.updatePushToken('session-1', 'fcm-token');
+
+      expect(mockDeviceService.updatePushToken).not.toHaveBeenCalled();
     });
   });
 
@@ -316,6 +349,10 @@ describe('AuthService', () => {
       expect(mockUserRepository.create).not.toHaveBeenCalled();
       expect(mockUserRepository.update).not.toHaveBeenCalled();
       expect(result.tokens.accessToken).toBe('access-token');
+      // Regression: same device-before-session ordering bug as login().
+      expect(mockSessionService.createSession).toHaveBeenCalledWith(
+        mockUser.id, undefined, undefined, 'device-1',
+      );
     });
 
     it('links a new Apple id to an existing account with a matching verified email', async () => {

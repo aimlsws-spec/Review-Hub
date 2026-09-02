@@ -5,6 +5,7 @@ import * as Joi from 'joi';
 import { aiConfig } from './envs/ai.config';
 import { appConfig } from './envs/app.config';
 import { databaseConfig } from './envs/database.config';
+import { firebaseConfig } from './envs/firebase.config';
 import { jwtConfig } from './envs/jwt.config';
 import { oauthConfig } from './envs/oauth.config';
 import { paymentConfig } from './envs/payment.config';
@@ -38,6 +39,7 @@ const validationSchema = Joi.object({
       load: [
         appConfig,
         databaseConfig,
+        firebaseConfig,
         jwtConfig,
         redisConfig,
         smtpConfig,
