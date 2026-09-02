@@ -6,6 +6,7 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 import { LocalStorageService } from '../../../storage/storage.service';
 import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { CampaignRepository } from '../../campaign/repositories';
+import { MerchantRepository } from '../../merchant/repositories';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
 import { TaskParticipationService } from './task-participation.service';
@@ -30,9 +31,16 @@ describe('TaskParticipationService', () => {
   };
   const mockStorageService = { saveFile: jest.fn() };
   const mockEventEmitter = { emit: jest.fn() };
-  const mockAiAssistService = { suggestText: jest.fn() };
+  const mockAiAssistService = { suggestText: jest.fn(), draftReviews: jest.fn(), generateCaptions: jest.fn() };
+  const mockMerchantRepository = { findById: jest.fn() };
 
-  const activeCampaign = { id: 'campaign-1', status: 'ACTIVE', title: 'Summer Launch', description: 'A great new product.' };
+  const activeCampaign = {
+    id: 'campaign-1',
+    status: 'ACTIVE',
+    title: 'Summer Launch',
+    description: 'A great new product.',
+    merchantId: 'merchant-1',
+  };
   const task = {
     id: 'task-1',
     campaignId: 'campaign-1',
@@ -54,6 +62,7 @@ describe('TaskParticipationService', () => {
         { provide: LocalStorageService, useValue: mockStorageService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AiAssistService, useValue: mockAiAssistService },
+        { provide: MerchantRepository, useValue: mockMerchantRepository },
       ],
     }).compile();
 
@@ -130,6 +139,67 @@ describe('TaskParticipationService', () => {
       mockCampaignTaskRepository.findById.mockResolvedValue(null);
 
       await expect(service.suggestText('unknown')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('draftReviews', () => {
+    const reviewTask = { ...task, taskType: 'GOOGLE_REVIEW' };
+    const merchant = { id: 'merchant-1', businessName: 'Cafe Aroma' };
+
+    beforeEach(() => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(reviewTask);
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+      mockMerchantRepository.findById.mockResolvedValue(merchant);
+    });
+
+    it('resolves the merchant business name (not the campaign title) and delegates to AiAssistService', async () => {
+      mockAiAssistService.draftReviews.mockResolvedValue({ drafts: ['Great food!'], source: 'llm' });
+
+      const result = await service.draftReviews('task-1', { likedAspects: ['FOOD'], notes: 'Loved it' });
+
+      expect(mockMerchantRepository.findById).toHaveBeenCalledWith('merchant-1');
+      expect(mockAiAssistService.draftReviews).toHaveBeenCalledWith({
+        businessName: 'Cafe Aroma',
+        likedAspects: ['FOOD'],
+        notes: 'Loved it',
+      });
+      expect(result).toEqual({ drafts: ['Great food!'], source: 'llm' });
+    });
+
+    it('rejects a task type review drafts make no sense for', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, taskType: 'INSTAGRAM_COMMENT' });
+
+      await expect(service.draftReviews('task-1', {})).rejects.toThrow(BadRequestException);
+      expect(mockAiAssistService.draftReviews).not.toHaveBeenCalled();
+    });
+
+    it('throws if the merchant cannot be resolved', async () => {
+      mockMerchantRepository.findById.mockResolvedValue(null);
+
+      await expect(service.draftReviews('task-1', {})).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('generateCaptions', () => {
+    beforeEach(() => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(task);
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+    });
+
+    it('delegates to AiAssistService with the campaign context, for any task type', async () => {
+      mockAiAssistService.generateCaptions.mockResolvedValue({
+        captions: [{ style: 'short', caption: 'Summer Launch!' }],
+        hashtags: ['#SummerLaunch'],
+        source: 'llm',
+      });
+
+      const result = await service.generateCaptions('task-1');
+
+      expect(mockAiAssistService.generateCaptions).toHaveBeenCalledWith({
+        campaignTitle: 'Summer Launch',
+        campaignDescription: 'A great new product.',
+      });
+      expect(result.source).toBe('llm');
     });
   });
 

@@ -58,6 +58,33 @@ class AssistResponse(BaseModel):
     source: str  # "llm" | "template"
 
 
+class ReviewDraftRequest(BaseModel):
+    businessName: str
+    likedAspects: list[str] = []
+    notes: Optional[str] = None
+
+
+class ReviewDraftResponse(BaseModel):
+    drafts: list[str]
+    source: str  # "llm" | "template"
+
+
+class CaptionRequest(BaseModel):
+    campaignTitle: str
+    campaignDescription: Optional[str] = None
+
+
+class CaptionStyle(BaseModel):
+    style: str
+    caption: str
+
+
+class CaptionResponse(BaseModel):
+    captions: list[CaptionStyle]
+    hashtags: list[str]
+    source: str  # "llm" | "template"
+
+
 class CompleteJobRequest(BaseModel):
     decision: VerificationDecision
     confidence: float

@@ -74,4 +74,79 @@ describe('AiAssistService', () => {
 
     expect(result.suggestion).toBe('Summer Launch — great quality and easy to use.');
   });
+
+  describe('draftReviews', () => {
+    const reviewContext = { businessName: 'Cafe Aroma', likedAspects: ['FOOD', 'SERVICE'], notes: 'Loved it' };
+
+    it('returns the AI service drafts when the call succeeds', async () => {
+      mockHttpService.post.mockReturnValue(of({ data: { drafts: ['Great food and service!'], source: 'llm' } }));
+
+      const result = await service.draftReviews(reviewContext);
+
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        'http://localhost:8000/v1/assist/review-drafts',
+        reviewContext,
+        expect.objectContaining({ headers: { 'X-Api-Key': 'ai-service-dev', 'X-Api-Secret': 'dev-only-secret-change-me' } }),
+      );
+      expect(result).toEqual({ drafts: ['Great food and service!'], source: 'llm' });
+    });
+
+    it('falls back to local templates grounded in the liked aspects when the AI service call fails', async () => {
+      mockHttpService.post.mockReturnValue(throwError(() => new Error('connect ECONNREFUSED')));
+
+      const result = await service.draftReviews(reviewContext);
+
+      expect(result.source).toBe('template');
+      expect(result.drafts.length).toBeGreaterThan(0);
+      expect(result.drafts.every((d) => d.includes('Cafe Aroma'))).toBe(true);
+      expect(result.drafts.every((d) => d.includes('the food') && d.includes('the service'))).toBe(true);
+      expect(result.drafts.every((d) => d.endsWith('Loved it'))).toBe(true);
+    });
+
+    it('falls back to a generic aspect phrase when no aspects were given', async () => {
+      mockHttpService.post.mockReturnValue(throwError(() => new Error('timeout')));
+
+      const result = await service.draftReviews({ businessName: 'Cafe Aroma' });
+
+      expect(result.drafts.every((d) => d.includes('the overall experience'))).toBe(true);
+    });
+  });
+
+  describe('generateCaptions', () => {
+    const captionContext = { campaignTitle: 'Summer Launch', campaignDescription: 'A great new product. It ships fast.' };
+
+    it('returns the AI service captions when the call succeeds', async () => {
+      mockHttpService.post.mockReturnValue(
+        of({ data: { captions: [{ style: 'short', caption: 'Summer Launch!' }], hashtags: ['#SummerLaunch'], source: 'llm' } }),
+      );
+
+      const result = await service.generateCaptions(captionContext);
+
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        'http://localhost:8000/v1/assist/captions',
+        captionContext,
+        expect.objectContaining({ headers: { 'X-Api-Key': 'ai-service-dev', 'X-Api-Secret': 'dev-only-secret-change-me' } }),
+      );
+      expect(result.source).toBe('llm');
+    });
+
+    it('falls back to local template captions covering every style when the AI service call fails', async () => {
+      mockHttpService.post.mockReturnValue(throwError(() => new Error('connect ECONNREFUSED')));
+
+      const result = await service.generateCaptions(captionContext);
+
+      expect(result.source).toBe('template');
+      expect(result.captions.map((c) => c.style)).toEqual(['short', 'long', 'professional', 'festival', 'emoji']);
+      expect(result.captions.every((c) => c.caption.includes('Summer Launch'))).toBe(true);
+      expect(result.hashtags).toEqual(['#SummerLaunch', '#ViralKar']);
+    });
+
+    it('falls back to a generic hashtag when the campaign title has no alphanumeric characters', async () => {
+      mockHttpService.post.mockReturnValue(throwError(() => new Error('timeout')));
+
+      const result = await service.generateCaptions({ ...captionContext, campaignTitle: '!!!' });
+
+      expect(result.hashtags).toEqual(['#ViralKar']);
+    });
+  });
 });

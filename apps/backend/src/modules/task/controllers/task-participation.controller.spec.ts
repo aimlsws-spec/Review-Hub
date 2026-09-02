@@ -10,6 +10,8 @@ describe('TaskParticipationController', () => {
   const mockParticipationService = {
     startTask: jest.fn(),
     submitTask: jest.fn(),
+    draftReviews: jest.fn(),
+    generateCaptions: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -30,6 +32,29 @@ describe('TaskParticipationController', () => {
     it('should call participationService.startTask', async () => {
       await controller.start('task-1', 'user-1');
       expect(mockParticipationService.startTask).toHaveBeenCalledWith('task-1', 'user-1');
+    });
+  });
+
+  describe('reviewDrafts', () => {
+    it('should call participationService.draftReviews with the taskId and dto', async () => {
+      const dto = { likedAspects: ['FOOD'] };
+      mockParticipationService.draftReviews.mockResolvedValue({ drafts: ['Great food!'], source: 'llm' });
+
+      const result = await controller.reviewDrafts('task-1', dto as never);
+
+      expect(mockParticipationService.draftReviews).toHaveBeenCalledWith('task-1', dto);
+      expect(result).toEqual({ drafts: ['Great food!'], source: 'llm' });
+    });
+  });
+
+  describe('captions', () => {
+    it('should call participationService.generateCaptions with the taskId', async () => {
+      mockParticipationService.generateCaptions.mockResolvedValue({ captions: [], hashtags: [], source: 'template' });
+
+      const result = await controller.captions('task-1');
+
+      expect(mockParticipationService.generateCaptions).toHaveBeenCalledWith('task-1');
+      expect(result.source).toBe('template');
     });
   });
 

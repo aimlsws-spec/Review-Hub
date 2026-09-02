@@ -9,9 +9,16 @@ from fastapi import Depends, FastAPI
 
 from .core.config import get_settings
 from .core.logging import configure_logging, get_logger
-from .core.models import AssistRequest, AssistResponse
+from .core.models import (
+    AssistRequest,
+    AssistResponse,
+    CaptionRequest,
+    CaptionResponse,
+    ReviewDraftRequest,
+    ReviewDraftResponse,
+)
 from .core.security import verify_backend_credentials
-from .engines import TextAssistEngine, VerificationEngine
+from .engines import CaptionEngine, ReviewAssistantEngine, TextAssistEngine, VerificationEngine
 from .services import BackendClient, OcrService, OllamaService
 from .workers import VerificationWorker
 
@@ -25,6 +32,8 @@ ollama_service = OllamaService(settings)
 engine = VerificationEngine(settings, ocr_service, ollama_service)
 worker = VerificationWorker(settings, backend_client, engine)
 text_assist_engine = TextAssistEngine(ollama_service)
+review_assistant_engine = ReviewAssistantEngine(ollama_service)
+caption_engine = CaptionEngine(ollama_service)
 
 
 @asynccontextmanager
@@ -60,3 +69,13 @@ async def health():
 @app.post("/v1/assist/suggest-text", response_model=AssistResponse, dependencies=[Depends(verify_backend_credentials)])
 async def suggest_text(request: AssistRequest) -> AssistResponse:
     return await text_assist_engine.suggest(request)
+
+
+@app.post("/v1/assist/review-drafts", response_model=ReviewDraftResponse, dependencies=[Depends(verify_backend_credentials)])
+async def review_drafts(request: ReviewDraftRequest) -> ReviewDraftResponse:
+    return await review_assistant_engine.draft(request)
+
+
+@app.post("/v1/assist/captions", response_model=CaptionResponse, dependencies=[Depends(verify_backend_credentials)])
+async def captions(request: CaptionRequest) -> CaptionResponse:
+    return await caption_engine.generate(request)

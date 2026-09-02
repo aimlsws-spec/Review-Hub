@@ -6,9 +6,11 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
-import { TEXT_ASSIST_SUPPORTED_TASK_TYPES } from '../../ai/constants';
+import { REVIEW_DRAFT_SUPPORTED_TASK_TYPES, TEXT_ASSIST_SUPPORTED_TASK_TYPES } from '../../ai/constants';
+import { DraftReviewDto } from '../../ai/dto';
 import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { CampaignRepository } from '../../campaign/repositories';
+import { MerchantRepository } from '../../merchant/repositories';
 import { BLOCKING_SUBMISSION_STATUSES, SUBMISSION_STORAGE } from '../constants';
 import { SubmitTaskDto } from '../dto';
 import { TaskStartedEvent, TaskSubmittedEvent } from '../events';
@@ -31,6 +33,7 @@ export class TaskParticipationService {
     private readonly storageService: LocalStorageService,
     private readonly eventEmitter: EventEmitter2,
     private readonly aiAssistService: AiAssistService,
+    private readonly merchantRepository: MerchantRepository,
   ) {}
 
   async startTask(taskId: string, userId: string) {
@@ -68,6 +71,39 @@ export class TaskParticipationService {
       campaignDescription: campaign.description,
       taskTitle: task.title,
       taskInstructions: task.instructions ?? undefined,
+    });
+  }
+
+  /**
+   * The guided review assistant — drafts several editable review options
+   * from what the user says they liked. Reviews are about the *business*,
+   * not the campaign's promotional name, so this resolves the merchant
+   * separately rather than reusing campaign.title.
+   */
+  async draftReviews(taskId: string, dto: DraftReviewDto) {
+    const { task, campaign } = await this.getActiveTask(taskId);
+
+    if (!REVIEW_DRAFT_SUPPORTED_TASK_TYPES.includes(task.taskType as (typeof REVIEW_DRAFT_SUPPORTED_TASK_TYPES)[number])) {
+      throw new BadRequestException(`Review drafts aren't available for ${task.taskType} tasks`);
+    }
+
+    const merchant = await this.merchantRepository.findById(campaign.merchantId);
+    if (!merchant) throw new NotFoundException('Merchant');
+
+    return this.aiAssistService.draftReviews({
+      businessName: merchant.businessName,
+      likedAspects: dto.likedAspects,
+      notes: dto.notes,
+    });
+  }
+
+  /** Captions have no compliance restriction to a task type — any active task's campaign can generate one. */
+  async generateCaptions(taskId: string) {
+    const { campaign } = await this.getActiveTask(taskId);
+
+    return this.aiAssistService.generateCaptions({
+      campaignTitle: campaign.title,
+      campaignDescription: campaign.description,
     });
   }
 
