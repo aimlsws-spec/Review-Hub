@@ -1,8 +1,9 @@
 import { StatusBadge, EmptyState, ErrorState, CardSkeleton, TableSkeleton, Pagination, Modal, Input, Spinner } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 
-import { TRANSACTION_TYPE_LABELS, ITEMS_PER_PAGE } from '@/constants'
+import { TRANSACTION_TYPE_LABELS, ITEMS_PER_PAGE, ROUTES } from '@/constants'
 import { useWalletQuery, useTransactionsQuery, useWalletMutations } from '@/hooks/useWallet'
 import { useAuthStore } from '@/stores/auth.store'
 import { formatCurrency, formatDateTime , cn } from '@/utils'
@@ -38,6 +39,24 @@ export default function WalletPage() {
 
   const onSubmitRecharge = (values: RechargeFormValues) => {
     rechargeMutation.mutate(Number(values.amount))
+  }
+
+  if (!merchantId) {
+    return (
+      <div>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Wallet</h1>
+            <p className="page-subtitle">Manage your campaign budget and transaction history.</p>
+          </div>
+        </div>
+        <EmptyState
+          title="Set up your business profile first"
+          description="The wallet is tied to your merchant profile — create one to add funds and start campaigns."
+          action={<Link to={ROUTES.PROFILE} className="btn-primary btn-sm">Set up profile</Link>}
+        />
+      </div>
+    )
   }
 
   return (

@@ -1,7 +1,8 @@
 import { PageHeader, Badge, StatusBadge, Skeleton } from '@reviewhub/shared-ui'
 import { useEffect, useState } from 'react'
 
-import { useMerchantProfileQuery, useUpdateMerchantProfileMutation } from '@/hooks/useMerchantProfile'
+import { useMerchantProfileQuery, useUpdateMerchantProfileMutation, useRegisterMerchantMutation } from '@/hooks/useMerchantProfile'
+import { useAuthStore } from '@/stores/auth.store'
 import type { Merchant } from '@/types'
 import { cn } from '@/utils'
 
@@ -111,6 +112,99 @@ function ProfileCompletionCard({ merchant }: { merchant: Merchant }) {
   )
 }
 
+// ─── Onboarding (no merchant profile yet) ──────────────────────────────────────
+
+interface RegisterFormState {
+  businessName: string
+  email: string
+  phone: string
+  website: string
+  description: string
+}
+
+function RegisterMerchantForm() {
+  const user = useAuthStore((s) => s.user)
+  const [form, setForm] = useState<RegisterFormState>({
+    businessName: '',
+    email: user?.email ?? '',
+    phone: user?.phone ?? '',
+    website: '',
+    description: '',
+  })
+
+  const registerMutation = useRegisterMerchantMutation()
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.businessName.trim() || !form.email.trim() || !form.phone.trim()) return
+    registerMutation.mutate({
+      businessName: form.businessName.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      website: form.website.trim() || undefined,
+      description: form.description.trim() || undefined,
+    })
+  }
+
+  const inputCls = 'input mt-1 w-full'
+
+  return (
+    <div>
+      <PageHeader title="Set up your business profile" subtitle="Tell us about your business to start creating campaigns." />
+      <form onSubmit={handleSubmit} className="card max-w-xl space-y-4 p-6">
+        <FormField label="Business Name *">
+          <input
+            className={inputCls}
+            required
+            value={form.businessName}
+            onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+            placeholder="Acme Corp Pvt Ltd"
+          />
+        </FormField>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Contact Email *">
+            <input
+              type="email"
+              className={inputCls}
+              required
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </FormField>
+          <FormField label="Contact Phone *">
+            <input
+              className={inputCls}
+              required
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="+919876543210"
+            />
+          </FormField>
+        </div>
+        <FormField label="Website">
+          <input
+            className={inputCls}
+            value={form.website}
+            onChange={(e) => setForm({ ...form, website: e.target.value })}
+            placeholder="https://…"
+          />
+        </FormField>
+        <FormField label="Description">
+          <textarea
+            className={inputCls}
+            rows={3}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+        </FormField>
+        <button type="submit" className="btn-primary w-full" disabled={registerMutation.isPending}>
+          {registerMutation.isPending ? 'Creating…' : 'Create business profile'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface FormState {
@@ -158,6 +252,12 @@ export default function ProfilePage() {
   function handleCancel() {
     if (merchant) setForm(toFormState(merchant))
     setEditing(false)
+  }
+
+  const merchantId = useAuthStore((s) => s.merchant?.id)
+
+  if (!merchantId) {
+    return <RegisterMerchantForm />
   }
 
   if (isLoading || !merchant || !form) {

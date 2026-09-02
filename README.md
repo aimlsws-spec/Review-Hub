@@ -90,10 +90,10 @@ Each in its own terminal:
 # Backend API — http://localhost:3000, Swagger at /api/docs
 npm run backend
 
-# Admin Portal — http://localhost:5173
+# Admin Portal — http://localhost:3002
 npm run admin
 
-# Merchant Portal — http://localhost:5174
+# Merchant Portal — http://localhost:3001
 npm run merchant
 ```
 

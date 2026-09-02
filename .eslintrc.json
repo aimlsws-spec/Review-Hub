@@ -37,6 +37,7 @@
     ],
     "import/no-cycle": "error",
     "import/default": "off",
+    "import/namespace": "off",
     "no-console": "warn",
     "no-debugger": "error",
     "prefer-const": "error",

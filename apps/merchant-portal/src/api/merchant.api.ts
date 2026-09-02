@@ -64,9 +64,20 @@ export interface CampaignFormInput {
  * (the backend guards ownership per-merchant via MerchantOwnershipGuard) —
  * getProfile() is the one bootstrap call that resolves it from the JWT instead.
  */
+export interface RegisterMerchantInput {
+  businessName: string
+  email: string
+  phone: string
+  website?: string
+  description?: string
+}
+
 export const merchantApi = {
   // Profile
   getProfile: () => apiClient.get<ApiResponse<Merchant>>('/merchants/me'),
+
+  register: (data: RegisterMerchantInput) =>
+    apiClient.post<ApiResponse<Merchant>>('/merchants/register', data),
 
   updateProfile: (merchantId: string, data: Partial<Merchant>) =>
     apiClient.patch<ApiResponse<Merchant>>(`/merchants/${merchantId}`, data),
