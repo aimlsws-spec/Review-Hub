@@ -34,10 +34,16 @@ describe('WithdrawalController', () => {
   });
 
   describe('request', () => {
-    it('should call withdrawalService.request', async () => {
+    it('should call withdrawalService.request with the requesting device id', async () => {
+      const dto = { amount: 1500, bankAccountId: 'bank-1' };
+      await controller.request('user-1', dto as never, 'device-1');
+      expect(mockWithdrawalService.request).toHaveBeenCalledWith('user-1', dto, 'device-1');
+    });
+
+    it('should pass an undefined deviceId through when the token carries none', async () => {
       const dto = { amount: 1500, bankAccountId: 'bank-1' };
       await controller.request('user-1', dto as never);
-      expect(mockWithdrawalService.request).toHaveBeenCalledWith('user-1', dto);
+      expect(mockWithdrawalService.request).toHaveBeenCalledWith('user-1', dto, undefined);
     });
   });
 

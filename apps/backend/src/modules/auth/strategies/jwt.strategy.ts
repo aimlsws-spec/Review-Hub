@@ -46,6 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       status: user.status,
       roles: payload.role ?? [],   // payload.role is string[] — map to roles array
       sessionId: payload.sessionId,
+      deviceId: payload.deviceId,
     };
   }
 }

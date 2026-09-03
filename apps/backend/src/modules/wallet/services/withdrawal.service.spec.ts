@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
+import { DeviceRepository } from '../../auth/repositories/device.repository';
 import { RazorpayService } from '../../payment/services';
 import { UserKycService } from '../../user-kyc/services';
 import { UserBankAccountRepository, UserWalletRepository, WithdrawalRepository } from '../repositories';
@@ -36,6 +37,7 @@ describe('WithdrawalService', () => {
     createPayout: jest.fn(),
   };
   const mockUserKycService = { isPanVerified: jest.fn() };
+  const mockDeviceRepository = { findById: jest.fn() };
 
   const wallet = { id: 'wallet-1', availableBalance: 5000 };
   const bankAccount = { id: 'bank-1', userId: 'user-1', verificationStatus: 'PENDING' };
@@ -51,6 +53,7 @@ describe('WithdrawalService', () => {
         { provide: AuditLogService, useValue: mockAuditLogService },
         { provide: RazorpayService, useValue: mockRazorpayService },
         { provide: UserKycService, useValue: mockUserKycService },
+        { provide: DeviceRepository, useValue: mockDeviceRepository },
       ],
     }).compile();
 
@@ -108,6 +111,58 @@ describe('WithdrawalService', () => {
         withdrawalId: 'withdrawal-1',
       });
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('wallet.withdrawal.requested', expect.any(Object));
+    });
+
+    it('should create the request as PENDING when no deviceId is provided', async () => {
+      mockBankRepository.findById.mockResolvedValue(bankAccount);
+      mockWalletRepository.getOrCreate.mockResolvedValue(wallet);
+      mockWithdrawalRepository.create.mockResolvedValue({ id: 'withdrawal-1' });
+      mockWithdrawalRepository.findById.mockResolvedValue({ id: 'withdrawal-1', status: 'PENDING' });
+
+      await service.request('user-1', { amount: 1500, bankAccountId: 'bank-1' });
+
+      expect(mockDeviceRepository.findById).not.toHaveBeenCalled();
+      expect(mockWithdrawalRepository.create).toHaveBeenCalledWith(expect.objectContaining({ status: 'PENDING' }));
+    });
+
+    it('should hold the request for review when the device risk score is at or above the threshold', async () => {
+      mockBankRepository.findById.mockResolvedValue(bankAccount);
+      mockWalletRepository.getOrCreate.mockResolvedValue(wallet);
+      mockDeviceRepository.findById.mockResolvedValue({ id: 'device-1', userId: 'user-1', riskScore: 80 });
+      mockWithdrawalRepository.create.mockResolvedValue({ id: 'withdrawal-1' });
+      mockWithdrawalRepository.findById.mockResolvedValue({ id: 'withdrawal-1', status: 'UNDER_REVIEW' });
+
+      await service.request('user-1', { amount: 1500, bankAccountId: 'bank-1' }, 'device-1');
+
+      expect(mockWithdrawalRepository.create).toHaveBeenCalledWith(expect.objectContaining({ status: 'UNDER_REVIEW' }));
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ actorType: 'SYSTEM', action: 'STATUS_CHANGE', entityId: 'withdrawal-1' }),
+      );
+    });
+
+    it('should create the request as PENDING when the device risk score is below the threshold', async () => {
+      mockBankRepository.findById.mockResolvedValue(bankAccount);
+      mockWalletRepository.getOrCreate.mockResolvedValue(wallet);
+      mockDeviceRepository.findById.mockResolvedValue({ id: 'device-1', userId: 'user-1', riskScore: 60 });
+      mockWithdrawalRepository.create.mockResolvedValue({ id: 'withdrawal-1' });
+      mockWithdrawalRepository.findById.mockResolvedValue({ id: 'withdrawal-1', status: 'PENDING' });
+
+      await service.request('user-1', { amount: 1500, bankAccountId: 'bank-1' }, 'device-1');
+
+      expect(mockWithdrawalRepository.create).toHaveBeenCalledWith(expect.objectContaining({ status: 'PENDING' }));
+      expect(mockAuditLogService.record).not.toHaveBeenCalled();
+    });
+
+    it('should fail open to PENDING when the device belongs to someone else', async () => {
+      mockBankRepository.findById.mockResolvedValue(bankAccount);
+      mockWalletRepository.getOrCreate.mockResolvedValue(wallet);
+      mockDeviceRepository.findById.mockResolvedValue({ id: 'device-1', userId: 'someone-else', riskScore: 100 });
+      mockWithdrawalRepository.create.mockResolvedValue({ id: 'withdrawal-1' });
+      mockWithdrawalRepository.findById.mockResolvedValue({ id: 'withdrawal-1', status: 'PENDING' });
+
+      await service.request('user-1', { amount: 1500, bankAccountId: 'bank-1' }, 'device-1');
+
+      expect(mockWithdrawalRepository.create).toHaveBeenCalledWith(expect.objectContaining({ status: 'PENDING' }));
     });
 
     it('should cancel the orphaned request if the hold fails on a race', async () => {

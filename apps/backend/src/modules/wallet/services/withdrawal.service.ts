@@ -5,9 +5,10 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 import { describeError } from '@common/utils';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
+import { DeviceRepository } from '../../auth/repositories/device.repository';
 import { RazorpayService } from '../../payment/services';
 import { UserKycService } from '../../user-kyc/services';
-import { REVIEWABLE_WITHDRAWAL_STATUSES, WALLET_CONSTANTS } from '../constants';
+import { DEVICE_RISK_HOLD_THRESHOLD, REVIEWABLE_WITHDRAWAL_STATUSES, WALLET_CONSTANTS } from '../constants';
 import { CreateWithdrawalDto, RejectWithdrawalDto } from '../dto';
 import { WithdrawalRequestedEvent, WithdrawalReviewedEvent } from '../events';
 import { UserBankAccountRepository, UserWalletRepository, WithdrawalRepository } from '../repositories';
@@ -24,9 +25,10 @@ export class WithdrawalService {
     private readonly auditLogService: AuditLogService,
     private readonly razorpayService: RazorpayService,
     private readonly userKycService: UserKycService,
+    private readonly deviceRepository: DeviceRepository,
   ) {}
 
-  async request(userId: string, dto: CreateWithdrawalDto) {
+  async request(userId: string, dto: CreateWithdrawalDto, deviceId?: string) {
     if (dto.amount < WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT) {
       throw new BadRequestException(`Minimum withdrawal amount is ₹${WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT}`);
     }
@@ -56,13 +58,27 @@ export class WithdrawalService {
       throw new BadRequestException('Insufficient wallet balance');
     }
 
+    const initialStatus = await this.resolveInitialStatus(userId, deviceId);
+
     const withdrawal = await this.withdrawalRepository.create({
       wallet: { connect: { id: wallet.id } },
       bankAccount: { connect: { id: bankAccount.id } },
       amount: dto.amount,
       finalAmount: dto.amount,
-      status: 'PENDING',
+      status: initialStatus,
     });
+
+    if (initialStatus === 'UNDER_REVIEW') {
+      await this.auditLogService.record({
+        actorId: 'device-risk-check',
+        actorType: 'SYSTEM',
+        entity: 'WithdrawalRequest',
+        entityId: withdrawal.id,
+        action: 'STATUS_CHANGE',
+        before: { status: 'PENDING' },
+        after: { status: 'UNDER_REVIEW', reason: 'high_device_risk_score' },
+      });
+    }
 
     try {
       await this.walletRepository.holdForWithdrawal({
@@ -196,6 +212,29 @@ export class WithdrawalService {
     });
 
     return updated;
+  }
+
+  /**
+   * Holds a new withdrawal for manual review instead of PENDING when the
+   * requesting device's risk score is at or above DEVICE_RISK_HOLD_THRESHOLD.
+   * Fails open to PENDING (never blocks a legitimate withdrawal) whenever
+   * device context is missing or inconsistent — this is a fraud signal, not
+   * a security gate.
+   */
+  private async resolveInitialStatus(userId: string, deviceId?: string): Promise<'PENDING' | 'UNDER_REVIEW'> {
+    if (!deviceId) return 'PENDING';
+
+    const device = await this.deviceRepository.findById(deviceId);
+    if (!device || device.userId !== userId) return 'PENDING';
+
+    if (device.riskScore >= DEVICE_RISK_HOLD_THRESHOLD) {
+      this.logger.warn(
+        `Withdrawal from user ${userId} held for review — device ${deviceId} risk score ${device.riskScore}`,
+      );
+      return 'UNDER_REVIEW';
+    }
+
+    return 'PENDING';
   }
 
   private async getReviewable(withdrawalId: string) {

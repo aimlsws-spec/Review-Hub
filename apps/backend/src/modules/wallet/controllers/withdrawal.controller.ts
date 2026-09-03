@@ -19,8 +19,12 @@ export class WithdrawalController {
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Request a withdrawal' })
-  async request(@CurrentUser('id') userId: string, @Body() dto: CreateWithdrawalDto) {
-    return this.withdrawalService.request(userId, dto);
+  async request(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateWithdrawalDto,
+    @CurrentUser('deviceId') deviceId?: string,
+  ) {
+    return this.withdrawalService.request(userId, dto, deviceId);
   }
 
   @Get()
