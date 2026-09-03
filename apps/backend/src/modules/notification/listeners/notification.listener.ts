@@ -7,7 +7,7 @@ import { BadgeEarnedEvent, LevelUpEvent } from '../../gamification/events';
 import { MarketplaceRedeemedEvent } from '../../marketplace/events';
 import { MerchantRepository } from '../../merchant/repositories';
 import { SubmissionRejectedEvent } from '../../task/events';
-import { RewardCreditedEvent, WithdrawalReviewedEvent } from '../../wallet/events';
+import { RewardCreditedEvent, RewardReversedEvent, WithdrawalReviewedEvent } from '../../wallet/events';
 import { NotificationQueueService } from '../services';
 
 const MERCHANT_NOTIFIABLE_STATUSES: CampaignStatus[] = ['APPROVED', 'ACTIVE', 'REJECTED', 'CHANGES_REQUESTED'];
@@ -36,6 +36,18 @@ export class NotificationListener {
       message: `₹${event.amount} has been credited to your wallet.`,
       channels: ['IN_APP', 'EMAIL', 'PUSH'],
       data: { rewardId: event.rewardId, amount: event.amount },
+    });
+  }
+
+  @OnEvent('wallet.reward.reversed')
+  async handleRewardReversed(event: RewardReversedEvent) {
+    await this.notificationQueue.enqueue({
+      userId: event.userId,
+      type: 'REWARD',
+      title: 'Reward reversed',
+      message: `₹${event.reversedAmount} was reversed from your wallet following a review of your task submission.`,
+      channels: ['IN_APP', 'EMAIL', 'PUSH'],
+      data: { rewardId: event.rewardId, reversedAmount: event.reversedAmount, shortfallAmount: event.shortfallAmount },
     });
   }
 

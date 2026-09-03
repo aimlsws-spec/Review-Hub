@@ -5,7 +5,7 @@ import { BadgeEarnedEvent, LevelUpEvent } from '../../gamification/events';
 import { MarketplaceRedeemedEvent } from '../../marketplace/events';
 import { MerchantRepository } from '../../merchant/repositories';
 import { SubmissionRejectedEvent } from '../../task/events';
-import { RewardCreditedEvent, WithdrawalReviewedEvent } from '../../wallet/events';
+import { RewardCreditedEvent, RewardReversedEvent, WithdrawalReviewedEvent } from '../../wallet/events';
 import { NotificationQueueService } from '../services';
 
 import { NotificationListener } from './notification.listener';
@@ -34,6 +34,21 @@ describe('NotificationListener', () => {
 
     expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'user-1', type: 'REWARD', channels: ['IN_APP', 'EMAIL', 'PUSH'] }),
+    );
+  });
+
+  it('should queue a REWARD notification on wallet.reward.reversed', async () => {
+    await listener.handleRewardReversed(new RewardReversedEvent('user-1', 'reward-1', 60, 40));
+
+    expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'REWARD',
+        title: 'Reward reversed',
+        message: expect.stringContaining('₹60'),
+        channels: ['IN_APP', 'EMAIL', 'PUSH'],
+        data: { rewardId: 'reward-1', reversedAmount: 60, shortfallAmount: 40 },
+      }),
     );
   });
 
