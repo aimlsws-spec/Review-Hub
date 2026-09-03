@@ -52,6 +52,31 @@ describe('RewardRepository', () => {
     });
   });
 
+  describe('markReversed', () => {
+    it('should set status to REVERSED with the reversal details and a timestamp', async () => {
+      mockPrisma.reward.update.mockResolvedValue({ id: 'reward-1', status: 'REVERSED' });
+
+      await repository.markReversed('reward-1', {
+        reversedAmount: 60,
+        shortfallAmount: 40,
+        reversalReason: 'Confirmed fraud',
+        reversedBy: 'admin-1',
+      });
+
+      expect(mockPrisma.reward.update).toHaveBeenCalledWith({
+        where: { id: 'reward-1' },
+        data: {
+          status: 'REVERSED',
+          reversedAmount: 60,
+          shortfallAmount: 40,
+          reversalReason: 'Confirmed fraud',
+          reversedBy: 'admin-1',
+          reversedAt: expect.any(Date),
+        },
+      });
+    });
+  });
+
   describe('countCreditedByUser', () => {
     it('should count only CREDITED rewards for a user', async () => {
       mockPrisma.reward.count.mockResolvedValue(3);

@@ -34,6 +34,10 @@ export class FraudFlagRepository {
     });
   }
 
+  async create(data: Prisma.SubmissionFraudFlagCreateInput) {
+    return this.prisma.submissionFraudFlag.create({ data });
+  }
+
   async resolve(id: string, resolvedBy: string) {
     return this.prisma.submissionFraudFlag.update({
       where: { id },

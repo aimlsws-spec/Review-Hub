@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { FraudRiskLevel, Prisma } from '@prisma/client';
 
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
+import { FraudFlagRepository } from '../../admin/repositories';
 import { SubmissionService } from '../../task/services';
 import { AI_VERIFICATION_THRESHOLDS } from '../constants';
 import { AiVerificationDecision, CompleteVerificationJobDto } from '../dto';
@@ -17,6 +18,7 @@ export class AiVerificationService {
     private readonly jobRepository: AiVerificationJobRepository,
     private readonly submissionService: SubmissionService,
     private readonly storageService: LocalStorageService,
+    private readonly fraudFlagRepository: FraudFlagRepository,
   ) {}
 
   /** Claims the oldest queued job, if any, for the calling worker to process. */
@@ -49,7 +51,7 @@ export class AiVerificationService {
    * unilaterally approve or reject a real reward payout.
    */
   async completeJob(jobId: string, dto: CompleteVerificationJobDto) {
-    const job = await this.jobRepository.findById(jobId);
+    const job = await this.jobRepository.findByIdWithSubmission(jobId);
     if (!job) throw new NotFoundException('AI verification job');
 
     const fraudScore = dto.fraudScore ?? 0;
@@ -67,6 +69,10 @@ export class AiVerificationService {
       rawResponse: dto.rawResponse as Prisma.InputJsonValue | undefined,
       processingTimeMs: dto.processingTimeMs ?? 0,
     });
+
+    if (fraudScore > AI_VERIFICATION_THRESHOLDS.MAX_FRAUD_SCORE) {
+      await this.flagFraudRisk(job.submissionId, job.submission.userId, fraudScore, dto.explanation);
+    }
 
     const clearsThreshold =
       dto.confidence >= AI_VERIFICATION_THRESHOLDS.MIN_CONFIDENCE &&
@@ -97,5 +103,27 @@ export class AiVerificationService {
     await this.jobRepository.markFailed(jobId, errorMessage);
     await this.submissionService.deferToManualReview(job.submissionId);
     return { submissionId: job.submissionId, outcome: 'PENDING_MANUAL' as const };
+  }
+
+  /**
+   * Raises an admin-visible fraud flag whenever the AI's fraud score crosses
+   * the same threshold that already blocks auto-approval — this is what
+   * finally gives the admin fraud queue real data to review instead of
+   * always being empty, and gives admins something to act
+   * `FraudReviewService.reverseReward` on if the submission later turns out
+   * to have been approved and rewarded despite the risk.
+   */
+  private async flagFraudRisk(submissionId: string, userId: string, fraudScore: number, explanation?: string) {
+    const riskLevel: FraudRiskLevel = fraudScore >= 0.8 ? 'CRITICAL' : fraudScore >= 0.6 ? 'HIGH' : 'MEDIUM';
+
+    await this.fraudFlagRepository.create({
+      submission: { connect: { id: submissionId } },
+      user: { connect: { id: userId } },
+      riskLevel,
+      reason: explanation ?? `AI verification computed a fraud score of ${fraudScore.toFixed(2)}, above the ${AI_VERIFICATION_THRESHOLDS.MAX_FRAUD_SCORE} threshold.`,
+      metadata: { fraudScore },
+    });
+
+    this.logger.warn(`Fraud flag raised for submission ${submissionId} (fraudScore=${fraudScore})`);
   }
 }

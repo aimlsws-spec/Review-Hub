@@ -2,6 +2,7 @@ import { Logger, Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
+import { MerchantModule } from '../merchant/merchant.module';
 import { SupportModule } from '../support/support.module';
 import { WalletModule } from '../wallet/wallet.module';
 
@@ -37,7 +38,7 @@ import {
 } from './services';
 
 @Module({
-  imports: [AuthModule, CampaignModule, WalletModule, SupportModule],
+  imports: [AuthModule, CampaignModule, MerchantModule, WalletModule, SupportModule],
   controllers: [
     UserManagementController,
     AdminCampaignQueueController,
@@ -66,6 +67,7 @@ import {
     FeatureFlagRepository,
     AuditLogRepository,
   ],
+  exports: [FraudFlagRepository],
 })
 export class AdminModule {
   private readonly logger = new Logger(AdminModule.name);

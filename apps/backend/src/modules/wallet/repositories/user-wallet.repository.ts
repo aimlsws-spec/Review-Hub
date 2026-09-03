@@ -85,6 +85,46 @@ export class UserWalletRepository {
    * two concurrent redemptions can't both pass a balance check against the
    * same stale read.
    */
+  /**
+   * Claws back a fraudulently-credited reward. Unlike debitForRedemption,
+   * this never throws on insufficient balance — it recovers whatever is
+   * currently available (down to 0, never negative) and reports the
+   * uncollected remainder as a shortfall for the caller to record, rather
+   * than blocking the reversal on the user having spent/withdrawn the money.
+   */
+  async clawbackReward(params: { walletId: string; amount: number; referenceId: string; remarks?: string }) {
+    const { walletId, amount, referenceId, remarks } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
+      const balanceBefore = wallet.availableBalance;
+      const recoverable = Math.min(amount, Number(balanceBefore));
+      const shortfall = amount - recoverable;
+      const balanceAfter = Number(balanceBefore) - recoverable;
+
+      await tx.userWallet.update({
+        where: { id: walletId },
+        data: { availableBalance: balanceAfter },
+      });
+
+      const transaction = await tx.walletTransaction.create({
+        data: {
+          wallet: { connect: { id: walletId } },
+          type: 'CLAWBACK',
+          status: 'SUCCESS',
+          amount: recoverable,
+          balanceBefore,
+          balanceAfter,
+          referenceType: 'Reward',
+          referenceId,
+          remarks,
+        },
+      });
+
+      return { transaction, recoverable, shortfall };
+    });
+  }
+
   async debitForRedemption(params: { walletId: string; amount: number; referenceType: string; referenceId: string; remarks?: string }) {
     const { walletId, amount, referenceType, referenceId, remarks } = params;
 

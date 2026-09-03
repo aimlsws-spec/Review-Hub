@@ -13,6 +13,7 @@ describe('FraudFlagRepository', () => {
       count: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      create: jest.fn(),
     },
   };
 
@@ -39,6 +40,23 @@ describe('FraudFlagRepository', () => {
       expect(mockPrisma.submissionFraudFlag.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { resolved: false, riskLevel: 'HIGH' } }),
       );
+    });
+  });
+
+  describe('create', () => {
+    it('should create a flag with the given data', async () => {
+      mockPrisma.submissionFraudFlag.create.mockResolvedValue({ id: 'flag-1' });
+
+      const data = {
+        submission: { connect: { id: 'submission-1' } },
+        user: { connect: { id: 'user-1' } },
+        riskLevel: 'HIGH',
+        reason: 'AI fraud score 0.65',
+      };
+      const result = await repository.create(data as never);
+
+      expect(result).toHaveProperty('id', 'flag-1');
+      expect(mockPrisma.submissionFraudFlag.create).toHaveBeenCalledWith({ data });
     });
   });
 

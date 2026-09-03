@@ -1,5 +1,6 @@
 import { Logger, Module } from '@nestjs/common';
 
+import { AdminModule } from '../admin/admin.module';
 import { TaskModule } from '../task/task.module';
 
 import { AiVerificationController } from './controllers';
@@ -8,7 +9,7 @@ import { AiVerificationJobRepository } from './repositories';
 import { AiVerificationService } from './services';
 
 @Module({
-  imports: [TaskModule],
+  imports: [TaskModule, AdminModule],
   controllers: [AiVerificationController],
   providers: [AiVerificationService, AiVerificationJobRepository, ApiKeyGuard],
   exports: [AiVerificationService],

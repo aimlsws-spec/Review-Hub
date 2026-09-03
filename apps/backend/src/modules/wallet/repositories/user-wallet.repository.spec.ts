@@ -193,4 +193,45 @@ describe('UserWalletRepository', () => {
       });
     });
   });
+
+  describe('clawbackReward', () => {
+    it('should recover the full amount when the balance covers it, with no shortfall', async () => {
+      mockTx.userWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 500 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'CLAWBACK' });
+
+      const result = await repository.clawbackReward({ walletId: 'wallet-1', amount: 100, referenceId: 'reward-1' });
+
+      expect(result.recoverable).toBe(100);
+      expect(result.shortfall).toBe(0);
+      expect(mockTx.userWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { availableBalance: 400 },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'CLAWBACK', amount: 100, referenceType: 'Reward', referenceId: 'reward-1' }),
+      });
+    });
+
+    it('should recover only what is available and report the shortfall, never going negative', async () => {
+      mockTx.userWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 30 });
+
+      const result = await repository.clawbackReward({ walletId: 'wallet-1', amount: 100, referenceId: 'reward-1' });
+
+      expect(result.recoverable).toBe(30);
+      expect(result.shortfall).toBe(70);
+      expect(mockTx.userWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { availableBalance: 0 },
+      });
+    });
+
+    it('should recover nothing and report the full amount as shortfall when the balance is 0', async () => {
+      mockTx.userWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 0 });
+
+      const result = await repository.clawbackReward({ walletId: 'wallet-1', amount: 100, referenceId: 'reward-1' });
+
+      expect(result.recoverable).toBe(0);
+      expect(result.shortfall).toBe(100);
+    });
+  });
 });

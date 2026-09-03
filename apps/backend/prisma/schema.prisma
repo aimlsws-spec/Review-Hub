@@ -266,6 +266,7 @@ enum WalletTransactionType {
   BONUS
   REFERRAL
   SPEND
+  CLAWBACK
 }
 
 enum WalletTransactionStatus {
@@ -282,6 +283,7 @@ enum RewardStatus {
   FAILED
   CANCELLED
   EXPIRED
+  REVERSED
 }
 
 enum VerificationSource {
@@ -1494,21 +1496,31 @@ model Invoice {
 }
 
 model Reward {
-  id           String       @id @default(uuid())
-  userId       String
-  campaignId   String
-  submissionId String       @unique
-  rewardType   RewardType
-  amount       Decimal      @db.Decimal(12, 2)
-  status       RewardStatus @default(PENDING)
-  approvedAt   DateTime?
-  creditedAt   DateTime?
-  failedReason String?      @db.Text
-  expiresAt    DateTime?
-  metadata     Json?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  deletedAt    DateTime?
+  id              String       @id @default(uuid())
+  userId          String
+  campaignId      String
+  submissionId    String       @unique
+  rewardType      RewardType
+  amount          Decimal      @db.Decimal(12, 2)
+  status          RewardStatus @default(PENDING)
+  approvedAt      DateTime?
+  creditedAt      DateTime?
+  failedReason    String?      @db.Text
+  expiresAt       DateTime?
+  // Fraud clawback — reversedAmount is what was actually recovered from the
+  // user's wallet (capped at their available balance, never negative);
+  // shortfallAmount is the uncollected remainder if they'd already spent or
+  // withdrawn some of it. The merchant's campaign budget is always restored
+  // in full regardless of shortfall — see MerchantWalletRepository.restoreClawedBackBudget.
+  reversedAmount  Decimal?     @db.Decimal(12, 2)
+  shortfallAmount Decimal?     @db.Decimal(12, 2)
+  reversedAt      DateTime?
+  reversalReason  String?      @db.Text
+  reversedBy      String?
+  metadata        Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
 
   user       User           @relation("RewardUser", fields: [userId], references: [id])
   campaign   Campaign       @relation(fields: [campaignId], references: [id])

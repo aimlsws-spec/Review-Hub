@@ -191,6 +191,55 @@ export class MerchantWalletRepository {
     });
   }
 
+  /**
+   * Exact inverse of spendCampaignBudget — used when a reward is clawed back
+   * after fraud is confirmed. Restores the full original amount to the
+   * merchant regardless of how much was actually recovered from the user;
+   * the platform absorbs any shortfall rather than the merchant.
+   */
+  async restoreClawedBackBudget(params: { campaignId: string; amount: number; rewardId: string }) {
+    const { campaignId, amount, rewardId } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const campaign = await tx.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+      const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { merchantId: campaign.merchantId } });
+      const balanceBefore = wallet.reservedBalance;
+      const reservedAfter = Number(balanceBefore) + amount;
+
+      await tx.merchantWallet.update({
+        where: { id: wallet.id },
+        data: {
+          reservedBalance: reservedAfter,
+          totalSpent: { decrement: amount },
+        },
+      });
+
+      const spentBudget = Number(campaign.spentBudget) - amount;
+      await tx.campaign.update({
+        where: { id: campaignId },
+        data: {
+          reservedBudget: { increment: amount },
+          spentBudget,
+          remainingBudget: Number(campaign.totalBudget) - spentBudget,
+        },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          merchantWallet: { connect: { id: wallet.id } },
+          type: 'RELEASE',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter: reservedAfter,
+          referenceType: 'Reward',
+          referenceId: rewardId,
+          remarks: 'Reward reversed — fraud confirmed, campaign budget restored',
+        },
+      });
+    });
+  }
+
   /** Releases whatever budget a campaign never spent back to the merchant's available balance — cancel/expire/complete. */
   async releaseCampaignBudget(params: { merchantId: string; campaignId: string }) {
     const { merchantId, campaignId } = params;

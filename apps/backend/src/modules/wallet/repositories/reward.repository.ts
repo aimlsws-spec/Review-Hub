@@ -22,6 +22,20 @@ export class RewardRepository {
     });
   }
 
+  async markReversed(id: string, data: { reversedAmount: number; shortfallAmount: number; reversalReason: string; reversedBy: string }) {
+    return this.prisma.reward.update({
+      where: { id },
+      data: {
+        status: 'REVERSED',
+        reversedAmount: data.reversedAmount,
+        shortfallAmount: data.shortfallAmount,
+        reversalReason: data.reversalReason,
+        reversedBy: data.reversedBy,
+        reversedAt: new Date(),
+      },
+    });
+  }
+
   async countCreditedByUser(userId: string) {
     return this.prisma.reward.count({ where: { userId, status: 'CREDITED' } });
   }

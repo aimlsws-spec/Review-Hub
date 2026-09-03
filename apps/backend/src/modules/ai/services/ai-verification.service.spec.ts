@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
+import { FraudFlagRepository } from '../../admin/repositories';
 import { SubmissionService } from '../../task/services';
 import { AiVerificationDecision } from '../dto';
 import { AiVerificationJobRepository } from '../repositories';
@@ -35,6 +36,10 @@ describe('AiVerificationService', () => {
     getFilePath: jest.fn(),
   };
 
+  const mockFraudFlagRepository = {
+    create: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -44,6 +49,7 @@ describe('AiVerificationService', () => {
         { provide: AiVerificationJobRepository, useValue: mockJobRepository },
         { provide: SubmissionService, useValue: mockSubmissionService },
         { provide: LocalStorageService, useValue: mockStorageService },
+        { provide: FraudFlagRepository, useValue: mockFraudFlagRepository },
       ],
     }).compile();
 
@@ -65,14 +71,14 @@ describe('AiVerificationService', () => {
   });
 
   describe('completeJob', () => {
-    const job = { id: 'job-1', submissionId: 'submission-1' };
+    const job = { id: 'job-1', submissionId: 'submission-1', submission: { userId: 'user-1' } };
 
     beforeEach(() => {
-      mockJobRepository.findById.mockResolvedValue(job);
+      mockJobRepository.findByIdWithSubmission.mockResolvedValue(job);
     });
 
     it('throws NotFoundException for an unknown job', async () => {
-      mockJobRepository.findById.mockResolvedValue(null);
+      mockJobRepository.findByIdWithSubmission.mockResolvedValue(null);
 
       await expect(
         service.completeJob('missing', { decision: AiVerificationDecision.APPROVE, confidence: 0.9 }),
@@ -163,6 +169,65 @@ describe('AiVerificationService', () => {
 
       expect(submissionService.aiApprove).toHaveBeenCalledWith('submission-1');
       expect(result.outcome).toBe('APPROVED');
+    });
+
+    it('does not raise a fraud flag when the fraud score is at or below the threshold', async () => {
+      await service.completeJob('job-1', {
+        decision: AiVerificationDecision.APPROVE,
+        confidence: 0.9,
+        fraudScore: 0.3,
+      });
+
+      expect(mockFraudFlagRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('raises a MEDIUM fraud flag just above the threshold', async () => {
+      await service.completeJob('job-1', {
+        decision: AiVerificationDecision.APPROVE,
+        confidence: 0.9,
+        fraudScore: 0.4,
+      });
+
+      expect(mockFraudFlagRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          submission: { connect: { id: 'submission-1' } },
+          user: { connect: { id: 'user-1' } },
+          riskLevel: 'MEDIUM',
+        }),
+      );
+    });
+
+    it('raises a HIGH fraud flag for a score of 0.6 or above', async () => {
+      await service.completeJob('job-1', {
+        decision: AiVerificationDecision.APPROVE,
+        confidence: 0.9,
+        fraudScore: 0.65,
+      });
+
+      expect(mockFraudFlagRepository.create).toHaveBeenCalledWith(expect.objectContaining({ riskLevel: 'HIGH' }));
+    });
+
+    it('raises a CRITICAL fraud flag for a score of 0.8 or above', async () => {
+      await service.completeJob('job-1', {
+        decision: AiVerificationDecision.APPROVE,
+        confidence: 0.9,
+        fraudScore: 0.85,
+      });
+
+      expect(mockFraudFlagRepository.create).toHaveBeenCalledWith(expect.objectContaining({ riskLevel: 'CRITICAL' }));
+    });
+
+    it('still raises a fraud flag even when the submission is auto-rejected, not just approved', async () => {
+      await service.completeJob('job-1', {
+        decision: AiVerificationDecision.REJECT,
+        confidence: 0.9,
+        fraudScore: 0.5,
+        explanation: 'Duplicate screenshot',
+      });
+
+      expect(mockFraudFlagRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: 'Duplicate screenshot' }),
+      );
     });
   });
 

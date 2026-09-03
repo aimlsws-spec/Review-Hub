@@ -1,5 +1,5 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
@@ -7,7 +7,7 @@ import { SystemRole } from '@common/enums';
 
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
-import { FraudFlagQueryDto, HighRiskDeviceQueryDto } from '../dto';
+import { FraudFlagQueryDto, HighRiskDeviceQueryDto, ReverseRewardDto } from '../dto';
 import { FraudReviewService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.FRAUD)
@@ -37,5 +37,13 @@ export class FraudFlagController {
   @ApiOperation({ summary: 'Mark a fraud flag as resolved' })
   async resolve(@Param('flagId') flagId: string, @CurrentUser('id') adminId: string) {
     return this.fraudReviewService.resolve(flagId, adminId);
+  }
+
+  @Post(':flagId/reverse-reward')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Claw back the flagged submission's reward and restore the merchant's campaign budget" })
+  @ApiBody({ type: ReverseRewardDto })
+  async reverseReward(@Param('flagId') flagId: string, @CurrentUser('id') adminId: string, @Body() dto: ReverseRewardDto) {
+    return this.fraudReviewService.reverseReward(flagId, adminId, dto);
   }
 }

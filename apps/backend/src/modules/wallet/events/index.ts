@@ -6,6 +6,15 @@ export class RewardCreditedEvent {
   ) {}
 }
 
+export class RewardReversedEvent {
+  constructor(
+    public readonly userId: string,
+    public readonly rewardId: string,
+    public readonly reversedAmount: number,
+    public readonly shortfallAmount: number,
+  ) {}
+}
+
 export class WithdrawalRequestedEvent {
   constructor(
     public readonly withdrawalId: string,

@@ -219,6 +219,28 @@ describe('MerchantWalletRepository', () => {
     });
   });
 
+  describe('restoreClawedBackBudget', () => {
+    it('should restore the full amount to reserved balance and reverse the campaign spend, exactly inverting spendCampaignBudget', async () => {
+      mockTx.campaign.findUniqueOrThrow.mockResolvedValue({ id: 'campaign-1', merchantId: 'merchant-1', totalBudget: 2000, spentBudget: 300 });
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', reservedBalance: 1700 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'RELEASE' });
+
+      await repository.restoreClawedBackBudget({ campaignId: 'campaign-1', amount: 300, rewardId: 'reward-1' });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { reservedBalance: 2000, totalSpent: { decrement: 300 } },
+      });
+      expect(mockTx.campaign.update).toHaveBeenCalledWith({
+        where: { id: 'campaign-1' },
+        data: { reservedBudget: { increment: 300 }, spentBudget: 0, remainingBudget: 2000 },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'RELEASE', amount: 300, referenceType: 'Reward', referenceId: 'reward-1' }),
+      });
+    });
+  });
+
   describe('holdForRefund', () => {
     it('should move the amount from available to refundBalance and log a HOLD transaction', async () => {
       mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 5000 });
