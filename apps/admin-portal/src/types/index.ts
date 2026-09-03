@@ -207,6 +207,27 @@ export interface FraudFlag {
   user?: { id: string; firstName: string; lastName: string; email: string | null }
 }
 
+/**
+ * A device flagged by basic risk signals (self-reported root/emulator + a
+ * free header-based VPN heuristic) — see DeviceService.calculateRiskScore on
+ * the backend. Detection/visibility only; nothing blocks on this yet.
+ */
+export interface RiskyDevice {
+  id: string
+  userId: string
+  name: string | null
+  platform: string
+  os: string | null
+  isActive: boolean
+  lastSeenAt: string | null
+  isRooted: boolean
+  isEmulator: boolean
+  vpnSuspected: boolean
+  riskScore: number
+  createdAt: string
+  user?: { id: string; firstName: string; lastName: string; email: string | null; phone: string | null }
+}
+
 // ============================================================
 // CMS TYPES
 // ============================================================

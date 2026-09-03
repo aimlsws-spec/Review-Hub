@@ -14,6 +14,14 @@ export function useFraudFlagsQuery(params: { page: number; limit: number; resolv
   })
 }
 
+/** Fetches the paginated list of devices flagged by basic risk signals, riskiest first. */
+export function useHighRiskDevicesQuery(params: { page: number; limit: number; minRiskScore: number }) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.HIGH_RISK_DEVICES, params.page, params.minRiskScore],
+    queryFn: () => adminApi.listHighRiskDevices(params),
+  })
+}
+
 /** Marks a fraud flag as resolved, refreshing the list on success. */
 export function useResolveFraudFlagMutation(onSuccess?: () => void) {
   const queryClient = useQueryClient()

@@ -30,6 +30,7 @@ export const QUERY_KEYS = {
   WITHDRAWAL_QUEUE: ['withdrawal-queue'],
   REFUND_QUEUE: ['refund-queue'],
   FRAUD_FLAGS: ['fraud-flags'],
+  HIGH_RISK_DEVICES: ['high-risk-devices'],
   CMS_PAGES: ['cms-pages'],
   FAQS: ['faqs'],
   SETTINGS: ['settings'],

@@ -14,6 +14,7 @@ import type {
   MerchantDetail,
   MerchantRefund,
   PaginatedResult,
+  RiskyDevice,
   SystemSetting,
   UserStatus,
   WithdrawalRequest,
@@ -104,6 +105,9 @@ export const adminApi = {
     apiClient.get<ApiResponse<PaginatedResult<FraudFlag>>>('/admin/fraud-flags', { params }),
 
   resolveFraudFlag: (flagId: string) => apiClient.post<ApiResponse<FraudFlag>>(`/admin/fraud-flags/${flagId}/resolve`),
+
+  listHighRiskDevices: (params: { page: number; limit: number; minRiskScore?: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<RiskyDevice>>>('/admin/fraud-flags/high-risk-devices', { params }),
 
   // ── CMS pages ──────────────────────────────────────────────────────────
   listCmsPages: (params: { page: number; limit: number; status?: CMSPageStatus }) =>
