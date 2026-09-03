@@ -207,6 +207,16 @@ export interface FraudFlag {
   user?: { id: string; firstName: string; lastName: string; email: string | null }
 }
 
+/** Result of clawing back a reward for confirmed fraud — see FraudReviewService.reverseReward on the backend. */
+export interface ReversedReward {
+  id: string
+  status: 'REVERSED'
+  amount: string
+  reversedAmount: string
+  shortfallAmount: string
+  reversalReason: string
+}
+
 /**
  * A device flagged by basic risk signals (self-reported root/emulator + a
  * free header-based VPN heuristic) — see DeviceService.calculateRiskScore on

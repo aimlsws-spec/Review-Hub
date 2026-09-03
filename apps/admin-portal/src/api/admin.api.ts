@@ -14,6 +14,7 @@ import type {
   MerchantDetail,
   MerchantRefund,
   PaginatedResult,
+  ReversedReward,
   RiskyDevice,
   SystemSetting,
   UserStatus,
@@ -105,6 +106,9 @@ export const adminApi = {
     apiClient.get<ApiResponse<PaginatedResult<FraudFlag>>>('/admin/fraud-flags', { params }),
 
   resolveFraudFlag: (flagId: string) => apiClient.post<ApiResponse<FraudFlag>>(`/admin/fraud-flags/${flagId}/resolve`),
+
+  reverseReward: (flagId: string, reason: string) =>
+    apiClient.post<ApiResponse<ReversedReward>>(`/admin/fraud-flags/${flagId}/reverse-reward`, { reason }),
 
   listHighRiskDevices: (params: { page: number; limit: number; minRiskScore?: number }) =>
     apiClient.get<ApiResponse<PaginatedResult<RiskyDevice>>>('/admin/fraud-flags/high-risk-devices', { params }),

@@ -5,11 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { adminApi } from '@/api/admin.api'
 
-import { useHighRiskDevicesQuery } from './useFraudFlags'
+import { useHighRiskDevicesQuery, useReverseRewardMutation } from './useFraudFlags'
 
 vi.mock('@/api/admin.api', () => ({
   adminApi: {
     listHighRiskDevices: vi.fn(),
+    reverseReward: vi.fn(),
   },
 }))
 
@@ -32,5 +33,31 @@ describe('useHighRiskDevicesQuery', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(adminApi.listHighRiskDevices).toHaveBeenCalledWith({ page: 1, limit: 20, minRiskScore: 40 })
+  })
+})
+
+describe('useReverseRewardMutation', () => {
+  beforeEach(() => {
+    vi.mocked(adminApi.reverseReward).mockReset()
+  })
+
+  it('reverses the reward for the given flag with the given reason', async () => {
+    vi.mocked(adminApi.reverseReward).mockResolvedValueOnce({ data: { data: { id: 'reward-1', status: 'REVERSED' } } } as never)
+    const { result } = renderHook(() => useReverseRewardMutation(), { wrapper })
+
+    result.current.mutate({ flagId: 'flag-1', reason: 'Confirmed duplicate account fraud' })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(adminApi.reverseReward).toHaveBeenCalledWith('flag-1', 'Confirmed duplicate account fraud')
+  })
+
+  it('invokes the onSuccess callback after a successful reversal', async () => {
+    vi.mocked(adminApi.reverseReward).mockResolvedValueOnce({ data: { data: { id: 'reward-1' } } } as never)
+    const onSuccess = vi.fn()
+    const { result } = renderHook(() => useReverseRewardMutation(onSuccess), { wrapper })
+
+    result.current.mutate({ flagId: 'flag-1', reason: 'Confirmed duplicate account fraud' })
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1))
   })
 })

@@ -7,12 +7,15 @@ import {
   StatusBadge,
   ConfirmDialog,
   Select,
+  Modal,
+  Textarea,
+  Spinner,
 } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 
 import { FRAUD_RISK_LABELS, ITEMS_PER_PAGE } from '@/constants'
-import { useFraudFlagsQuery, useHighRiskDevicesQuery, useResolveFraudFlagMutation } from '@/hooks/useFraudFlags'
-import type { FraudRiskLevel } from '@/types'
+import { useFraudFlagsQuery, useHighRiskDevicesQuery, useResolveFraudFlagMutation, useReverseRewardMutation } from '@/hooks/useFraudFlags'
+import type { FraudFlag, FraudRiskLevel } from '@/types'
 import { cn, formatDateTime } from '@/utils'
 
 const RISK_OPTIONS = Object.entries(FRAUD_RISK_LABELS).map(([value, label]) => ({ value, label }))
@@ -59,6 +62,8 @@ function SubmissionFlagsTab() {
   const [resolved, setResolved] = useState<'unresolved' | 'resolved' | ''>('unresolved')
   const [riskLevel, setRiskLevel] = useState<FraudRiskLevel | ''>('')
   const [resolveTarget, setResolveTarget] = useState<{ id: string; reason: string } | null>(null)
+  const [reverseTarget, setReverseTarget] = useState<FraudFlag | null>(null)
+  const [reverseReason, setReverseReason] = useState('')
 
   const { data, isLoading, isError, refetch } = useFraudFlagsQuery({
     page,
@@ -72,6 +77,10 @@ function SubmissionFlagsTab() {
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))
 
   const { mutate: resolve, isPending } = useResolveFraudFlagMutation(() => setResolveTarget(null))
+  const { mutate: reverseReward, isPending: reversing } = useReverseRewardMutation(() => {
+    setReverseTarget(null)
+    setReverseReason('')
+  })
 
   return (
     <div>
@@ -145,9 +154,14 @@ function SubmissionFlagsTab() {
                     {flag.resolved ? (
                       <span className="text-xs text-gray-400">Resolved</span>
                     ) : (
-                      <button className="btn-ghost btn-sm text-green-700 hover:bg-green-50" onClick={() => setResolveTarget({ id: flag.id, reason: flag.reason })}>
-                        Mark resolved
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button className="btn-ghost btn-sm text-green-700 hover:bg-green-50" onClick={() => setResolveTarget({ id: flag.id, reason: flag.reason })}>
+                          Mark resolved
+                        </button>
+                        <button className="btn-ghost btn-sm text-red-600 hover:bg-red-50" onClick={() => { setReverseReason(''); setReverseTarget(flag) }}>
+                          Reverse reward
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -169,6 +183,43 @@ function SubmissionFlagsTab() {
           variant="primary"
           loading={isPending}
         />
+      )}
+
+      {reverseTarget && (
+        <Modal
+          open
+          onClose={() => setReverseTarget(null)}
+          title="Reverse reward"
+          footer={
+            <>
+              <button className="btn-secondary" onClick={() => setReverseTarget(null)} disabled={reversing}>
+                Cancel
+              </button>
+              <button
+                className="btn-danger"
+                disabled={reverseReason.trim().length < 10 || reversing}
+                onClick={() => reverseReward({ flagId: reverseTarget.id, reason: reverseReason })}
+              >
+                {reversing && <Spinner size="sm" className="text-white" />}
+                Reverse Reward
+              </button>
+            </>
+          }
+        >
+          <p className="mb-3 text-sm text-gray-600">
+            This claws back the credited reward from the user's wallet (capped at their available balance —
+            any shortfall is recorded, not chased) and restores the merchant's campaign budget in full.
+            This cannot be undone.
+          </p>
+          <Textarea
+            label="Reason for reversal"
+            hint="At least 10 characters"
+            rows={4}
+            value={reverseReason}
+            onChange={(e) => setReverseReason(e.target.value)}
+            placeholder="Explain the confirmed fraud (e.g. duplicate screenshot across accounts)..."
+          />
+        </Modal>
       )}
     </div>
   )

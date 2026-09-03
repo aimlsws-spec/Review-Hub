@@ -36,3 +36,22 @@ export function useResolveFraudFlagMutation(onSuccess?: () => void) {
     onError: (err) => toast.error(getApiErrorMessage(err)),
   })
 }
+
+/**
+ * Claws back a flagged submission's reward and restores the merchant's
+ * campaign budget in full. Refreshes both the fraud flag list and reward
+ * queries, since a reversal changes reward status on the user/merchant side too.
+ */
+export function useReverseRewardMutation(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ flagId, reason }: { flagId: string; reason: string }) => adminApi.reverseReward(flagId, reason),
+    onSuccess: () => {
+      toast.success('Reward reversed')
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.FRAUD_FLAGS })
+      onSuccess?.()
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
+  })
+}

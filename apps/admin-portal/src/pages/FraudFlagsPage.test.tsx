@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useFraudFlagsQuery, useHighRiskDevicesQuery, useResolveFraudFlagMutation } from '@/hooks/useFraudFlags'
+import { useFraudFlagsQuery, useHighRiskDevicesQuery, useResolveFraudFlagMutation, useReverseRewardMutation } from '@/hooks/useFraudFlags'
 
 import FraudFlagsPage from './FraudFlagsPage'
 
@@ -10,7 +10,10 @@ vi.mock('@/hooks/useFraudFlags', () => ({
   useFraudFlagsQuery: vi.fn(),
   useHighRiskDevicesQuery: vi.fn(),
   useResolveFraudFlagMutation: vi.fn(),
+  useReverseRewardMutation: vi.fn(),
 }))
+
+const reverseRewardMock = vi.fn()
 
 const flag = {
   id: 'flag-1',
@@ -58,6 +61,8 @@ describe('FraudFlagsPage', () => {
       refetch: vi.fn(),
     } as never)
     vi.mocked(useResolveFraudFlagMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    vi.mocked(useReverseRewardMutation).mockReturnValue({ mutate: reverseRewardMock, isPending: false } as never)
+    reverseRewardMock.mockReset()
   })
 
   it('shows the submission flags tab by default', () => {
@@ -100,5 +105,34 @@ describe('FraudFlagsPage', () => {
     await user.click(screen.getByRole('button', { name: /high-risk devices/i }))
 
     expect(screen.getByText(/no high-risk devices/i)).toBeInTheDocument()
+  })
+
+  it('requires a reason of at least 10 characters before reversing a reward', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /reverse reward/i }))
+    const dialog = within(screen.getByRole('dialog'))
+    const reverseButton = dialog.getByRole('button', { name: /^reverse reward$/i })
+    expect(reverseButton).toBeDisabled()
+
+    await user.type(dialog.getByLabelText(/reason for reversal/i), 'Confirmed duplicate account fraud')
+    expect(reverseButton).toBeEnabled()
+
+    await user.click(reverseButton)
+    await waitFor(() => expect(reverseRewardMock).toHaveBeenCalledWith({ flagId: 'flag-1', reason: 'Confirmed duplicate account fraud' }))
+  })
+
+  it('does not offer reversal for an already-resolved flag', () => {
+    vi.mocked(useFraudFlagsQuery).mockReturnValue({
+      data: { data: { data: { data: [{ ...flag, resolved: true }], total: 1, page: 1, limit: 20 } } },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never)
+
+    renderPage()
+
+    expect(screen.queryByRole('button', { name: /reverse reward/i })).not.toBeInTheDocument()
   })
 })
