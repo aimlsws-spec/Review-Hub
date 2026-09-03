@@ -1,8 +1,8 @@
 name: viral-kar
 
-# Local development infra only — MySQL, Redis, and RabbitMQ that the backend
-# needs to actually run. Not used for production deployment; a deployer may
-# reuse these image/version choices or provision managed equivalents instead.
+# Local development infra only — MySQL and Redis that the backend needs to
+# actually run. Not used for production deployment; a deployer may reuse
+# these image/version choices or provision managed equivalents instead.
 #
 # Credentials below are dev-only placeholders, safe to commit — match them in
 # apps/backend/.env.example (and your real apps/backend/.env).
@@ -12,8 +12,12 @@ name: viral-kar
 # dev machine — mapping to 3307 avoids fighting over the port or silently
 # talking to the wrong database. If you already have a working native MySQL
 # (e.g. one Prisma has already migrated against), it's simplest to keep using
-# that on 3306 and only rely on this compose file for Redis/RabbitMQ — see
+# that on 3306 and only rely on this compose file for Redis — see
 # apps/backend/.env.example for both options.
+#
+# RabbitMQ isn't provisioned here — despite once being planned, nothing in
+# apps/backend actually uses it. All background jobs run on BullMQ, which is
+# Redis-backed (see docs/architecture/README.md).
 services:
   mysql:
     image: mysql:8.0
@@ -44,23 +48,5 @@ services:
       timeout: 5s
       retries: 10
 
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    restart: unless-stopped
-    environment:
-      RABBITMQ_DEFAULT_USER: viral_kar
-      RABBITMQ_DEFAULT_PASS: viral_kar_dev
-    ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Management UI — http://localhost:15672
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
 volumes:
   mysql_data:
-  rabbitmq_data:

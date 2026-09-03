@@ -46,19 +46,12 @@ flowchart TB
 | Backend | NestJS + TypeScript | Feature-module architecture, see below |
 | Database | MySQL via Prisma | 88 models, UUID PKs, soft deletes throughout |
 | Cache / sessions / rate-limit | Redis | Also backs BullMQ |
-| Background jobs | **BullMQ** (Redis-backed) | Not RabbitMQ — see note below |
+| Background jobs | **BullMQ** (Redis-backed) | Email, notification dispatch, reward crediting, nightly settlement |
 | File storage | Local disk (`apps/backend/uploads/`) | No S3/cloud storage anywhere, by design |
 | Payments | Razorpay (checkout) + RazorpayX (payouts) | Test-mode credentials only so far |
 | Frontend (both portals) | React, Vite, TypeScript, Tailwind, React Query, React Hook Form | Shared UI in `packages/shared-ui` |
 | Mobile | Flutter, Riverpod, GoRouter, Dio | |
 | AI | Python, FastAPI, local Ollama (optional), local OCR | No paid AI provider wired in |
-
-**RabbitMQ is provisioned in `docker-compose.yml` and referenced in `.env`, but
-nothing in `apps/backend/src` actually uses it** (no `amqplib`/`@nestjs/microservices`
-import anywhere). Every background job — email, notification dispatch, reward
-crediting, nightly settlement — runs through BullMQ queues instead, which are
-Redis-backed. Treat RabbitMQ as inactive infrastructure until something is
-actually wired to it; don't assume message-queue behavior depends on it.
 
 ## Backend module map
 

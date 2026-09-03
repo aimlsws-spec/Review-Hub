@@ -6,7 +6,7 @@ AI-powered digital engagement & rewards platform. Users complete campaign tasks 
 
 | App | Path | Stack |
 |---|---|---|
-| Backend API | `apps/backend` | NestJS, MySQL (Prisma), Redis, RabbitMQ |
+| Backend API | `apps/backend` | NestJS, MySQL (Prisma), Redis (cache + BullMQ) |
 | Admin Portal | `apps/admin-portal` | React, TypeScript, Vite |
 | Merchant Portal | `apps/merchant-portal` | React, TypeScript, Vite |
 | Mobile App | `apps/mobile` | Flutter |
@@ -19,7 +19,7 @@ AI-powered digital engagement & rewards platform. Users complete campaign tasks 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org) 20+ and npm 10+
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — for MySQL, Redis, RabbitMQ (free for individuals/small teams)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — for MySQL and Redis (free for individuals/small teams)
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) — only if you're working on `apps/mobile`
 - [Python](https://www.python.org/) 3.12+ — only if you're working on `apps/ai-services`
 
@@ -35,19 +35,17 @@ From the repo root:
 docker compose up -d
 ```
 
-This starts MySQL (on port **3307**, deliberately not 3306, so it never collides with a native install), Redis, and RabbitMQ with fixed dev credentials (see `docker-compose.yml`). Check they're healthy:
+This starts MySQL (on port **3307**, deliberately not 3306, so it never collides with a native install) and Redis with fixed dev credentials (see `docker-compose.yml`). Check they're healthy:
 
 ```bash
 docker compose ps
 ```
 
-If you're already using a native MySQL on 3306, you can skip the `mysql` service entirely and start just the other two:
+If you're already using a native MySQL on 3306, you can skip the `mysql` service entirely and start just Redis:
 
 ```bash
-docker compose up -d redis rabbitmq
+docker compose up -d redis
 ```
-
-RabbitMQ's management UI is at [http://localhost:15672](http://localhost:15672) (user `viral_kar` / password `viral_kar_dev`) if you want to inspect queues.
 
 To stop everything: `docker compose down`. To wipe all data and start fresh: `docker compose down -v`.
 
@@ -62,7 +60,7 @@ cp apps/merchant-portal/.env.example apps/merchant-portal/.env
 cp apps/ai-services/.env.example apps/ai-services/.env
 ```
 
-The backend's defaults already match `docker-compose.yml` — you don't need to change `DATABASE_URL`, `REDIS_*`, or `RABBITMQ_URL` for local development.
+The backend's defaults already match `docker-compose.yml` — you don't need to change `DATABASE_URL` or `REDIS_*` for local development.
 
 ## 3. Install dependencies
 
@@ -144,7 +142,7 @@ All three run on every pull request and push to `main`, and are free (GitHub Act
 This repo is set up for local development, not production deployment. A few things worth knowing before handing this off to whoever deploys it:
 
 - **No DB dump needed for a first launch** — run `npx prisma migrate deploy` against a fresh production MySQL database, then `npx prisma db seed`.
-- **Redis and RabbitMQ are required in production too**, not just locally — they need to be provisioned (managed services or self-hosted), not just "dumped" like a database.
+- **Redis is required in production too**, not just locally — it backs both caching and BullMQ, so it needs to be provisioned (managed service or self-hosted), not just "dumped" like a database.
 - **Uploaded files** (`apps/backend/uploads/` — profile photos, KYC documents, campaign media) live on local disk per this project's storage convention, not S3. Whoever deploys this needs **persistent** storage for that folder, not ephemeral container disk.
 - **The mobile app** builds and deploys separately from everything else — it needs signing and submission through Google Play / Apple App Store, not a web deploy.
 - Every `.env.example` file in this repo documents exactly which environment variables production needs — copy the structure, fill in real production values (freshly generated JWT secrets, live Razorpay keys, etc.), never the dev placeholders.
