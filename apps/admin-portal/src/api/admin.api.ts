@@ -12,6 +12,7 @@ import type {
   FraudRiskLevel,
   Merchant,
   MerchantDetail,
+  MerchantRefund,
   PaginatedResult,
   SystemSetting,
   UserStatus,
@@ -87,6 +88,16 @@ export const adminApi = {
 
   rejectWithdrawal: (withdrawalId: string, rejectionReason: string) =>
     apiClient.post<ApiResponse<WithdrawalRequest>>(`/withdrawals/${withdrawalId}/reject`, { rejectionReason }),
+
+  // ── Merchant refund queue ──────────────────────────────────────────────
+  listPendingRefunds: (params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<MerchantRefund>>>('/admin/merchants/refunds/pending', { params }),
+
+  approveRefund: (refundId: string) =>
+    apiClient.post<ApiResponse<MerchantRefund>>(`/admin/merchants/refunds/${refundId}/approve`),
+
+  rejectRefund: (refundId: string, rejectionReason: string) =>
+    apiClient.post<ApiResponse<MerchantRefund>>(`/admin/merchants/refunds/${refundId}/reject`, { rejectionReason }),
 
   // ── Fraud flags ────────────────────────────────────────────────────────
   listFraudFlags: (params: { page: number; limit: number; resolved?: boolean; riskLevel?: FraudRiskLevel }) =>

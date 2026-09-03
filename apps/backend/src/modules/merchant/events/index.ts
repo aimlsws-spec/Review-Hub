@@ -55,3 +55,19 @@ export class MerchantTeamInvitedEvent {
     public readonly inviteToken: string,
   ) {}
 }
+
+export class RefundRequestedEvent {
+  constructor(
+    public readonly refundId: string,
+    public readonly merchantId: string,
+    public readonly amount: number,
+  ) {}
+}
+
+export class RefundReviewedEvent {
+  constructor(
+    public readonly refundId: string,
+    public readonly merchantId: string,
+    public readonly approved: boolean,
+  ) {}
+}

@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
+import { DeviceRepository } from '../../auth/repositories/device.repository';
 import { FraudFlagRepository } from '../repositories';
 
 import { FraudReviewService } from './fraud-review.service';
@@ -15,6 +16,9 @@ describe('FraudReviewService', () => {
     findById: jest.fn(),
     resolve: jest.fn(),
   };
+  const mockDeviceRepository = {
+    findHighRisk: jest.fn(),
+  };
   const mockAuditLogService = { record: jest.fn() };
 
   beforeEach(async () => {
@@ -22,6 +26,7 @@ describe('FraudReviewService', () => {
       providers: [
         FraudReviewService,
         { provide: FraudFlagRepository, useValue: mockFraudFlagRepository },
+        { provide: DeviceRepository, useValue: mockDeviceRepository },
         { provide: AuditLogService, useValue: mockAuditLogService },
       ],
     }).compile();
@@ -53,6 +58,16 @@ describe('FraudReviewService', () => {
       mockFraudFlagRepository.findById.mockResolvedValue({ id: 'flag-1', resolved: true });
 
       await expect(service.resolve('flag-1', 'admin-1')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('listHighRiskDevices', () => {
+    it('should delegate to the device repository with the query params', async () => {
+      mockDeviceRepository.findHighRisk.mockResolvedValue({ data: [], total: 0, page: 1, limit: 20 });
+
+      await service.listHighRiskDevices({ minRiskScore: 40, page: 1, limit: 20 } as never);
+
+      expect(mockDeviceRepository.findHighRisk).toHaveBeenCalledWith({ minRiskScore: 40, page: 1, limit: 20 });
     });
   });
 });

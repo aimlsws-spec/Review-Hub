@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
+import { describeError } from '@common/utils';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { RazorpayService } from '../../payment/services';
@@ -237,7 +238,7 @@ export class WithdrawalService {
         metadata: { razorpayPayoutId: payout.id, razorpayFundAccountId: fundAccount.id },
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = describeError(error);
       this.logger.error(`RazorpayX payout failed to initiate for withdrawal ${withdrawal.id}: ${message}`);
       await this.withdrawalRepository.update(withdrawal.id, { metadata: { payoutInitiationError: message } });
     }

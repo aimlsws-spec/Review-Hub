@@ -22,6 +22,7 @@ const CampaignsPage = lazy(() => import('@/pages/CampaignsPage'))
 const RewardsPage = lazy(() => import('@/pages/RewardsPage'))
 const CouponsPage = lazy(() => import('@/pages/CouponsPage'))
 const WalletPage = lazy(() => import('@/pages/WalletPage'))
+const RefundsPage = lazy(() => import('@/pages/RefundsPage'))
 const DocumentsPage = lazy(() => import('@/pages/DocumentsPage'))
 const TeamPage = lazy(() => import('@/pages/TeamPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
@@ -62,6 +63,7 @@ export const router = createBrowserRouter(
             { path: ROUTES.REWARDS, element: <RewardsPage /> },
             { path: ROUTES.COUPONS, element: <CouponsPage /> },
             { path: ROUTES.WALLET, element: <WalletPage /> },
+            { path: ROUTES.REFUNDS, element: <RefundsPage /> },
             { path: ROUTES.DOCUMENTS, element: <DocumentsPage /> },
             { path: ROUTES.TEAM, element: <TeamPage /> },
             { path: ROUTES.SETTINGS, element: <SettingsPage /> },

@@ -231,4 +231,149 @@ export class MerchantWalletRepository {
       });
     });
   }
+
+  /**
+   * Holds a refund request's amount out of available balance the moment it's
+   * requested — mirrors UserWalletRepository.holdForWithdrawal. Validated
+   * inside the transaction so two concurrent requests can't both pass a
+   * balance check against the same stale read.
+   */
+  async holdForRefund(params: { merchantWalletId: string; amount: number; refundId: string }) {
+    const { merchantWalletId, amount, refundId } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: merchantWalletId } });
+      if (Number(wallet.availableBalance) < amount) {
+        throw new BadRequestException('Insufficient wallet balance');
+      }
+
+      const balanceBefore = wallet.availableBalance;
+      const availableAfter = Number(balanceBefore) - amount;
+
+      await tx.merchantWallet.update({
+        where: { id: merchantWalletId },
+        data: {
+          availableBalance: availableAfter,
+          refundBalance: { increment: amount },
+        },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          merchantWallet: { connect: { id: merchantWalletId } },
+          type: 'HOLD',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter: availableAfter,
+          referenceType: 'MerchantRefundRequest',
+          referenceId: refundId,
+          remarks: 'Refund requested — amount held pending review',
+        },
+      });
+    });
+  }
+
+  /** Gives a rejected (or cancelled) refund's held amount back to available balance. */
+  async releaseRefundHold(params: { merchantWalletId: string; amount: number; refundId: string }) {
+    const { merchantWalletId, amount, refundId } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: merchantWalletId } });
+      const balanceBefore = wallet.availableBalance;
+      const balanceAfter = Number(balanceBefore) + amount;
+
+      await tx.merchantWallet.update({
+        where: { id: merchantWalletId },
+        data: {
+          availableBalance: balanceAfter,
+          refundBalance: { decrement: amount },
+        },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          merchantWallet: { connect: { id: merchantWalletId } },
+          type: 'RELEASE',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter,
+          referenceType: 'MerchantRefundRequest',
+          referenceId: refundId,
+          remarks: 'Refund request rejected — hold released back to wallet',
+        },
+      });
+    });
+  }
+
+  /** Clears a held amount for good — an approved refund moving toward payout. */
+  async finalizeRefund(params: { merchantWalletId: string; amount: number; refundId: string }) {
+    const { merchantWalletId, amount, refundId } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: merchantWalletId } });
+      const balanceBefore = wallet.refundBalance;
+      const refundBalanceAfter = Number(balanceBefore) - amount;
+
+      await tx.merchantWallet.update({
+        where: { id: merchantWalletId },
+        data: {
+          refundBalance: refundBalanceAfter,
+          totalRefunded: { increment: amount },
+        },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          merchantWallet: { connect: { id: merchantWalletId } },
+          type: 'REFUND',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter: refundBalanceAfter,
+          referenceType: 'MerchantRefundRequest',
+          referenceId: refundId,
+          remarks: 'Refund approved',
+        },
+      });
+    });
+  }
+
+  /**
+   * Undoes a finalized refund after the fact — the payout gateway reported
+   * it definitively failed or was reversed post-approval, so the money that
+   * left totalRefunded needs to come back to available balance.
+   */
+  async reverseFinalizedRefund(params: { merchantWalletId: string; amount: number; refundId: string }) {
+    const { merchantWalletId, amount, refundId } = params;
+
+    return this.prisma.transaction(async (tx) => {
+      const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: merchantWalletId } });
+      const balanceBefore = wallet.availableBalance;
+      const balanceAfter = Number(balanceBefore) + amount;
+
+      await tx.merchantWallet.update({
+        where: { id: merchantWalletId },
+        data: {
+          availableBalance: balanceAfter,
+          totalRefunded: { decrement: amount },
+        },
+      });
+
+      return tx.walletTransaction.create({
+        data: {
+          merchantWallet: { connect: { id: merchantWalletId } },
+          type: 'RELEASE',
+          status: 'SUCCESS',
+          amount,
+          balanceBefore,
+          balanceAfter,
+          referenceType: 'MerchantRefundRequest',
+          referenceId: refundId,
+          remarks: 'Payout failed or was reversed by the gateway after approval',
+        },
+      });
+    });
+  }
 }

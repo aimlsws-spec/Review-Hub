@@ -7,7 +7,7 @@ import { SystemRole } from '@common/enums';
 
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
-import { FraudFlagQueryDto } from '../dto';
+import { FraudFlagQueryDto, HighRiskDeviceQueryDto } from '../dto';
 import { FraudReviewService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.FRAUD)
@@ -23,6 +23,13 @@ export class FraudFlagController {
   @ApiOperation({ summary: 'List submission fraud flags' })
   async list(@Query() query: FraudFlagQueryDto) {
     return this.fraudReviewService.list(query);
+  }
+
+  @Get('high-risk-devices')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'List devices flagged by basic risk signals (root/emulator/VPN heuristic), riskiest first' })
+  async listHighRiskDevices(@Query() query: HighRiskDeviceQueryDto) {
+    return this.fraudReviewService.listHighRiskDevices(query);
   }
 
   @Post(':flagId/resolve')

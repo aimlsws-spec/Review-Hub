@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { MerchantOwnershipGuard } from '../guards';
 import { MerchantRepository, MerchantTeamRepository } from '../repositories';
-import { MerchantService, KycService, TeamService, BankService, WalletService, DashboardService } from '../services';
+import { MerchantService, KycService, TeamService, BankService, WalletService, DashboardService, RefundService } from '../services';
 
 import { MerchantController } from './merchant.controller';
 
@@ -52,6 +52,12 @@ describe('MerchantController', () => {
     getDashboard: jest.fn(),
   };
 
+  const mockRefundService = {
+    request: jest.fn(),
+    listMine: jest.fn(),
+    getMine: jest.fn(),
+  };
+
   const mockMerchantRepository = {};
   const mockTeamRepository = {};
 
@@ -65,6 +71,7 @@ describe('MerchantController', () => {
         { provide: BankService, useValue: mockBankService },
         { provide: WalletService, useValue: mockWalletService },
         { provide: DashboardService, useValue: mockDashboardService },
+        { provide: RefundService, useValue: mockRefundService },
         MerchantOwnershipGuard,
         { provide: MerchantRepository, useValue: mockMerchantRepository },
         { provide: MerchantTeamRepository, useValue: mockTeamRepository },
@@ -164,6 +171,28 @@ describe('MerchantController', () => {
       const dto = { razorpayOrderId: 'order_1', razorpayPaymentId: 'pay_1', razorpaySignature: 'sig_1' };
       await controller.verifyRecharge('merchant-1', dto as never);
       expect(mockWalletService.verifyRecharge).toHaveBeenCalledWith('merchant-1', dto);
+    });
+  });
+
+  describe('requestRefund', () => {
+    it('should call refundService.request', async () => {
+      const dto = { amount: 1500, bankAccountId: 'bank-1' };
+      await controller.requestRefund('merchant-1', dto as never);
+      expect(mockRefundService.request).toHaveBeenCalledWith('merchant-1', dto);
+    });
+  });
+
+  describe('listRefunds', () => {
+    it('should call refundService.listMine', async () => {
+      await controller.listRefunds('merchant-1', '1', '20');
+      expect(mockRefundService.listMine).toHaveBeenCalledWith('merchant-1', 1, 20);
+    });
+  });
+
+  describe('getRefund', () => {
+    it('should call refundService.getMine', async () => {
+      await controller.getRefund('merchant-1', 'refund-1');
+      expect(mockRefundService.getMine).toHaveBeenCalledWith('refund-1', 'merchant-1');
     });
   });
 });

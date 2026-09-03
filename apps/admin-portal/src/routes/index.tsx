@@ -18,6 +18,7 @@ const UsersPage = lazy(() => import('@/pages/UsersPage'))
 const MerchantsPage = lazy(() => import('@/pages/MerchantsPage'))
 const CampaignQueuePage = lazy(() => import('@/pages/CampaignQueuePage'))
 const WithdrawalQueuePage = lazy(() => import('@/pages/WithdrawalQueuePage'))
+const RefundApprovalsPage = lazy(() => import('@/pages/RefundApprovalsPage'))
 const FraudFlagsPage = lazy(() => import('@/pages/FraudFlagsPage'))
 const SupportTicketsPage = lazy(() => import('@/pages/SupportTicketsPage'))
 const CmsPagesPage = lazy(() => import('@/pages/cms/CmsPagesPage'))
@@ -58,6 +59,7 @@ export const router = createBrowserRouter(
             { path: ROUTES.MERCHANTS, element: <MerchantsPage /> },
             { path: ROUTES.CAMPAIGNS, element: <CampaignQueuePage /> },
             { path: ROUTES.WITHDRAWALS, element: <WithdrawalQueuePage /> },
+            { path: ROUTES.REFUNDS, element: <RefundApprovalsPage /> },
             { path: ROUTES.FRAUD, element: <FraudFlagsPage /> },
             { path: ROUTES.SUPPORT_TICKETS, element: <SupportTicketsPage /> },
             { path: ROUTES.CMS_PAGES, element: <CmsPagesPage /> },

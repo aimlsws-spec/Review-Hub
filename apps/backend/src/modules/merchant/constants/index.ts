@@ -17,6 +17,8 @@ export const MERCHANT_ERRORS = {
   INSUFFICIENT_PERMISSION: 'INSUFFICIENT_PERMISSION',
   CANNOT_REMOVE_OWNER: 'CANNOT_REMOVE_OWNER',
   DUPLICATE_ACCOUNT: 'DUPLICATE_ACCOUNT',
+  REFUND_NOT_FOUND: 'REFUND_NOT_FOUND',
+  REFUND_NOT_REVIEWABLE: 'REFUND_NOT_REVIEWABLE',
 } as const;
 
 export const MERCHANT_TEAM_ROLES_KEY = 'merchantTeamRoles';
@@ -31,7 +33,13 @@ export const MERCHANT_EVENTS = {
   TEAM_INVITED: 'merchant.team.invited',
   TEAM_MEMBER_UPDATED: 'merchant.team.member_updated',
   TEAM_MEMBER_REMOVED: 'merchant.team.member_removed',
+  REFUND_REQUESTED: 'merchant.refund.requested',
+  REFUND_APPROVED: 'merchant.refund.approved',
+  REFUND_REJECTED: 'merchant.refund.rejected',
 } as const;
+
+/** Refund statuses a reviewer can still act on. */
+export const REVIEWABLE_REFUND_STATUSES = ['PENDING', 'UNDER_REVIEW'];
 
 export const DOCUMENT_STORAGE = {
   BASE_PATH: 'merchant',

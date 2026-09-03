@@ -55,6 +55,25 @@ export class DeviceRepository {
     });
   }
 
+  /** Admin queue: devices at or above a risk threshold, riskiest first. */
+  async findHighRisk(params: { minRiskScore: number; page: number; limit: number }) {
+    const { minRiskScore, page, limit } = params;
+    const where: Prisma.DeviceWhereInput = { riskScore: { gte: minRiskScore } };
+
+    const [data, total] = await Promise.all([
+      this.prisma.device.findMany({
+        where,
+        include: { user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } } },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { riskScore: 'desc' },
+      }),
+      this.prisma.device.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
   async deleteInactiveDevices(olderThan: Date) {
     return this.prisma.device.deleteMany({
       where: {

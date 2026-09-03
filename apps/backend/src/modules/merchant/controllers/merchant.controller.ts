@@ -24,6 +24,7 @@ import { CurrentUser } from '@common/decorators';
 import {
   AddBankDto,
   CreateRechargeDto,
+  CreateRefundDto,
   InviteTeamDto,
   KycResubmitDto,
   KycUploadDto,
@@ -35,7 +36,7 @@ import {
   VerifyRechargeDto,
 } from '../dto';
 import { MerchantOwnershipGuard } from '../guards';
-import { MerchantService, KycService, TeamService, BankService, WalletService, DashboardService } from '../services';
+import { MerchantService, KycService, TeamService, BankService, WalletService, DashboardService, RefundService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.MERCHANTS)
 @Controller({ path: 'merchants', version: '1' })
@@ -47,6 +48,7 @@ export class MerchantController {
     private readonly bankService: BankService,
     private readonly walletService: WalletService,
     private readonly dashboardService: DashboardService,
+    private readonly refundService: RefundService,
   ) {}
 
   @Post('register')
@@ -318,6 +320,40 @@ export class MerchantController {
   @ApiBody({ type: VerifyRechargeDto })
   async verifyRecharge(@Param('merchantId') merchantId: string, @Body() dto: VerifyRechargeDto) {
     return this.walletService.verifyRecharge(merchantId, dto);
+  }
+
+  @Post(':merchantId/refunds')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(MerchantOwnershipGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Request a refund from the wallet balance' })
+  @ApiBody({ type: CreateRefundDto })
+  async requestRefund(@Param('merchantId') merchantId: string, @Body() dto: CreateRefundDto) {
+    return this.refundService.request(merchantId, dto);
+  }
+
+  @Get(':merchantId/refunds')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(MerchantOwnershipGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List my refund requests' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async listRefunds(
+    @Param('merchantId') merchantId: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    return this.refundService.listMine(merchantId, Number(page), Number(limit));
+  }
+
+  @Get(':merchantId/refunds/:refundId')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(MerchantOwnershipGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get one of my refund requests' })
+  async getRefund(@Param('merchantId') merchantId: string, @Param('refundId') refundId: string) {
+    return this.refundService.getMine(refundId, merchantId);
   }
 
   @Get(':merchantId/dashboard')

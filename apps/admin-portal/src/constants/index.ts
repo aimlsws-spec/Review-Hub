@@ -9,6 +9,7 @@ export const ROUTES = {
   MERCHANTS: '/merchants',
   CAMPAIGNS: '/campaigns',
   WITHDRAWALS: '/withdrawals',
+  REFUNDS: '/refunds',
   FRAUD: '/fraud',
   CMS_PAGES: '/cms/pages',
   FAQS: '/cms/faqs',
@@ -27,6 +28,7 @@ export const QUERY_KEYS = {
   MERCHANT_DETAIL: ['merchants', 'detail'],
   CAMPAIGN_QUEUE: ['campaign-queue'],
   WITHDRAWAL_QUEUE: ['withdrawal-queue'],
+  REFUND_QUEUE: ['refund-queue'],
   FRAUD_FLAGS: ['fraud-flags'],
   CMS_PAGES: ['cms-pages'],
   FAQS: ['faqs'],
@@ -61,6 +63,17 @@ export const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
 }
 
 export const WITHDRAWAL_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending',
+  UNDER_REVIEW: 'Under Review',
+  APPROVED: 'Approved',
+  PROCESSING: 'Processing',
+  PAID: 'Paid',
+  REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+  FAILED: 'Failed',
+}
+
+export const REFUND_STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pending',
   UNDER_REVIEW: 'Under Review',
   APPROVED: 'Approved',

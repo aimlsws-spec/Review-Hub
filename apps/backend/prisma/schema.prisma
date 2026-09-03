@@ -316,6 +316,17 @@ enum WithdrawalStatus {
   CANCELLED
 }
 
+enum RefundStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  PROCESSING
+  PAID
+  FAILED
+  REJECTED
+  CANCELLED
+}
+
 enum NotificationType {
   SYSTEM
   CAMPAIGN
@@ -460,8 +471,8 @@ model User {
   updatedAt           DateTime   @updatedAt
   deletedAt           DateTime?
 
-  referredBy             User?                   @relation("UserReferrals", fields: [referredById], references: [id])
-  referrals              User[]                  @relation("UserReferrals")
+  referredBy             User?                    @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals              User[]                   @relation("UserReferrals")
   userRoles              UserRole[]
   sessions               UserSession[]
   otps                   Otp[]
@@ -471,22 +482,22 @@ model User {
   merchantTeams          MerchantTeam[]
   wallet                 UserWallet?
   bankAccounts           UserBankAccount[]
-  taskSubmissions        TaskSubmission[]        @relation("TaskSubmissionUser")
-  reviewedSubmissions    TaskSubmission[]        @relation("TaskSubmissionReviewer")
-  rewards                Reward[]                @relation("RewardUser")
-  submissionFraudFlags   SubmissionFraudFlag[]   @relation("SubmissionFraudFlagUser")
+  taskSubmissions        TaskSubmission[]         @relation("TaskSubmissionUser")
+  reviewedSubmissions    TaskSubmission[]         @relation("TaskSubmissionReviewer")
+  rewards                Reward[]                 @relation("RewardUser")
+  submissionFraudFlags   SubmissionFraudFlag[]    @relation("SubmissionFraudFlagUser")
   notifications          Notification[]
   notificationPreference NotificationPreference?
-  referralsMade          Referral[]              @relation("ReferralReferrer")
-  referralReceived       Referral?               @relation("ReferralReferredUser")
+  referralsMade          Referral[]               @relation("ReferralReferrer")
+  referralReceived       Referral?                @relation("ReferralReferredUser")
   supportTickets         SupportTicket[]
   kycDocuments           UserKycDocument[]
   fraudFlags             FraudFlag[]
-  uploadedFiles          UploadedFile[]          @relation("UploadedFileUser")
-  activityLogs           ActivityLog[]           @relation("ActivityLogUser")
+  uploadedFiles          UploadedFile[]           @relation("UploadedFileUser")
+  activityLogs           ActivityLog[]            @relation("ActivityLogUser")
   campaignParticipants   CampaignParticipant[]
-  campaignAudits         CampaignAudit[]         @relation("CampaignAuditUser")
-  campaignApprovals      CampaignApproval[]      @relation("CampaignApprovalReviewer")
+  campaignAudits         CampaignAudit[]          @relation("CampaignAuditUser")
+  campaignApprovals      CampaignApproval[]       @relation("CampaignApprovalReviewer")
   userAnalytics          UserAnalytics?
   gamificationProfile    UserGamificationProfile?
   badges                 UserBadge[]
@@ -611,18 +622,26 @@ model Otp {
 }
 
 model Device {
-  id          String         @id @default(uuid())
-  userId      String
-  name        String?
-  platform    DevicePlatform
-  os          String?
-  appVersion  String?
-  pushToken   String?        @unique
-  fingerprint String?
-  isActive    Boolean        @default(true)
-  lastSeenAt  DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id           String         @id @default(uuid())
+  userId       String
+  name         String?
+  platform     DevicePlatform
+  os           String?
+  appVersion   String?
+  pushToken    String?        @unique
+  fingerprint  String?
+  isActive     Boolean        @default(true)
+  lastSeenAt   DateTime?
+  // Basic fraud-risk signals — isRooted/isEmulator are self-reported by the
+  // client (a server can't reliably detect either from HTTP alone); vpnSuspected
+  // is a lightweight server-side header heuristic, not a commercial IP-intel
+  // lookup. riskScore is a simple weighted sum of the three, not a real model.
+  isRooted     Boolean        @default(false)
+  isEmulator   Boolean        @default(false)
+  vpnSuspected Boolean        @default(false)
+  riskScore    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   user         User           @relation(fields: [userId], references: [id])
   sessions     UserSession[]
@@ -631,6 +650,7 @@ model Device {
   @@unique([userId, fingerprint])
   @@index([userId])
   @@index([fingerprint])
+  @@index([riskScore])
   @@map("devices")
 }
 
@@ -826,7 +846,8 @@ model MerchantBankAccount {
   updatedAt          DateTime               @updatedAt
   deletedAt          DateTime?
 
-  merchant Merchant @relation(fields: [merchantId], references: [id])
+  merchant       Merchant                @relation(fields: [merchantId], references: [id])
+  refundRequests MerchantRefundRequest[]
 
   @@unique([merchantId, accountNumber, ifscCode])
   @@index([merchantId])
@@ -1386,13 +1407,16 @@ model MerchantWallet {
   merchantId       String   @unique
   availableBalance Decimal  @default(0) @db.Decimal(12, 2)
   reservedBalance  Decimal  @default(0) @db.Decimal(12, 2)
+  refundBalance    Decimal  @default(0) @db.Decimal(12, 2)
   totalTopUp       Decimal  @default(0) @db.Decimal(12, 2)
   totalSpent       Decimal  @default(0) @db.Decimal(12, 2)
+  totalRefunded    Decimal  @default(0) @db.Decimal(12, 2)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  merchant     Merchant            @relation(fields: [merchantId], references: [id], map: "merchant_wallet_merchant_fk")
-  transactions WalletTransaction[]
+  merchant       Merchant                @relation(fields: [merchantId], references: [id], map: "merchant_wallet_merchant_fk")
+  transactions   WalletTransaction[]
+  refundRequests MerchantRefundRequest[]
 
   @@map("merchant_wallets")
 }
@@ -1548,13 +1572,13 @@ model UserBadge {
 
 /// A weighted prize entry drawn by the daily-reward claim — unifies the "daily bonus / spin wheel / scratch card" bullet into one backend mechanic; the visual flavor is a client-side choice.
 model DailyRewardPrize {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   label     String
-  amount    Decimal  @db.Decimal(12, 2)
+  amount    Decimal   @db.Decimal(12, 2)
   weight    Int
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   claims DailyRewardClaim[]
@@ -1664,6 +1688,53 @@ model WithdrawalLog {
   @@index([withdrawalId])
   @@index([createdAt])
   @@map("withdrawal_logs")
+}
+
+/// A merchant cashing out wallet balance (e.g. unused campaign budget that was
+/// already released back to availableBalance) to their bank account. Mirrors
+/// WithdrawalRequest/WithdrawalLog on the user side — same PENDING -> admin
+/// review -> RazorpayX payout flow, just scoped to a merchant wallet.
+model MerchantRefundRequest {
+  id               String       @id @default(uuid())
+  merchantWalletId String
+  bankAccountId    String?
+  amount           Decimal      @db.Decimal(12, 2)
+  reason           String?      @db.Text
+  status           RefundStatus @default(PENDING)
+  rejectionReason  String?      @db.Text
+  processedBy      String?
+  processedAt      DateTime?
+  metadata         Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime?
+
+  merchantWallet MerchantWallet       @relation(fields: [merchantWalletId], references: [id])
+  bankAccount    MerchantBankAccount? @relation(fields: [bankAccountId], references: [id])
+  logs           MerchantRefundLog[]
+
+  @@index([merchantWalletId])
+  @@index([status])
+  @@index([processedBy])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("merchant_refund_requests")
+}
+
+model MerchantRefundLog {
+  id        String       @id @default(uuid())
+  refundId  String
+  oldStatus RefundStatus
+  newStatus RefundStatus
+  remarks   String?      @db.Text
+  changedBy String?
+  createdAt DateTime     @default(now())
+
+  refund MerchantRefundRequest @relation(fields: [refundId], references: [id])
+
+  @@index([refundId])
+  @@index([createdAt])
+  @@map("merchant_refund_logs")
 }
 
 model UserBankAccount {

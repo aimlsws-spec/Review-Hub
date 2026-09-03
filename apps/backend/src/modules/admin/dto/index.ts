@@ -1,6 +1,7 @@
 export * from './user-query.dto';
 export * from './update-user-status.dto';
 export * from './fraud-flag-query.dto';
+export * from './high-risk-device-query.dto';
 export * from './cms-page.dto';
 export * from './faq.dto';
 export * from './system-setting.dto';

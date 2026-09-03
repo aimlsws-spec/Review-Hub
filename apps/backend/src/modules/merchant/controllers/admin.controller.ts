@@ -8,8 +8,8 @@ import { SystemRole } from '@common/enums';
 
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
-import { ApproveMerchantDto, RejectMerchantDto, RequestDocumentsDto } from '../dto';
-import { AdminService, KycService } from '../services';
+import { ApproveMerchantDto, RejectMerchantDto, RejectRefundDto, RequestDocumentsDto } from '../dto';
+import { AdminService, KycService, RefundService } from '../services';
 
 @ApiTags('Admin - Merchants')
 @Controller({ path: 'admin/merchants', version: '1' })
@@ -19,6 +19,7 @@ export class AdminMerchantController {
   constructor(
     private readonly adminService: AdminService,
     private readonly kycService: KycService,
+    private readonly refundService: RefundService,
   ) {}
 
   @Get('pending')
@@ -92,6 +93,37 @@ export class AdminMerchantController {
   @ApiBody({ type: RequestDocumentsDto })
   async requestDocuments(@Body() dto: RequestDocumentsDto) {
     return this.adminService.requestDocuments(dto);
+  }
+
+  @Get('refunds/pending')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List merchant refund requests awaiting review' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async listPendingRefunds(@Query('page') page = '1', @Query('limit') limit = '20') {
+    return this.refundService.listPendingForAdmin(Number(page), Number(limit));
+  }
+
+  @Post('refunds/:refundId/approve')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Approve a merchant refund request' })
+  async approveRefund(@Param('refundId') refundId: string, @CurrentUser('id') adminId: string) {
+    return this.refundService.approve(refundId, adminId);
+  }
+
+  @Post('refunds/:refundId/reject')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reject a merchant refund request' })
+  @ApiBody({ type: RejectRefundDto })
+  async rejectRefund(
+    @Param('refundId') refundId: string,
+    @CurrentUser('id') adminId: string,
+    @Body() dto: RejectRefundDto,
+  ) {
+    return this.refundService.reject(refundId, adminId, dto);
   }
 
   @Patch(':merchantId/status')

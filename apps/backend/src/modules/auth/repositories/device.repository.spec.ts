@@ -15,6 +15,7 @@ describe('DeviceRepository', () => {
       update: jest.fn(),
       updateMany: jest.fn(),
       deleteMany: jest.fn(),
+      count: jest.fn(),
     },
   };
 
@@ -136,6 +137,23 @@ describe('DeviceRepository', () => {
         where: { userId: 'user-1', isActive: true, id: { not: 'device-1' } },
         data: { isActive: false, updatedAt: expect.any(Date) },
       });
+    });
+  });
+
+  describe('findHighRisk', () => {
+    it('should filter by minimum riskScore, riskiest first, with user details included', async () => {
+      mockPrisma.device.findMany.mockResolvedValue([{ id: 'device-1', riskScore: 80 }]);
+      mockPrisma.device.count.mockResolvedValue(1);
+
+      const result = await repository.findHighRisk({ minRiskScore: 40, page: 1, limit: 20 });
+
+      expect(result.data).toHaveLength(1);
+      expect(mockPrisma.device.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { riskScore: { gte: 40 } },
+          orderBy: { riskScore: 'desc' },
+        }),
+      );
     });
   });
 

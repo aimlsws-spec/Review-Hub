@@ -20,4 +20,14 @@ export class LoginDto {
   @IsOptional()
   @IsBoolean()
   rememberMe?: boolean;
+
+  @ApiPropertyOptional({ description: 'Client-reported: whether the device is rooted/jailbroken (mobile apps only — a server cannot detect this reliably)' })
+  @IsOptional()
+  @IsBoolean()
+  isRooted?: boolean;
+
+  @ApiPropertyOptional({ description: 'Client-reported: whether the app is running on an emulator/simulator (mobile apps only)' })
+  @IsOptional()
+  @IsBoolean()
+  isEmulator?: boolean;
 }

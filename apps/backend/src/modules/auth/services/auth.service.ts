@@ -9,7 +9,7 @@ import type { LoginResponse, AuthTokens, RegisterInput, SocialLoginInput, UserPr
 import { LoginHistoryRepository } from '../repositories/login-history.repository';
 import { UserRepository } from '../repositories/user.repository';
 
-import { DeviceMetadata , DeviceService } from './device.service';
+import { DeviceMetadata, DeviceService, DeviceSignalsInput } from './device.service';
 import { OtpService } from './otp.service';
 import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
@@ -28,7 +28,7 @@ export class AuthService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async register(input: RegisterInput, ipAddress?: string, userAgent?: string): Promise<LoginResponse> {
+  async register(input: RegisterInput, ipAddress?: string, userAgent?: string, deviceSignals?: DeviceSignalsInput): Promise<LoginResponse> {
     const existing = await this.userRepository.findByEmailOrPhone(input.email, input.phone);
     if (existing) throw new ConflictException('User', 'email or phone');
 
@@ -52,9 +52,13 @@ export class AuthService {
     // Register device and create session
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
+    const vpnSuspected = this.deviceService.detectVpnSuspicion(deviceSignals ?? {});
     const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
+      isRooted: input.isRooted,
+      isEmulator: input.isEmulator,
+      vpnSuspected,
     } as DeviceMetadata);
 
     const { sessionId, refreshToken } = await this.sessionService.createSession(
@@ -93,6 +97,7 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
     rememberMe = false,
+    deviceSignals?: DeviceSignalsInput,
   ): Promise<LoginResponse> {
     const user = await this.userRepository.findByEmailOrPhone(email, phone);
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -135,9 +140,13 @@ export class AuthService {
     // Register/update device before the session, so the session can link to it
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
+    const vpnSuspected = this.deviceService.detectVpnSuspicion(deviceSignals ?? {});
     const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
+      isRooted: deviceSignals?.isRooted,
+      isEmulator: deviceSignals?.isEmulator,
+      vpnSuspected,
     } as DeviceMetadata);
     const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId, rememberMe);
     const roles = await this.userRepository.getRoleNames(user.id);
@@ -167,7 +176,7 @@ export class AuthService {
    * done the identity verification we'd normally do via OTP.
    */
   async socialLogin(input: SocialLoginInput): Promise<LoginResponse> {
-    const { provider, providerId, email, firstName, lastName, avatarUrl, ipAddress, userAgent } = input;
+    const { provider, providerId, email, firstName, lastName, avatarUrl, ipAddress, userAgent, xForwardedFor, via } = input;
 
     let user =
       provider === 'google'
@@ -212,9 +221,11 @@ export class AuthService {
 
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
+    const vpnSuspected = this.deviceService.detectVpnSuspicion({ xForwardedFor, via });
     const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
+      vpnSuspected,
     } as DeviceMetadata);
     const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId);
     const roles = await this.userRepository.getRoleNames(user.id);

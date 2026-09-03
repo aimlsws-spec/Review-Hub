@@ -218,4 +218,81 @@ describe('MerchantWalletRepository', () => {
       expect(mockTx.merchantWallet.update).not.toHaveBeenCalled();
     });
   });
+
+  describe('holdForRefund', () => {
+    it('should move the amount from available to refundBalance and log a HOLD transaction', async () => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 5000 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'HOLD' });
+
+      await repository.holdForRefund({ merchantWalletId: 'wallet-1', amount: 2000, refundId: 'refund-1' });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { availableBalance: 3000, refundBalance: { increment: 2000 } },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'HOLD', amount: 2000, referenceType: 'MerchantRefundRequest', referenceId: 'refund-1' }),
+      });
+    });
+
+    it('should reject when the wallet balance is insufficient, without moving anything', async () => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 500 });
+
+      await expect(
+        repository.holdForRefund({ merchantWalletId: 'wallet-1', amount: 2000, refundId: 'refund-1' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTx.merchantWallet.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('releaseRefundHold', () => {
+    it('should move the amount back from refundBalance to available and log a RELEASE transaction', async () => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 3000 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'RELEASE' });
+
+      await repository.releaseRefundHold({ merchantWalletId: 'wallet-1', amount: 2000, refundId: 'refund-1' });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { availableBalance: 5000, refundBalance: { decrement: 2000 } },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'RELEASE', amount: 2000, referenceType: 'MerchantRefundRequest', referenceId: 'refund-1' }),
+      });
+    });
+  });
+
+  describe('finalizeRefund', () => {
+    it('should clear the refundBalance hold and increment totalRefunded', async () => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', refundBalance: 2000 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'REFUND' });
+
+      await repository.finalizeRefund({ merchantWalletId: 'wallet-1', amount: 2000, refundId: 'refund-1' });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { refundBalance: 0, totalRefunded: { increment: 2000 } },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'REFUND', amount: 2000, referenceType: 'MerchantRefundRequest', referenceId: 'refund-1' }),
+      });
+    });
+  });
+
+  describe('reverseFinalizedRefund', () => {
+    it('should give the amount back to available balance and decrement totalRefunded', async () => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ id: 'wallet-1', availableBalance: 3000 });
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'txn-1', type: 'RELEASE' });
+
+      await repository.reverseFinalizedRefund({ merchantWalletId: 'wallet-1', amount: 2000, refundId: 'refund-1' });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { availableBalance: 5000, totalRefunded: { decrement: 2000 } },
+      });
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'RELEASE', amount: 2000, referenceType: 'MerchantRefundRequest', referenceId: 'refund-1' }),
+      });
+    });
+  });
 });

@@ -61,7 +61,12 @@ describe('AuthController', () => {
 
       await controller.register(dto, req);
 
-      expect(mockAuthService.register).toHaveBeenCalledWith(dto, '127.0.0.1', 'Mozilla/5.0');
+      expect(mockAuthService.register).toHaveBeenCalledWith(dto, '127.0.0.1', 'Mozilla/5.0', {
+        isRooted: undefined,
+        isEmulator: undefined,
+        xForwardedFor: undefined,
+        via: undefined,
+      });
     });
   });
 
@@ -73,7 +78,12 @@ describe('AuthController', () => {
 
       await controller.login(dto, req);
 
-      expect(mockAuthService.login).toHaveBeenCalledWith('john@example.com', undefined, 'Pass@123', '127.0.0.1', 'Mozilla/5.0', undefined);
+      expect(mockAuthService.login).toHaveBeenCalledWith('john@example.com', undefined, 'Pass@123', '127.0.0.1', 'Mozilla/5.0', undefined, {
+        isRooted: undefined,
+        isEmulator: undefined,
+        xForwardedFor: undefined,
+        via: undefined,
+      });
     });
   });
 
@@ -97,6 +107,8 @@ describe('AuthController', () => {
         avatarUrl: 'pic.jpg',
         ipAddress: '127.0.0.1',
         userAgent: 'Mozilla/5.0',
+        xForwardedFor: undefined,
+        via: undefined,
       });
     });
   });
@@ -120,6 +132,8 @@ describe('AuthController', () => {
         lastName: 'Doe',
         ipAddress: '127.0.0.1',
         userAgent: 'Mozilla/5.0',
+        xForwardedFor: undefined,
+        via: undefined,
       });
     });
   });

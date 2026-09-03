@@ -168,6 +168,27 @@ export interface WithdrawalRequest {
 }
 
 // ============================================================
+// MERCHANT REFUND TYPES
+// ============================================================
+
+export type MerchantRefundStatus = 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'PROCESSING' | 'PAID' | 'FAILED' | 'REJECTED' | 'CANCELLED'
+
+export interface MerchantRefund {
+  id: string
+  merchantWalletId: string
+  bankAccountId: string | null
+  amount: string
+  reason: string | null
+  status: MerchantRefundStatus
+  rejectionReason: string | null
+  processedBy: string | null
+  processedAt: string | null
+  createdAt: string
+  merchantWallet?: { merchantId: string }
+  bankAccount?: { bankName: string; accountNumber: string; accountHolderName: string }
+}
+
+// ============================================================
 // FRAUD FLAG TYPES
 // ============================================================
 

@@ -64,6 +64,76 @@ describe('DeviceService', () => {
       expect(mockDeviceRepository.update).toHaveBeenCalled();
       expect(result).toBe('device-1');
     });
+
+    it('should persist risk signals and a computed riskScore on a new device', async () => {
+      mockDeviceRepository.findByFingerprint.mockResolvedValue(null);
+      mockDeviceRepository.create.mockResolvedValue({ id: 'device-1' });
+
+      await service.registerDevice('user-1', {
+        platform: DevicePlatform.ANDROID,
+        fingerprint: 'fp-1',
+        isRooted: true,
+        isEmulator: false,
+        vpnSuspected: true,
+      });
+
+      expect(mockDeviceRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isRooted: true, isEmulator: false, vpnSuspected: true, riskScore: 60 }),
+      );
+    });
+
+    it('should keep an existing risk flag when the latest report omits it', async () => {
+      const existingDevice = {
+        id: 'device-1',
+        platform: DevicePlatform.ANDROID,
+        isRooted: true,
+        isEmulator: false,
+        vpnSuspected: false,
+      };
+      mockDeviceRepository.findByFingerprint.mockResolvedValue(existingDevice);
+      mockDeviceRepository.update.mockResolvedValue(existingDevice);
+
+      await service.registerDevice('user-1', {
+        platform: DevicePlatform.ANDROID,
+        fingerprint: 'fp-1',
+      });
+
+      expect(mockDeviceRepository.update).toHaveBeenCalledWith(
+        'device-1',
+        expect.objectContaining({ isRooted: true, isEmulator: false, vpnSuspected: false, riskScore: 40 }),
+      );
+    });
+  });
+
+  describe('calculateRiskScore', () => {
+    it('should return 0 when nothing is flagged', () => {
+      expect(service.calculateRiskScore({})).toBe(0);
+    });
+
+    it('should sum weighted signals and cap at 100', () => {
+      expect(service.calculateRiskScore({ isRooted: true })).toBe(40);
+      expect(service.calculateRiskScore({ isEmulator: true })).toBe(40);
+      expect(service.calculateRiskScore({ vpnSuspected: true })).toBe(20);
+      expect(service.calculateRiskScore({ isRooted: true, isEmulator: true, vpnSuspected: true })).toBe(100);
+    });
+  });
+
+  describe('detectVpnSuspicion', () => {
+    it('should flag a Via header as suspicious', () => {
+      expect(service.detectVpnSuspicion({ via: '1.1 proxy.example.com' })).toBe(true);
+    });
+
+    it('should flag multiple X-Forwarded-For hops as suspicious', () => {
+      expect(service.detectVpnSuspicion({ xForwardedFor: '1.2.3.4, 5.6.7.8' })).toBe(true);
+    });
+
+    it('should not flag a single X-Forwarded-For hop', () => {
+      expect(service.detectVpnSuspicion({ xForwardedFor: '1.2.3.4' })).toBe(false);
+    });
+
+    it('should not flag when no signals are present', () => {
+      expect(service.detectVpnSuspicion({})).toBe(false);
+    });
   });
 
   describe('getUserDevices', () => {

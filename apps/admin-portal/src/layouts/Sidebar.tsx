@@ -75,6 +75,15 @@ const NAV_GROUPS: NavGroup[] = [
         ),
       },
       {
+        label: 'Refund Approvals',
+        to: ROUTES.REFUNDS,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l-4-4m0 0l4-4m-4 4h11a4 4 0 010 8h-1" />
+          </svg>
+        ),
+      },
+      {
         label: 'Fraud Flags',
         to: ROUTES.FRAUD,
         icon: (

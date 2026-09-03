@@ -46,6 +46,7 @@ describe('AuthService', () => {
   const mockDeviceService = {
     parseUserAgent: jest.fn().mockReturnValue({ platform: 'WEB', os: 'Windows', name: 'Chrome' }),
     generateFingerprint: jest.fn().mockReturnValue('mock-fingerprint'),
+    detectVpnSuspicion: jest.fn().mockReturnValue(false),
     registerDevice: jest.fn().mockResolvedValue('device-1'),
     deactivateDevice: jest.fn().mockResolvedValue(undefined),
     deactivateAllDevices: jest.fn().mockResolvedValue(undefined),

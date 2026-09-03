@@ -3,6 +3,7 @@ import type {
   Merchant,
   MerchantWallet,
   WalletTransaction,
+  RefundRequest,
   MerchantDocument,
   MerchantBankAccount,
   TeamMember,
@@ -72,6 +73,12 @@ export interface RegisterMerchantInput {
   description?: string
 }
 
+export interface CreateRefundInput {
+  amount: number
+  bankAccountId: string
+  reason?: string
+}
+
 export const merchantApi = {
   // Profile
   getProfile: () => apiClient.get<ApiResponse<Merchant>>('/merchants/me'),
@@ -120,6 +127,13 @@ export const merchantApi = {
 
   verifyRecharge: (merchantId: string, data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) =>
     apiClient.post<ApiResponse<WalletTransaction>>(`/merchants/${merchantId}/wallet/recharge/verify`, data),
+
+  // Refunds
+  getRefunds: (merchantId: string, params?: { page?: number; limit?: number }) =>
+    apiClient.get<ApiResponse<PaginatedResponse<RefundRequest>>>(`/merchants/${merchantId}/refunds`, { params }),
+
+  createRefund: (merchantId: string, data: CreateRefundInput) =>
+    apiClient.post<ApiResponse<RefundRequest>>(`/merchants/${merchantId}/refunds`, data),
 
   // KYC documents
   getDocuments: (merchantId: string) =>

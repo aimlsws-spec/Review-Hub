@@ -140,6 +140,25 @@ export interface WalletTransaction {
 }
 
 // ============================================================
+// REFUND TYPES
+// ============================================================
+
+export type RefundRequestStatus = 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'PROCESSING' | 'PAID' | 'FAILED' | 'REJECTED' | 'CANCELLED'
+
+export interface RefundRequest {
+  id: string
+  merchantWalletId: string
+  bankAccountId: string | null
+  amount: string
+  reason: string | null
+  status: RefundRequestStatus
+  rejectionReason: string | null
+  processedAt: string | null
+  createdAt: string
+  bankAccount?: { bankName: string; accountNumber: string; accountHolderName: string }
+}
+
+// ============================================================
 // DOCUMENT TYPES
 // ============================================================
 

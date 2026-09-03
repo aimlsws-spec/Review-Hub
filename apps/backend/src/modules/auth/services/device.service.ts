@@ -12,6 +12,23 @@ export interface DeviceMetadata {
   appVersion?: string;
   fingerprint?: string;
   pushToken?: string;
+  isRooted?: boolean;
+  isEmulator?: boolean;
+  vpnSuspected?: boolean;
+}
+
+/**
+ * Raw signals gathered per-request for basic fraud-risk scoring. isRooted/
+ * isEmulator are self-reported by the client (a server can't reliably detect
+ * either from HTTP alone). xForwardedFor/via are the two request headers this
+ * heuristic inspects for proxy/VPN suspicion — not a commercial IP-intel
+ * lookup, just a free first-pass signal.
+ */
+export interface DeviceSignalsInput {
+  isRooted?: boolean;
+  isEmulator?: boolean;
+  xForwardedFor?: string;
+  via?: string;
 }
 
 @Injectable()
@@ -33,19 +50,33 @@ export class DeviceService {
       );
 
       if (existingDevice) {
-        // Update existing device
+        // Update existing device. isRooted/isEmulator/vpnSuspected trust the
+        // latest report over the stored value (a rooted device can be
+        // un-rooted, a VPN can be turned off) rather than sticking once flagged.
+        const isRooted = metadata.isRooted ?? existingDevice.isRooted;
+        const isEmulator = metadata.isEmulator ?? existingDevice.isEmulator;
+        const vpnSuspected = metadata.vpnSuspected ?? existingDevice.vpnSuspected;
+
         await this.deviceRepository.update(existingDevice.id, {
           name: metadata.name ?? existingDevice.name,
           platform: metadata.platform,
           os: metadata.os ?? existingDevice.os,
           appVersion: metadata.appVersion ?? existingDevice.appVersion,
           pushToken: metadata.pushToken ?? existingDevice.pushToken,
+          isRooted,
+          isEmulator,
+          vpnSuspected,
+          riskScore: this.calculateRiskScore({ isRooted, isEmulator, vpnSuspected }),
           isActive: true,
           lastSeenAt: new Date(),
         });
         return existingDevice.id;
       }
     }
+
+    const isRooted = metadata.isRooted ?? false;
+    const isEmulator = metadata.isEmulator ?? false;
+    const vpnSuspected = metadata.vpnSuspected ?? false;
 
     // Create new device
     const device = await this.deviceRepository.create({
@@ -56,11 +87,42 @@ export class DeviceService {
       appVersion: metadata.appVersion,
       fingerprint: metadata.fingerprint,
       pushToken: metadata.pushToken,
+      isRooted,
+      isEmulator,
+      vpnSuspected,
+      riskScore: this.calculateRiskScore({ isRooted, isEmulator, vpnSuspected }),
       isActive: true,
       lastSeenAt: new Date(),
     });
 
     return device.id;
+  }
+
+  /**
+   * Weighted sum, not a real risk model — rooted/emulator each dominate the
+   * score since either one is a strong signal on its own, VPN suspicion adds
+   * a smaller amount since the header heuristic below is much weaker evidence.
+   */
+  calculateRiskScore(signals: { isRooted?: boolean; isEmulator?: boolean; vpnSuspected?: boolean }): number {
+    let score = 0;
+    if (signals.isRooted) score += 40;
+    if (signals.isEmulator) score += 40;
+    if (signals.vpnSuspected) score += 20;
+    return Math.min(score, 100);
+  }
+
+  /**
+   * Free, header-only proxy/VPN heuristic — not a commercial IP-reputation
+   * lookup. A `Via` header or more than one hop in `X-Forwarded-For` suggests
+   * traffic passed through an intermediary, which is weak but free evidence
+   * of a proxy/VPN in the path. Produces false negatives (most VPNs don't
+   * add these headers) and occasional false positives (some corporate
+   * networks/CDNs do too) — treat this as a low-confidence signal only.
+   */
+  detectVpnSuspicion(signals: Pick<DeviceSignalsInput, 'xForwardedFor' | 'via'>): boolean {
+    if (signals.via) return true;
+    if (signals.xForwardedFor && signals.xForwardedFor.split(',').length > 1) return true;
+    return false;
   }
 
   /**

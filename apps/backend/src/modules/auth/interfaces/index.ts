@@ -42,6 +42,8 @@ export interface RegisterInput {
   phone?: string;
   password: string;
   referralCode?: string;
+  isRooted?: boolean;
+  isEmulator?: boolean;
 }
 
 export interface SocialLoginInput {
@@ -53,6 +55,8 @@ export interface SocialLoginInput {
   avatarUrl?: string;
   ipAddress?: string;
   userAgent?: string;
+  xForwardedFor?: string;
+  via?: string;
 }
 
 export interface SessionInfo {

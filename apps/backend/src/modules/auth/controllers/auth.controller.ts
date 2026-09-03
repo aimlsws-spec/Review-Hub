@@ -47,7 +47,12 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiBody({ type: RegisterDto })
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
-    return this.authService.register(dto, req.ip, req.headers['user-agent']);
+    return this.authService.register(dto, req.ip, req.headers['user-agent'], {
+      isRooted: dto.isRooted,
+      isEmulator: dto.isEmulator,
+      xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
+      via: req.headers['via'] as string | undefined,
+    });
   }
 
   @Public()
@@ -58,7 +63,12 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiBody({ type: LoginDto })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto.email, dto.phone, dto.password, req.ip, req.headers['user-agent'], dto.rememberMe);
+    return this.authService.login(dto.email, dto.phone, dto.password, req.ip, req.headers['user-agent'], dto.rememberMe, {
+      isRooted: dto.isRooted,
+      isEmulator: dto.isEmulator,
+      xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
+      via: req.headers['via'] as string | undefined,
+    });
   }
 
   @Public()
@@ -84,6 +94,8 @@ export class AuthController {
       avatarUrl: profile.avatarUrl,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
+      xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
+      via: req.headers['via'] as string | undefined,
     });
   }
 
@@ -110,6 +122,8 @@ export class AuthController {
       lastName: profile.lastName,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
+      xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
+      via: req.headers['via'] as string | undefined,
     });
   }
 

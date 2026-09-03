@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { AdminService, KycService } from '../services';
+import { AdminService, KycService, RefundService } from '../services';
 
 import { AdminMerchantController } from './admin.controller';
 
@@ -21,12 +21,19 @@ describe('AdminMerchantController', () => {
     getDocumentFilePath: jest.fn(),
   };
 
+  const mockRefundService = {
+    listPendingForAdmin: jest.fn(),
+    approve: jest.fn(),
+    reject: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminMerchantController],
       providers: [
         { provide: AdminService, useValue: mockAdminService },
         { provide: KycService, useValue: mockKycService },
+        { provide: RefundService, useValue: mockRefundService },
       ],
     }).compile();
 
@@ -82,6 +89,27 @@ describe('AdminMerchantController', () => {
     it('should call adminService.toggleMerchantStatus', async () => {
       await controller.toggleStatus('merchant-1', 'SUSPENDED', 'admin-1');
       expect(mockAdminService.toggleMerchantStatus).toHaveBeenCalledWith('merchant-1', 'SUSPENDED', 'admin-1');
+    });
+  });
+
+  describe('listPendingRefunds', () => {
+    it('should call refundService.listPendingForAdmin', async () => {
+      await controller.listPendingRefunds('1', '20');
+      expect(mockRefundService.listPendingForAdmin).toHaveBeenCalledWith(1, 20);
+    });
+  });
+
+  describe('approveRefund', () => {
+    it('should call refundService.approve', async () => {
+      await controller.approveRefund('refund-1', 'admin-1');
+      expect(mockRefundService.approve).toHaveBeenCalledWith('refund-1', 'admin-1');
+    });
+  });
+
+  describe('rejectRefund', () => {
+    it('should call refundService.reject', async () => {
+      await controller.rejectRefund('refund-1', 'admin-1', { rejectionReason: 'Bank mismatch' });
+      expect(mockRefundService.reject).toHaveBeenCalledWith('refund-1', 'admin-1', { rejectionReason: 'Bank mismatch' });
     });
   });
 });
