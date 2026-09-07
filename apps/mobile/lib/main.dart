@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'core/constants/storage_keys.dart';
@@ -55,11 +56,18 @@ class _ViralKarAppState extends ConsumerState<ViralKarApp> {
       }
     });
 
-    return MaterialApp.router(
-      title: 'VIRAL KAR',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      routerConfig: router,
+    // 375x812 (iPhone X points) is the reference frame every size in the UI
+    // is designed against; ScreenUtil scales it to whatever device this
+    // actually runs on so `16.w`/`16.h`/`16.sp` stay proportional everywhere.
+    return ScreenUtilInit(
+      designSize: const Size(375, 812),
+      minTextAdapt: true,
+      builder: (context, child) => MaterialApp.router(
+        title: 'VIRAL KAR',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        routerConfig: router,
+      ),
     );
   }
 }

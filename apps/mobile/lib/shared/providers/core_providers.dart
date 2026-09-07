@@ -11,7 +11,7 @@ import '../../core/network/token_storage.dart';
 /// Raw platform keychain/keystore access — prefer [tokenStorageProvider] in
 /// feature code.
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
-  // v11's AndroidOptions always uses encrypted storage — no toggle needed anymore.
+  // AndroidOptions always uses encrypted storage since v10 — no toggle needed.
   return const FlutterSecureStorage(
     aOptions: AndroidOptions(),
   );

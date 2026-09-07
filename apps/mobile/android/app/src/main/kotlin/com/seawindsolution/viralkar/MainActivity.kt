@@ -1,4 +1,4 @@
-package com.viralkar.viral_kar
+package com.seawindsolution.viralkar
 
 import io.flutter.embedding.android.FlutterActivity
 

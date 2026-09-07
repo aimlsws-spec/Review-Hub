@@ -23,7 +23,13 @@ dependencies:
   # Local storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  flutter_secure_storage: ^11.0.0
+  # Pinned below 11.x: 11.0.0 raised compileSdk to 37, whose SDK platform
+  # package is published as "android-37.0" (not "android-37") — this
+  # project's Gradle/AGP resolves compileSdk 37 to the old-style
+  # "android-37" target hash and fails to find it. 10.3.1 targets
+  # compileSdk 36, matches installed SDK exactly, no functional loss (see
+  # core_providers.dart).
+  flutter_secure_storage: ">=10.3.1 <11.0.0"
 
   # Data classes / serialization
   freezed_annotation: ^3.1.0
@@ -34,6 +40,7 @@ dependencies:
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
   flutter_svg: ^2.0.10+1
+  flutter_screenutil: ^5.9.3
 
   # Media
   image_picker: ^1.1.2
@@ -56,6 +63,8 @@ dev_dependencies:
   build_runner: ^2.4.11
   freezed: ^3.2.5
   json_serializable: ^6.8.0
+  change_app_package_name: ^1.5.0
+  flutter_native_splash: ^2.4.3
 
 flutter:
   uses-material-design: true
@@ -64,3 +73,18 @@ flutter:
     - assets/images/
 
   # fonts are pulled from google_fonts at runtime — no bundled font files needed
+
+# Native (pre-Flutter-engine) splash screen — generated via `dart run
+# flutter_native_splash:create`. Colors match AppColors (navy900/white),
+# so this hands off seamlessly into the in-app SplashScreen widget.
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/images/splash_logo.png
+  android_gravity: center
+  ios_content_mode: center
+  fullscreen: true
+
+  android_12:
+    color: "#FFFFFF"
+    image: assets/images/splash_icon_android12.png
+    icon_background_color: "#FFFFFF"
