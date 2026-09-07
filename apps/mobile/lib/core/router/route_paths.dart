@@ -39,6 +39,11 @@ class RoutePaths {
   static const String changePassword = '/profile/settings/change-password';
   static const String kyc = '/profile/kyc';
 
+  static const String gamification = '/gamification';
+
+  static const String marketplace = '/marketplace';
+  static const String marketplaceRedemptions = '/marketplace/redemptions';
+
   static const String support = '/support/tickets';
   static const String newSupportTicket = '/support/tickets/new';
   static const String supportTicketDetail = '/support/tickets/:ticketId';

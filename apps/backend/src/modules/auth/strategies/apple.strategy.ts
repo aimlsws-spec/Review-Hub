@@ -25,10 +25,14 @@ export class AppleStrategy extends PassportStrategy(Strategy, 'apple') {
     private readonly jwtService: JwtService,
   ) {
     super({
-      clientID: configService.get<string>('oauth.apple.clientId'),
-      teamID: configService.get<string>('oauth.apple.teamId'),
-      keyID: configService.get<string>('oauth.apple.keyId'),
-      privateKeyString: configService.get<string>('oauth.apple.privateKey'),
+      // passport-oauth2 throws at construction time if clientID/privateKeyString are falsy
+      // (it signs a client-secret JWT right away), which would crash the whole app on boot
+      // whenever Apple Sign In isn't configured (e.g. local dev) — fall back to placeholders
+      // so the strategy registers but simply fails auth attempts instead.
+      clientID: configService.get<string>('oauth.apple.clientId') || 'apple-oauth-not-configured',
+      teamID: configService.get<string>('oauth.apple.teamId') || 'apple-oauth-not-configured',
+      keyID: configService.get<string>('oauth.apple.keyId') || 'apple-oauth-not-configured',
+      privateKeyString: configService.get<string>('oauth.apple.privateKey') || 'apple-oauth-not-configured',
       callbackURL: configService.get<string>('oauth.apple.callbackUrl'),
       passReqToCallback: true,
       scope: ['name', 'email'],

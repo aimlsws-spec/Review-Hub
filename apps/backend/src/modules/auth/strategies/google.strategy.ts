@@ -15,7 +15,10 @@ export interface GoogleProfile {
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(configService: ConfigService) {
     super({
-      clientID: configService.get<string>('oauth.google.clientId'),
+      // passport-oauth2 throws at construction time if clientID is falsy, which would crash
+      // the whole app on boot whenever Google OAuth isn't configured (e.g. local dev) — fall
+      // back to a placeholder so the strategy registers but simply fails auth attempts instead.
+      clientID: configService.get<string>('oauth.google.clientId') || 'google-oauth-not-configured',
       clientSecret: configService.get<string>('oauth.google.clientSecret'),
       callbackURL: configService.get<string>('oauth.google.callbackUrl'),
       scope: ['email', 'profile'],

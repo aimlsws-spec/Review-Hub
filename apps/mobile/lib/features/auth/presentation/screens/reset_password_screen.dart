@@ -123,7 +123,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   validator: (v) => (v != _passwordController.text) ? 'Passwords do not match' : null,
                 ),
                 const SizedBox(height: 24),
-                LoadingButton(label: 'Reset password', isLoading: _isSubmitting, onPressed: _submit),
+                LoadingButton(label: 'Reset password', isLoading: _isSubmitting, gradient: true, onPressed: _submit),
               ],
             ),
           ),

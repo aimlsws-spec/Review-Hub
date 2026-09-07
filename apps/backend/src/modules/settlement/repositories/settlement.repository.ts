@@ -6,6 +6,19 @@ import { PrismaService } from '../../../database/prisma/prisma.service';
 export class SettlementRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findAll(page: number, limit: number) {
+    const [data, total] = await Promise.all([
+      this.prisma.settlement.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { periodStart: 'desc' },
+        include: { invoice: true, merchant: { select: { businessName: true } } },
+      }),
+      this.prisma.settlement.count(),
+    ]);
+    return { data, total, page, limit };
+  }
+
   async findByMerchant(merchantId: string, page: number, limit: number) {
     const where = { merchantId };
     const [data, total] = await Promise.all([

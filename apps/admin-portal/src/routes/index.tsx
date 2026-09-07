@@ -21,6 +21,14 @@ const WithdrawalQueuePage = lazy(() => import('@/pages/WithdrawalQueuePage'))
 const RefundApprovalsPage = lazy(() => import('@/pages/RefundApprovalsPage'))
 const FraudFlagsPage = lazy(() => import('@/pages/FraudFlagsPage'))
 const SupportTicketsPage = lazy(() => import('@/pages/SupportTicketsPage'))
+const BadgesPage = lazy(() => import('@/pages/BadgesPage'))
+const DailyRewardPrizesPage = lazy(() => import('@/pages/DailyRewardPrizesPage'))
+const MarketplacePage = lazy(() => import('@/pages/MarketplacePage'))
+const SettlementsPage = lazy(() => import('@/pages/SettlementsPage'))
+const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
+const ScheduledJobsPage = lazy(() => import('@/pages/ScheduledJobsPage'))
+const AiProvidersPage = lazy(() => import('@/pages/AiProvidersPage'))
+const PlatformConfigurationPage = lazy(() => import('@/pages/PlatformConfigurationPage'))
 const CmsPagesPage = lazy(() => import('@/pages/cms/CmsPagesPage'))
 const FaqsPage = lazy(() => import('@/pages/cms/FaqsPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
@@ -62,6 +70,14 @@ export const router = createBrowserRouter(
             { path: ROUTES.REFUNDS, element: <RefundApprovalsPage /> },
             { path: ROUTES.FRAUD, element: <FraudFlagsPage /> },
             { path: ROUTES.SUPPORT_TICKETS, element: <SupportTicketsPage /> },
+            { path: ROUTES.BADGES, element: <BadgesPage /> },
+            { path: ROUTES.DAILY_REWARD_PRIZES, element: <DailyRewardPrizesPage /> },
+            { path: ROUTES.MARKETPLACE, element: <MarketplacePage /> },
+            { path: ROUTES.SETTLEMENTS, element: <SettlementsPage /> },
+            { path: ROUTES.ANALYTICS, element: <AnalyticsPage /> },
+            { path: ROUTES.SCHEDULED_JOBS, element: <ScheduledJobsPage /> },
+            { path: ROUTES.AI_PROVIDERS, element: <AiProvidersPage /> },
+            { path: ROUTES.PLATFORM_CONFIGURATION, element: <PlatformConfigurationPage /> },
             { path: ROUTES.CMS_PAGES, element: <CmsPagesPage /> },
             { path: ROUTES.FAQS, element: <FaqsPage /> },
             { path: ROUTES.SETTINGS, element: <SettingsPage /> },

@@ -159,7 +159,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   decoration: const InputDecoration(labelText: 'Referral code (optional)'),
                 ),
                 const SizedBox(height: 24),
-                LoadingButton(label: 'Create account', isLoading: _isSubmitting, onPressed: _submit),
+                LoadingButton(label: 'Create account', isLoading: _isSubmitting, gradient: true, onPressed: _submit),
                 const SizedBox(height: 16),
                 Center(
                   child: TextButton(
@@ -171,7 +171,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           TextSpan(text: 'Already have an account? '),
                           TextSpan(
                             text: 'Sign in',
-                            style: TextStyle(color: AppColors.primary600, fontWeight: FontWeight.w600),
+                            style: TextStyle(color: AppColors.orange700, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),

@@ -21,6 +21,19 @@ class AppColors {
   static const Color brand500 = Color(0xFFD946EF);
   static const Color brand600 = Color(0xFFC026D3);
 
+  // Orange/navy — the exact fills used in Viralkarlogo.svg, for the auth
+  // journey (splash, onboarding, login/signup/OTP) only. Kept separate from
+  // `primary` (blue), which the rest of the app keeps, mirroring how the web
+  // portals use orange only on their login pages.
+  static const Color orange50 = Color(0xFFFFF7ED);
+  static const Color orange100 = Color(0xFFFFEDD5);
+  static const Color orange300 = Color(0xFFFDBA74);
+  static const Color orange500 = Color(0xFFF18E31);
+  static const Color orange700 = Color(0xFFE4771A);
+  static const Color navy900 = Color(0xFF173559);
+
+  static const List<Color> authGradient = [orange500, orange700];
+
   // Semantic
   static const Color success = Color(0xFF16A34A);
   static const Color warning = Color(0xFFEAB308);

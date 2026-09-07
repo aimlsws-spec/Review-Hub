@@ -32,13 +32,28 @@ export interface RazorpayPayout {
 @Injectable()
 export class RazorpayService {
   private readonly logger = new Logger(RazorpayService.name);
-  private readonly client: Razorpay;
+  private _client: Razorpay | null = null;
 
-  constructor(private readonly config: ConfigService) {
-    this.client = new Razorpay({
-      key_id: this.config.get<string>('payment.razorpayKeyId'),
-      key_secret: this.config.get<string>('payment.razorpayKeySecret'),
-    });
+  constructor(private readonly config: ConfigService) {}
+
+  /**
+   * Constructed lazily, not in the constructor — the Razorpay SDK throws
+   * synchronously if `key_id`/`key_secret` are blank, which would otherwise
+   * crash the whole app at boot whenever Razorpay isn't configured. Deferring
+   * construction lets the app run normally until a payment feature is
+   * actually used, matching every other optional integration's documented
+   * "degrades gracefully when unconfigured" behavior.
+   */
+  private get client(): Razorpay {
+    if (!this._client) {
+      const key_id = this.config.get<string>('payment.razorpayKeyId');
+      const key_secret = this.config.get<string>('payment.razorpayKeySecret');
+      if (!key_id || !key_secret) {
+        throw new Error('Razorpay is not configured — set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to use payment features.');
+      }
+      this._client = new Razorpay({ key_id, key_secret });
+    }
+    return this._client;
   }
 
   /** Creates a collection order for a wallet top-up. Amount is in rupees. */

@@ -1,22 +1,40 @@
 import type {
   AdminUser,
+  AiModel,
+  AiProvider,
+  AiPromptTemplate,
+  AiUsageLog,
+  AnalyticsEvent,
   ApiResponse,
   AuditAction,
   AuditLog,
+  Badge,
+  BadgeCriteriaType,
   Campaign,
   CMSPage,
   CMSPageStatus,
+  DailyAnalytics,
+  DailyRewardPrize,
   FAQ,
   FeatureFlag,
   FraudFlag,
   FraudRiskLevel,
+  JobExecutionLog,
+  JobType,
+  MarketplaceItem,
   Merchant,
+  MerchantAnalytics,
   MerchantDetail,
   MerchantRefund,
   PaginatedResult,
+  PlatformConfiguration,
+  Redemption,
   ReversedReward,
   RiskyDevice,
+  ScheduledJob,
+  Settlement,
   SystemSetting,
+  UserAnalytics,
   UserStatus,
   WithdrawalRequest,
   SupportTicket,
@@ -174,4 +192,108 @@ export const adminApi = {
 
   updateSupportTicketStatus: (ticketId: string, status: SupportTicketStatus) =>
     apiClient.patch<ApiResponse<SupportTicket>>(`/admin/support/tickets/${ticketId}/status`, { status }),
+
+  // ── Gamification: badges ──────────────────────────────────────────────
+  listBadges: (params: { page: number; limit: number; isActive?: boolean }) =>
+    apiClient.get<ApiResponse<PaginatedResult<Badge>>>('/admin/gamification/badges', { params }),
+
+  createBadge: (data: { code: string; name: string; description: string; iconUrl?: string; criteriaType: BadgeCriteriaType; criteriaValue: number; isActive?: boolean }) =>
+    apiClient.post<ApiResponse<Badge>>('/admin/gamification/badges', data),
+
+  updateBadge: (badgeId: string, data: Partial<{ name: string; description: string; iconUrl: string; criteriaType: BadgeCriteriaType; criteriaValue: number; isActive: boolean }>) =>
+    apiClient.patch<ApiResponse<Badge>>(`/admin/gamification/badges/${badgeId}`, data),
+
+  deleteBadge: (badgeId: string) => apiClient.delete<ApiResponse<Badge>>(`/admin/gamification/badges/${badgeId}`),
+
+  // ── Gamification: daily reward prizes ─────────────────────────────────
+  listDailyRewardPrizes: (params: { page: number; limit: number; isActive?: boolean }) =>
+    apiClient.get<ApiResponse<PaginatedResult<DailyRewardPrize>>>('/admin/gamification/prizes', { params }),
+
+  createDailyRewardPrize: (data: { label: string; amount: number; weight: number; isActive?: boolean }) =>
+    apiClient.post<ApiResponse<DailyRewardPrize>>('/admin/gamification/prizes', data),
+
+  updateDailyRewardPrize: (prizeId: string, data: Partial<{ label: string; amount: number; weight: number; isActive: boolean }>) =>
+    apiClient.patch<ApiResponse<DailyRewardPrize>>(`/admin/gamification/prizes/${prizeId}`, data),
+
+  deleteDailyRewardPrize: (prizeId: string) => apiClient.delete<ApiResponse<DailyRewardPrize>>(`/admin/gamification/prizes/${prizeId}`),
+
+  // ── Marketplace ────────────────────────────────────────────────────────
+  listMarketplaceItems: (params: { page: number; limit: number; category?: string; isActive?: boolean }) =>
+    apiClient.get<ApiResponse<PaginatedResult<MarketplaceItem>>>('/admin/marketplace/items', { params }),
+
+  createMarketplaceItem: (data: { title: string; description: string; thumbnailUrl?: string; category?: string; costAmount: number; stock?: number; sortOrder?: number; isActive?: boolean }) =>
+    apiClient.post<ApiResponse<MarketplaceItem>>('/admin/marketplace/items', data),
+
+  updateMarketplaceItem: (itemId: string, data: Partial<{ title: string; description: string; thumbnailUrl: string; category: string; costAmount: number; stock: number; sortOrder: number; isActive: boolean }>) =>
+    apiClient.patch<ApiResponse<MarketplaceItem>>(`/admin/marketplace/items/${itemId}`, data),
+
+  deleteMarketplaceItem: (itemId: string) => apiClient.delete<ApiResponse<MarketplaceItem>>(`/admin/marketplace/items/${itemId}`),
+
+  listRedemptions: (params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<Redemption>>>('/admin/marketplace/redemptions', { params }),
+
+  // ── Settlements ────────────────────────────────────────────────────────
+  listSettlements: (params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<Settlement>>>('/admin/settlements', { params }),
+
+  generateSettlements: (data?: { periodStart?: string; periodEnd?: string }) =>
+    apiClient.post<ApiResponse<unknown>>('/admin/settlements/generate', data ?? {}),
+
+  // ── Analytics ──────────────────────────────────────────────────────────
+  listAnalyticsEvents: (params: { page: number; limit: number; eventName?: string; eventCategory?: string }) =>
+    apiClient.get<ApiResponse<PaginatedResult<AnalyticsEvent>>>('/admin/analytics/events', { params }),
+
+  getDailyAnalytics: (from: string, to: string) =>
+    apiClient.get<ApiResponse<DailyAnalytics[]>>('/admin/analytics/daily', { params: { from, to } }),
+
+  getMerchantAnalytics: (merchantId: string) =>
+    apiClient.get<ApiResponse<MerchantAnalytics | null>>(`/admin/analytics/merchants/${merchantId}`),
+
+  getUserAnalytics: (userId: string) =>
+    apiClient.get<ApiResponse<UserAnalytics | null>>(`/admin/analytics/users/${userId}`),
+
+  // ── Scheduled jobs ─────────────────────────────────────────────────────
+  listScheduledJobs: () => apiClient.get<ApiResponse<ScheduledJob[]>>('/admin/scheduled-jobs'),
+
+  createScheduledJob: (data: { jobName: string; jobType: JobType; cronExpression: string; enabled?: boolean }) =>
+    apiClient.post<ApiResponse<ScheduledJob>>('/admin/scheduled-jobs', data),
+
+  updateScheduledJob: (jobId: string, data: Partial<{ cronExpression: string; enabled: boolean }>) =>
+    apiClient.patch<ApiResponse<ScheduledJob>>(`/admin/scheduled-jobs/${jobId}`, data),
+
+  deleteScheduledJob: (jobId: string) => apiClient.delete<ApiResponse<ScheduledJob>>(`/admin/scheduled-jobs/${jobId}`),
+
+  listJobExecutionLogs: (jobId: string, params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<JobExecutionLog>>>(`/admin/scheduled-jobs/${jobId}/logs`, { params }),
+
+  // ── AI providers ───────────────────────────────────────────────────────
+  listAiProviders: () => apiClient.get<ApiResponse<AiProvider[]>>('/admin/ai-providers'),
+
+  createAiProvider: (data: { name: string; provider: string; apiEndpoint?: string; model?: string; enabled?: boolean; priority?: number; timeout?: number }) =>
+    apiClient.post<ApiResponse<AiProvider>>('/admin/ai-providers', data),
+
+  updateAiProvider: (providerId: string, data: Partial<{ apiEndpoint: string; model: string; enabled: boolean; priority: number; timeout: number }>) =>
+    apiClient.patch<ApiResponse<AiProvider>>(`/admin/ai-providers/${providerId}`, data),
+
+  deleteAiProvider: (providerId: string) => apiClient.delete<ApiResponse<AiProvider>>(`/admin/ai-providers/${providerId}`),
+
+  addAiModel: (providerId: string, data: { modelName: string; version?: string; maxTokens?: number; temperature?: number; enabled?: boolean }) =>
+    apiClient.post<ApiResponse<AiModel>>(`/admin/ai-providers/${providerId}/models`, data),
+
+  removeAiModel: (modelId: string) => apiClient.delete<ApiResponse<AiModel>>(`/admin/ai-providers/models/${modelId}`),
+
+  addAiPromptTemplate: (providerId: string, data: { name: string; prompt: string; version?: string; active?: boolean }) =>
+    apiClient.post<ApiResponse<AiPromptTemplate>>(`/admin/ai-providers/${providerId}/prompt-templates`, data),
+
+  removeAiPromptTemplate: (templateId: string) =>
+    apiClient.delete<ApiResponse<AiPromptTemplate>>(`/admin/ai-providers/prompt-templates/${templateId}`),
+
+  listAiUsageLogs: (providerId: string, params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<AiUsageLog>>>(`/admin/ai-providers/${providerId}/usage-logs`, { params }),
+
+  // ── Platform configuration ─────────────────────────────────────────────
+  getPlatformConfiguration: () => apiClient.get<ApiResponse<PlatformConfiguration>>('/admin/platform-configuration'),
+
+  updatePlatformConfiguration: (data: Partial<Omit<PlatformConfiguration, 'id' | 'appVersion' | 'apiVersion'>>) =>
+    apiClient.patch<ApiResponse<PlatformConfiguration>>('/admin/platform-configuration', data),
 }

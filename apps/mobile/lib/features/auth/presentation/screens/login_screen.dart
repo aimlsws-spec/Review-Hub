@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_paths.dart';
@@ -68,6 +69,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SizedBox(
+                  height: 40,
+                  child: SvgPicture.asset('assets/images/viralkar_logo.svg'),
+                ),
+                const SizedBox(height: 24),
                 const Text(
                   'Welcome back',
                   style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.slate900),
@@ -136,12 +142,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () => context.push(RoutePaths.forgotPassword),
+                      style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
                       child: const Text('Forgot password?'),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                LoadingButton(label: 'Sign in', isLoading: _isSubmitting, onPressed: _submit),
+                LoadingButton(label: 'Sign in', isLoading: _isSubmitting, gradient: true, onPressed: _submit),
                 const SizedBox(height: 24),
                 Center(
                   child: TextButton(
@@ -153,7 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextSpan(text: "Don't have an account? "),
                           TextSpan(
                             text: 'Sign up',
-                            style: TextStyle(color: AppColors.primary600, fontWeight: FontWeight.w600),
+                            style: TextStyle(color: AppColors.orange700, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),

@@ -73,6 +73,20 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.emoji_events_outlined, color: AppColors.primary600),
+                  title: const Text('Badges & Rewards'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(RoutePaths.gamification),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.storefront_outlined, color: AppColors.primary600),
+                  title: const Text('Marketplace'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(RoutePaths.marketplace),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.history_rounded, color: AppColors.primary600),
                   title: const Text('My submissions'),
                   trailing: const Icon(Icons.chevron_right),

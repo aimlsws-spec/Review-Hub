@@ -3,6 +3,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { NavLink, useNavigate } from 'react-router-dom'
 
+import Viralkarlogo from '@/assets/ViralkarLogoK.svg'
 import { ROUTES } from '@/constants'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAuthStore } from '@/stores/auth.store'
@@ -30,6 +31,20 @@ const NAV_GROUPS: NavGroup[] = [
         icon: (
           <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      {
+        label: 'Analytics',
+        to: ROUTES.ANALYTICS,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         ),
       },
@@ -127,6 +142,47 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: 'Gamification',
+    items: [
+      {
+        label: 'Badges',
+        to: ROUTES.BADGES,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Daily Reward Prizes',
+        to: ROUTES.DAILY_REWARD_PRIZES,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6M12 7v13m0-13a3 3 0 100-6 3 3 0 000 6zm0 0a3 3 0 106 0m-6 0a3 3 0 01-6 0m14-3H4v3h16V4z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Marketplace',
+        to: ROUTES.MARKETPLACE,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Settlements',
+        to: ROUTES.SETTLEMENTS,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
     label: 'Platform',
     items: [
       {
@@ -145,6 +201,33 @@ const NAV_GROUPS: NavGroup[] = [
         icon: (
           <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18m0-18h12l-1.5 4.5L15 12H3" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Scheduled Jobs',
+        to: ROUTES.SCHEDULED_JOBS,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'AI Providers',
+        to: ROUTES.AI_PROVIDERS,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 20.25a48.25 48.25 0 01-8.135-.687c-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Platform Configuration',
+        to: ROUTES.PLATFORM_CONFIGURATION,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 8.25h16.5" />
           </svg>
         ),
       },
@@ -178,9 +261,9 @@ function SidebarItem({ item, collapsed, onClick }: SidebarItemProps) {
         title={collapsed ? item.label : undefined}
         className={({ isActive }) =>
           cn(
-            'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50',
+            'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/50',
             isActive
-              ? 'bg-gradient-to-r from-primary-50 to-blue-50 text-primary-700 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.15)]'
+              ? 'bg-gradient-to-r from-orange-50 to-orange-50/50 text-[#D77B22] shadow-[inset_0_0_0_1px_rgba(243,161,57,0.15)]'
               : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
             collapsed && 'justify-center px-2',
           )
@@ -190,9 +273,9 @@ function SidebarItem({ item, collapsed, onClick }: SidebarItemProps) {
           <>
             {/* Active left bar */}
             {isActive && (
-              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary-500" aria-hidden="true" />
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[#F3A139]" aria-hidden="true" />
             )}
-            <span className={cn('flex-shrink-0 transition-colors', isActive ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600')}>
+            <span className={cn('flex-shrink-0 transition-colors', isActive ? 'text-[#F3A139]' : 'text-slate-400 group-hover:text-slate-600')}>
               {item.icon}
             </span>
             {!collapsed && <span className="truncate">{item.label}</span>}
@@ -220,18 +303,13 @@ function SidebarContent({ collapsed, onClose, onLogout, loggingOut }: SidebarCon
     <div className="flex h-full flex-col">
       {/* ── Logo ── */}
       <div className={cn('flex h-14 flex-shrink-0 items-center border-b border-slate-100 px-4', collapsed ? 'justify-center' : 'gap-3')}>
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-primary-500 to-primary-700 shadow-sm">
-          <svg viewBox="0 0 24 24" fill="none" className="h-[18px] w-[18px]" aria-hidden="true">
-            <rect x="4" y="4" width="6.5" height="6.5" rx="1.2" fill="white" />
-            <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2" fill="white" fillOpacity="0.6" />
-            <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2" fill="white" fillOpacity="0.6" />
-            <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2" fill="white" />
-          </svg>
+        <div className="flex h-8 flex-shrink-0 items-center justify-center">
+          <img src={Viralkarlogo} alt="ReviewHub Logo" className="h-8 w-auto" />
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-[14px] font-extrabold tracking-tight text-slate-900 leading-none">VIRAL KAR</p>
-            <p className="text-[10px] font-semibold text-primary-500 uppercase tracking-widest mt-0.5">Admin Portal</p>
+            <p className="text-[14px] font-extrabold tracking-tight text-[#1B365D] leading-none">ReviewHub</p>
+            <p className="text-[10px] font-bold text-[#E58E2D] uppercase tracking-widest mt-0.5">Admin Portal</p>
           </div>
         )}
       </div>
@@ -281,7 +359,7 @@ function SidebarContent({ collapsed, onClose, onLogout, loggingOut }: SidebarCon
           </button>
         ) : (
           <div className="flex items-center gap-2.5 rounded-xl p-2 hover:bg-slate-50 transition-colors">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-[11px] font-bold text-white ring-2 ring-white shadow-sm">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F3A139] to-[#D77B22] text-[11px] font-bold text-white ring-2 ring-white shadow-sm">
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
               ) : (

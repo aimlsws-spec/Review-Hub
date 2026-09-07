@@ -6,6 +6,7 @@ import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/providers/core_providers.dart';
+import '../../../../shared/widgets/loading_button.dart';
 
 class _OnboardingSlide {
   const _OnboardingSlide({required this.icon, required this.title, required this.description});
@@ -71,6 +72,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               alignment: Alignment.topRight,
               child: TextButton(
                 onPressed: _finish,
+                style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
                 child: const Text('Skip'),
               ),
             ),
@@ -89,8 +91,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         Container(
                           width: 120,
                           height: 120,
-                          decoration: const BoxDecoration(color: AppColors.primary50, shape: BoxShape.circle),
-                          child: Icon(slide.icon, size: 56, color: AppColors.primary600),
+                          decoration: const BoxDecoration(color: AppColors.orange50, shape: BoxShape.circle),
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: AppColors.authGradient,
+                            ).createShader(bounds),
+                            child: Icon(slide.icon, size: 56, color: Colors.white),
+                          ),
                         ),
                         const SizedBox(height: 32),
                         Text(
@@ -119,7 +128,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   width: i == _page ? 20 : 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: i == _page ? AppColors.primary600 : AppColors.slate200,
+                    color: i == _page ? AppColors.orange500 : AppColors.slate200,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -129,7 +138,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.all(24),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: LoadingButton(
+                  label: isLast ? 'Get started' : 'Next',
+                  gradient: true,
                   onPressed: () {
                     if (isLast) {
                       _finish();
@@ -137,7 +148,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       _controller.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
                     }
                   },
-                  child: Text(isLast ? 'Get started' : 'Next'),
                 ),
               ),
             ),

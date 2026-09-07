@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SWAGGER_TAGS } from '@common/constants';
@@ -6,17 +6,28 @@ import { SystemRole } from '@common/enums';
 
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
-import { GenerateSettlementDto } from '../dto';
+import { GenerateSettlementDto, SettlementQueryDto } from '../dto';
+import { SettlementRepository } from '../repositories';
 import { SettlementService } from '../services';
 
-/** Manual trigger for the nightly settlement job — useful for testing and for backfilling a missed run. */
+/** Admin visibility into + manual trigger for the nightly settlement job — useful for testing and for backfilling a missed run. */
 @ApiTags(SWAGGER_TAGS.ADMIN)
 @Controller({ path: 'admin/settlements', version: '1' })
 @UseGuards(RolesGuard)
 @Roles(SystemRole.Admin)
 @ApiBearerAuth()
 export class AdminSettlementController {
-  constructor(private readonly settlementService: SettlementService) {}
+  constructor(
+    private readonly settlementService: SettlementService,
+    private readonly settlementRepository: SettlementRepository,
+  ) {}
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'List settlements across all merchants' })
+  async list(@Query() query: SettlementQueryDto) {
+    return this.settlementRepository.findAll(query.page, query.limit);
+  }
 
   @Post('generate')
   @HttpCode(HttpStatus.OK)

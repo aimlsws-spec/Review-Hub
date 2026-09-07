@@ -1,9 +1,11 @@
 import { Spinner } from '@reviewhub/shared-ui'
+import { Star, MessageSquare, TrendingUp, Mail, Lock, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 
+import Viralkarlogo from '@/assets/ViralkarLogoK.svg'
 import { ROUTES } from '@/constants'
 import { useLoginMutation } from '@/hooks/useAuthMutations'
 import { getApiErrorMessage, cn } from '@/utils'
@@ -31,10 +33,10 @@ function StarRating({ rating }: { rating: number }) {
 function ReviewCard() {
   return (
     <div 
-      className="absolute top-[5%] right-[10%] rounded-2xl bg-white p-4 w-[240px] z-20 transition-transform duration-500"
+      className="absolute top-[5%] right-[10%] rounded-[18px] bg-white p-4 w-[240px] z-20"
       style={{ 
-        boxShadow: '0 12px 32px -8px rgba(0, 0, 0, 0.08), 0 4px 12px -4px rgba(0, 0, 0, 0.03)',
-        border: '1px solid rgba(255,255,255,0.8)',
+        boxShadow: '0 8px 30px -4px rgba(0, 0, 0, 0.05), 0 4px 10px -2px rgba(0, 0, 0, 0.02)',
+        border: '1px solid rgba(226,232,240,0.6)',
         animation: 'float-slow 6s ease-in-out infinite'
       }}
     >
@@ -62,8 +64,8 @@ function RatingSummaryCard() {
     <div 
       className="absolute top-[35%] left-[5%] rounded-[20px] bg-white p-5 w-[280px] z-10 flex"
       style={{ 
-        boxShadow: '0 24px 48px -12px rgba(243, 161, 57, 0.12), 0 8px 24px -8px rgba(0, 0, 0, 0.04)',
-        border: '1px solid rgba(255,255,255,1)',
+        boxShadow: '0 12px 36px -8px rgba(243, 161, 57, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.02)',
+        border: '1px solid rgba(226,232,240,0.6)',
         animation: 'float-slow 7s ease-in-out infinite',
         animationDelay: '1s'
       }}
@@ -106,8 +108,8 @@ function ReviewRequestsCard() {
     <div 
       className="absolute bottom-[5%] right-[15%] rounded-[18px] bg-white p-4 w-[200px] z-30"
       style={{ 
-        boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.08), 0 4px 12px -4px rgba(0, 0, 0, 0.03)',
-        border: '1px solid rgba(255,255,255,0.9)',
+        boxShadow: '0 10px 32px -6px rgba(0, 0, 0, 0.06), 0 4px 10px -2px rgba(0, 0, 0, 0.02)',
+        border: '1px solid rgba(226,232,240,0.6)',
         animation: 'float-slow 8s ease-in-out infinite',
         animationDelay: '2.5s'
       }}
@@ -134,7 +136,7 @@ function MessageBubble() {
     <div 
       className="absolute top-[65%] left-[25%] h-12 w-12 rounded-[16px] rounded-br-[4px] bg-gradient-to-br from-[#F3A139] to-[#D77B22] flex items-center justify-center z-40"
       style={{
-        boxShadow: '0 12px 24px -6px rgba(229, 142, 45, 0.4)',
+        boxShadow: '0 12px 24px -6px rgba(229, 142, 45, 0.3)',
         animation: 'float-slow 5s ease-in-out infinite',
         animationDelay: '1.5s'
       }}
@@ -165,11 +167,11 @@ function FloatingComposition() {
          <MessageBubble />
          
          {/* Sparkle icons for premium feel */}
-         <div className="absolute top-[15%] left-[15%] text-orange-300 opacity-80 animate-pulse" style={{ animationDuration: '3s' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0L13.8 8.2L22 10L13.8 11.8L12 20L10.2 11.8L2 10L10.2 8.2L12 0Z"/></svg>
+         <div className="absolute top-[15%] left-[15%] text-orange-300" style={{ animation: 'sparkle-pulse 3s ease-in-out infinite' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0L13.8 8.2L22 10L13.8 11.8L12 20L10.2 11.8L2 10L10.2 8.2L12 0Z"/></svg>
          </div>
-         <div className="absolute bottom-[25%] right-[5%] text-[#D77B22] opacity-40 animate-pulse" style={{ animationDuration: '4s', animationDelay: '1s' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0L13.8 8.2L22 10L13.8 11.8L12 20L10.2 11.8L2 10L10.2 8.2L12 0Z"/></svg>
+         <div className="absolute bottom-[25%] right-[5%] text-[#D77B22]" style={{ animation: 'sparkle-pulse 4s ease-in-out infinite 1s' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0L13.8 8.2L22 10L13.8 11.8L12 20L10.2 11.8L2 10L10.2 8.2L12 0Z"/></svg>
          </div>
       </div>
     </div>
@@ -262,11 +264,22 @@ export default function LoginPage() {
           from { opacity: 0; }
           to { opacity: 1; }
         }
+        @keyframes sparkle-pulse {
+          0%, 100% { opacity: 0.5; transform: scale(0.95); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
         .animate-fade-up {
           animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         .animate-fade-in {
           animation: fade-in 0.4s ease-out forwards;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-fade-up, .animate-fade-in, [style*="animation"] {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+          }
         }
       `}</style>
 
@@ -290,10 +303,8 @@ export default function LoginPage() {
 
         {/* Brand wordmark */}
         <div className="relative z-10 flex items-center gap-3.5 opacity-0 animate-fade-in" style={{ animationDelay: '100ms' }}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#F3A139] to-[#D77B22] shadow-[0_4px_12px_rgba(229, 142, 45,0.25)] ring-1 ring-white/10 inset-ring-1 inset-ring-white/20">
-            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" fill="white" />
-            </svg>
+          <div className="flex h-10 flex-shrink-0 items-center justify-center">
+            <img src={Viralkarlogo} alt="Viralkar Logo" className="h-10 w-auto" />
           </div>
           <div>
             <p className="text-[19px] font-extrabold tracking-tight text-slate-900 leading-none">ReviewHub</p>
@@ -329,22 +340,23 @@ export default function LoginPage() {
             {/* Feature rows (Elegant & Minimal) */}
             <div className="flex flex-col gap-3">
               {[
-                { icon: '⭐', title: 'Collect Reviews', desc: 'Automatically collect verified reviews.' },
-                { icon: '💬', title: 'Reputation Management', desc: 'Monitor and respond from one dashboard.' },
-                { icon: '📈', title: 'Business Insights', desc: 'Understand ratings and customer sentiment.' },
+                { icon: <Star className="w-5 h-5" strokeWidth={2} />, title: 'Collect Reviews', desc: 'Automatically collect verified reviews.' },
+                { icon: <MessageSquare className="w-5 h-5" strokeWidth={2} />, title: 'Reputation Management', desc: 'Monitor and respond from one dashboard.' },
+                { icon: <TrendingUp className="w-5 h-5" strokeWidth={2} />, title: 'Business Insights', desc: 'Understand ratings and customer sentiment.' },
               ].map((f) => (
                 <div 
                   key={f.title} 
-                  className="group flex items-center gap-4 bg-white hover:bg-[#FFFAF5] border border-slate-100 hover:border-orange-100/60 p-3.5 rounded-[16px] transition-all duration-300 hover:-translate-y-[2px]"
-                  style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.01)' }}
+                  className="group flex items-center gap-4 bg-white hover:bg-[#FFFAF5] border border-slate-100 hover:border-orange-100/60 p-4 rounded-[16px] transition-all duration-300 hover:-translate-y-[2px] cursor-default"
+                  style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}
                 >
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-slate-50 group-hover:bg-orange-50 text-[18px] transition-colors duration-300">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-slate-50 group-hover:bg-orange-50 text-slate-400 group-hover:text-[#F3A139] transition-colors duration-300">
                     {f.icon}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-[14px] font-bold text-slate-900 leading-tight">{f.title}</h3>
                     <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">{f.desc}</p>
                   </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#F3A139] transition-all duration-300 group-hover:translate-x-1" />
                 </div>
               ))}
             </div>
@@ -361,10 +373,8 @@ export default function LoginPage() {
         
         {/* Mobile brand */}
         <div className="relative mb-10 flex flex-col items-center gap-3 lg:hidden opacity-0 animate-fade-up">
-          <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-gradient-to-br from-[#F3A139] to-[#D77B22] shadow-[0_4px_12px_rgba(229, 142, 45,0.25)] ring-1 ring-white/10 inset-ring-1 inset-ring-white/20">
-            <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
-              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" fill="white" />
-            </svg>
+          <div className="flex h-12 flex-shrink-0 items-center justify-center">
+            <img src={Viralkarlogo} alt="Viralkar Logo" className="h-12 w-auto" />
           </div>
           <p className="text-[22px] font-extrabold text-slate-900 tracking-tight">ReviewHub</p>
         </div>
@@ -390,11 +400,7 @@ export default function LoginPage() {
               required
               placeholder="Enter your email"
               error={errors.email?.message}
-              leftIcon={
-                <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                </svg>
-              }
+              leftIcon={<Mail className="h-[18px] w-[18px]" strokeWidth={2} />}
               {...register('email', {
                 required: 'Email is required',
                 pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' },
@@ -410,11 +416,7 @@ export default function LoginPage() {
               required
               placeholder="Enter your password"
               error={errors.password?.message}
-              leftIcon={
-                <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                </svg>
-              }
+              leftIcon={<Lock className="h-[18px] w-[18px]" strokeWidth={2} />}
               rightIcon={
                 <button
                   type="button"
@@ -423,14 +425,9 @@ export default function LoginPage() {
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                    </svg>
+                    <EyeOff className="h-5 w-5" strokeWidth={1.75} />
                   ) : (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                    <Eye className="h-5 w-5" strokeWidth={1.75} />
                   )}
                 </button>
               }
@@ -471,16 +468,17 @@ export default function LoginPage() {
               type="submit"
               disabled={isPending}
               className={cn(
-                'group relative flex w-full items-center justify-center gap-2 rounded-[14px] px-6 py-4 text-[15px] font-bold text-white transition-all duration-200 overflow-hidden',
-                'shadow-[0_4px_14px_0_rgba(229, 142, 45,0.25)] hover:shadow-[0_6px_20px_rgba(229, 142, 45,0.3)]',
-                'active:scale-[0.98]',
+                'group relative flex w-full items-center justify-center gap-2 rounded-[14px] px-6 py-4 text-[15px] font-bold text-white transition-all duration-300 overflow-hidden',
+                'shadow-[0_4px_14px_0_rgba(229,142,45,0.25)] hover:shadow-[0_8px_24px_rgba(229,142,45,0.35)]',
+                'hover:-translate-y-[1px]',
+                'active:scale-[0.98] active:translate-y-[1px]',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3A139] focus-visible:ring-offset-2',
                 'disabled:pointer-events-none disabled:opacity-70',
               )}
               style={{ backgroundImage: 'linear-gradient(135deg, #F3A139 0%, #E58E2D 50%, #D77B22 100%)' }}
             >
               {/* Inner top highlight for tactility */}
-              <div className="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/20 pointer-events-none" />
+              <div className="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/20 pointer-events-none group-hover:bg-white/10 transition-colors duration-300" />
               
               {isPending ? (
                 <>
@@ -490,9 +488,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   <span className="tracking-wide">Sign in</span>
-                  <svg className="h-[18px] w-[18px] ml-0.5 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                  </svg>
+                  <ChevronRight className="h-[18px] w-[18px] ml-0.5 transition-transform duration-300 group-hover:translate-x-1" strokeWidth={2.5} />
                 </>
               )}
             </button>

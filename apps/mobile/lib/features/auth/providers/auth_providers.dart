@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/failure.dart';
 import '../../../core/errors/result.dart';
 import '../../../shared/providers/core_providers.dart';
 import '../data/auth_repository.dart';
@@ -27,7 +28,10 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
     final result = await ref.watch(authRepositoryProvider).getMe();
     return result.when(
       success: (user) => user,
-      failure: (_) => null,
+      // A network failure means we couldn't check, not that the user is
+      // logged out — surface it as an error so the splash screen can offer
+      // a retry instead of silently bouncing a real session to /login.
+      failure: (f) => f is NetworkFailure ? throw f : null,
     );
   }
 

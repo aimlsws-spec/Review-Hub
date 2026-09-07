@@ -17,6 +17,14 @@ export const ROUTES = {
   FEATURE_FLAGS: '/feature-flags',
   AUDIT_LOGS: '/audit-logs',
   SUPPORT_TICKETS: '/support/tickets',
+  BADGES: '/gamification/badges',
+  DAILY_REWARD_PRIZES: '/gamification/prizes',
+  MARKETPLACE: '/marketplace',
+  SETTLEMENTS: '/settlements',
+  ANALYTICS: '/analytics',
+  SCHEDULED_JOBS: '/scheduled-jobs',
+  AI_PROVIDERS: '/ai-providers',
+  PLATFORM_CONFIGURATION: '/platform-configuration',
   PROFILE: '/profile',
 } as const
 
@@ -37,6 +45,20 @@ export const QUERY_KEYS = {
   FEATURE_FLAGS: ['feature-flags'],
   AUDIT_LOGS: ['audit-logs'],
   SUPPORT_TICKETS: ['support-tickets'],
+  BADGES: ['badges'],
+  DAILY_REWARD_PRIZES: ['daily-reward-prizes'],
+  MARKETPLACE_ITEMS: ['marketplace-items'],
+  REDEMPTIONS: ['redemptions'],
+  SETTLEMENTS: ['settlements'],
+  ANALYTICS_EVENTS: ['analytics-events'],
+  DAILY_ANALYTICS: ['daily-analytics'],
+  MERCHANT_ANALYTICS: ['merchant-analytics'],
+  USER_ANALYTICS: ['user-analytics'],
+  SCHEDULED_JOBS: ['scheduled-jobs'],
+  JOB_EXECUTION_LOGS: ['job-execution-logs'],
+  AI_PROVIDERS: ['ai-providers'],
+  AI_USAGE_LOGS: ['ai-usage-logs'],
+  PLATFORM_CONFIGURATION: ['platform-configuration'],
 } as const
 
 export const ITEMS_PER_PAGE = 20

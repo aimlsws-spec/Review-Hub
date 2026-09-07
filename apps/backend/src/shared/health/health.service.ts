@@ -6,6 +6,8 @@ import { ConfigService } from '@nestjs/config';
 import { CacheService } from '../../cache/cache.service';
 import { PrismaService } from '../../database/prisma/prisma.service';
 
+import { HealthCheckRepository } from './repositories';
+
 export interface ServiceHealth {
   status: 'up' | 'down';
   latencyMs?: number;
@@ -30,7 +32,17 @@ export class HealthService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly config: ConfigService,
+    private readonly healthCheckRepository: HealthCheckRepository,
   ) {}
+
+  /** Persists the check for the historical admin view — never lets a logging failure mask the real health result. */
+  private async persist(service: string, health: ServiceHealth): Promise<void> {
+    try {
+      await this.healthCheckRepository.record(service, health.status === 'up' ? 'HEALTHY' : 'DOWN', health.latencyMs ?? 0);
+    } catch {
+      // Best-effort logging only.
+    }
+  }
 
   async check(): Promise<HealthReport> {
     const [database, cache, storage] = await Promise.all([
@@ -41,6 +53,12 @@ export class HealthService {
 
     const allUp = database.status === 'up' && cache.status === 'up' && storage.status === 'up';
     const anyUp = database.status === 'up' || cache.status === 'up' || storage.status === 'up';
+
+    await Promise.all([
+      this.persist('database', database),
+      this.persist('cache', cache),
+      this.persist('storage', storage),
+    ]);
 
     return {
       status: allUp ? 'ok' : anyUp ? 'degraded' : 'down',

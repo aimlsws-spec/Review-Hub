@@ -15,6 +15,7 @@ import {
   FaqController,
   FeatureFlagController,
   FraudFlagController,
+  PlatformConfigurationController,
   SettingsController,
   UserManagementController,
 } from './controllers';
@@ -24,6 +25,7 @@ import {
   FaqRepository,
   FeatureFlagRepository,
   FraudFlagRepository,
+  PlatformConfigurationRepository,
   SystemSettingRepository,
   UserAdminRepository,
 } from './repositories';
@@ -33,6 +35,7 @@ import {
   FaqService,
   FeatureFlagService,
   FraudReviewService,
+  PlatformConfigurationService,
   SettingsService,
   UserManagementService,
 } from './services';
@@ -50,6 +53,7 @@ import {
     FeatureFlagController,
     AuditLogController,
     AdminSupportTicketController,
+    PlatformConfigurationController,
   ],
   providers: [
     UserManagementService,
@@ -59,6 +63,7 @@ import {
     SettingsService,
     FeatureFlagService,
     AuditLogViewerService,
+    PlatformConfigurationService,
     UserAdminRepository,
     FraudFlagRepository,
     CmsPageRepository,
@@ -66,6 +71,7 @@ import {
     SystemSettingRepository,
     FeatureFlagRepository,
     AuditLogRepository,
+    PlatformConfigurationRepository,
   ],
   exports: [FraudFlagRepository],
 })

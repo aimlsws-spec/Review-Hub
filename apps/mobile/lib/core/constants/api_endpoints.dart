@@ -47,6 +47,16 @@ class ApiEndpoints {
   static const String referralMe = '/referrals/me';
   static const String referralStats = '/referrals/me/stats';
 
+  // Gamification — gamification/controllers/gamification.controller.ts
+  static const String gamificationProfile = '/gamification/profile';
+  static const String gamificationBadges = '/gamification/badges';
+  static const String dailyRewardClaim = '/gamification/daily-reward/claim';
+
+  // Marketplace — marketplace/controllers/marketplace.controller.ts
+  static const String marketplaceItems = '/marketplace/items';
+  static String marketplaceRedeem(String itemId) => '/marketplace/items/$itemId/redeem';
+  static const String marketplaceRedemptions = '/marketplace/redemptions';
+
   // Notifications — notification/controllers/notification.controller.ts
   static const String notifications = '/notifications';
   static const String notificationUnreadCount = '/notifications/unread-count';

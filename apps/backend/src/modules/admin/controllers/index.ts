@@ -8,3 +8,4 @@ export * from './settings.controller';
 export * from './feature-flag.controller';
 export * from './audit-log.controller';
 export * from './support-ticket.controller';
+export * from './platform-configuration.controller';

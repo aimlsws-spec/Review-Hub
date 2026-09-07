@@ -18,6 +18,8 @@ import type {
   SupportTicket,
   SupportCategory,
   SupportPriority,
+  Webhook,
+  WebhookDelivery,
 } from '@/types'
 import type { Customer, CustomerType, CustomerStatus } from '@/types/customer'
 import type { ApiReview, ApiReviewSource, ApiReviewStatus, ReviewStats } from '@/types/review'
@@ -241,4 +243,20 @@ export const merchantApi = {
       averageLifetimeValue: number
       retentionRate: number
     }>>(`/merchants/${merchantId}/customers/stats`),
+
+  // Webhooks
+  listWebhooks: (merchantId: string) =>
+    apiClient.get<ApiResponse<Webhook[]>>(`/merchants/${merchantId}/webhooks`),
+
+  createWebhook: (merchantId: string, data: { url: string; events: string[]; enabled?: boolean }) =>
+    apiClient.post<ApiResponse<Webhook>>(`/merchants/${merchantId}/webhooks`, data),
+
+  updateWebhook: (merchantId: string, webhookId: string, data: Partial<{ url: string; events: string[]; enabled: boolean }>) =>
+    apiClient.patch<ApiResponse<Webhook>>(`/merchants/${merchantId}/webhooks/${webhookId}`, data),
+
+  deleteWebhook: (merchantId: string, webhookId: string) =>
+    apiClient.delete<ApiResponse<Webhook>>(`/merchants/${merchantId}/webhooks/${webhookId}`),
+
+  listWebhookDeliveries: (merchantId: string, webhookId: string, params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResponse<WebhookDelivery>>>(`/merchants/${merchantId}/webhooks/${webhookId}/deliveries`, { params }),
 }

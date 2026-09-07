@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 101.1 83.1">
+  <defs>
+    <style>
+      .cls-1 {
+        filter: url(#drop-shadow-2);
+        fill-rule: evenodd;
+        fill: #173559;
+      }
+      .cls-2 {
+        fill-rule: evenodd;
+        fill: #e4771a;
+      }
+      .cls-3 {
+        fill-rule: evenodd;
+        fill: #f18e31;
+        filter: url(#drop-shadow-3);
+      }
+    </style>
+    <filter id="drop-shadow-2" x="56.2" y="40.3" width="40.3" height="42.6" filterUnits="userSpaceOnUse">
+      <feOffset dx="1.6" dy="2.2"/>
+      <feGaussianBlur result="blur-2" stdDeviation="1.1"/>
+      <feFlood flood-color="#000" flood-opacity=".4"/>
+      <feComposite in2="blur-2" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="drop-shadow-3" x="0" y="0" width="101.1" height="83.1" filterUnits="userSpaceOnUse">
+      <feOffset dx="1.6" dy="2.2"/>
+      <feGaussianBlur result="blur-3" stdDeviation="1.1"/>
+      <feFlood flood-color="#000" flood-opacity=".4"/>
+      <feComposite in2="blur-3" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <polygon class="cls-1" points="96.6 82.9 68.6 40.3 56.2 59 71.9 82.9 96.6 82.9"/>
+  <path class="cls-3" d="M101.1,0h-40.3L28.5,44.2V0H0v83.1h40.3C80.1,28.7,52.2,66.9,101.1,0"/>
+  <polygon class="cls-2" points="28.5 30.7 1.1 83.1 28.5 44.2 28.5 30.7"/>
+</svg>

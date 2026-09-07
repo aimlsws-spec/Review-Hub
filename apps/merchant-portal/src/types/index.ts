@@ -269,6 +269,31 @@ export interface DashboardStats {
 }
 
 // ============================================================
+// WEBHOOK TYPES
+// ============================================================
+
+export interface Webhook {
+  id: string
+  merchantId: string
+  url: string
+  secret: string
+  events: string[]
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WebhookDelivery {
+  id: string
+  webhookId: string
+  payload: unknown
+  responseCode: number | null
+  success: boolean
+  attempts: number
+  createdAt: string
+}
+
+// ============================================================
 // API RESPONSE TYPES
 // ============================================================
 

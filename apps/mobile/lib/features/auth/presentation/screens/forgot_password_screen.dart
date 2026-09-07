@@ -107,7 +107,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Email is required' : null,
           ),
           const SizedBox(height: 24),
-          LoadingButton(label: 'Send reset OTP', isLoading: _isSubmitting, onPressed: _submit),
+          LoadingButton(label: 'Send reset OTP', isLoading: _isSubmitting, gradient: true, onPressed: _submit),
         ],
       ),
     );

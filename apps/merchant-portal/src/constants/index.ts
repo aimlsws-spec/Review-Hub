@@ -18,6 +18,7 @@ export const ROUTES = {
   DOCUMENTS: '/documents',
   SETTINGS: '/settings',
   SUPPORT: '/support',
+  WEBHOOKS: '/webhooks',
 } as const
 
 export const QUERY_KEYS = {
@@ -40,6 +41,8 @@ export const QUERY_KEYS = {
   CUSTOMER_STATS: ['customers', 'stats'],
   DASHBOARD: ['dashboard'],
   NOTIFICATIONS: ['notifications'],
+  WEBHOOKS: ['webhooks'],
+  WEBHOOK_DELIVERIES: ['webhook-deliveries'],
 } as const
 
 export const SUPPORT_CATEGORY_LABELS: Record<string, string> = {

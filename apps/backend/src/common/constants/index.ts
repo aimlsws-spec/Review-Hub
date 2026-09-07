@@ -150,6 +150,8 @@ export const SWAGGER_TAGS = {
   SETTINGS: 'Settings',
   AUDIT: 'Audit Logs',
   HEALTH: 'Health',
+  WEBHOOKS: 'Webhooks',
+  SCHEDULED_JOBS: 'Scheduled Jobs',
 } as const;
 
 // -------------------------------------------------------------

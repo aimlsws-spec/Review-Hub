@@ -15,7 +15,10 @@ import '../../features/campaigns/data/models/campaign_task_model.dart';
 import '../../features/campaigns/presentation/screens/campaign_detail_screen.dart';
 import '../../features/campaigns/presentation/screens/campaigns_screen.dart';
 import '../../features/dashboard/presentation/screens/home_screen.dart';
+import '../../features/gamification/presentation/screens/gamification_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_screen.dart';
+import '../../features/marketplace/presentation/screens/marketplace_screen.dart';
+import '../../features/marketplace/presentation/screens/my_redemptions_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -37,6 +40,7 @@ import '../../features/wallet/presentation/screens/withdraw_screen.dart';
 import '../../features/wallet/presentation/screens/withdrawal_history_screen.dart';
 import '../../shared/providers/core_providers.dart';
 import '../constants/storage_keys.dart';
+import '../errors/failure.dart';
 import 'app_shell.dart';
 import 'route_paths.dart';
 
@@ -53,6 +57,7 @@ const _authRoutes = {
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
     ref.listen(authStateProvider, (_, _) => notifyListeners());
+    ref.listen(splashMinDurationProvider, (_, _) => notifyListeners());
   }
 }
 
@@ -65,10 +70,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
+      final splashDelay = ref.read(splashMinDurationProvider);
       final location = state.matchedLocation;
 
-      // Still resolving the persisted session — stay on splash.
-      if (authState.isLoading) {
+      // A network failure while checking the session isn't a real "logged
+      // out" — don't let it bounce an actual session to /login.
+      final isOffline = authState.hasError && authState.error is NetworkFailure;
+
+      // Still resolving the persisted session, the splash screen's minimum
+      // display time hasn't elapsed yet, or we're offline and waiting on a
+      // retry — stay on splash.
+      if (authState.isLoading || splashDelay.isLoading || isOffline) {
         return location == RoutePaths.splash ? null : RoutePaths.splash;
       }
 
@@ -146,6 +158,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: RoutePaths.withdrawalHistory, builder: (context, state) => const WithdrawalHistoryScreen()),
 
       GoRoute(path: RoutePaths.referral, builder: (context, state) => const ReferralScreen()),
+
+      GoRoute(path: RoutePaths.gamification, builder: (context, state) => const GamificationScreen()),
+
+      GoRoute(path: RoutePaths.marketplace, builder: (context, state) => const MarketplaceScreen()),
+      GoRoute(path: RoutePaths.marketplaceRedemptions, builder: (context, state) => const MyRedemptionsScreen()),
 
       GoRoute(path: RoutePaths.editProfile, builder: (context, state) => const EditProfileScreen()),
       GoRoute(path: RoutePaths.settings, builder: (context, state) => const SettingsScreen()),

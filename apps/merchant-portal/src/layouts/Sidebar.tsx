@@ -3,6 +3,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { NavLink, useNavigate } from 'react-router-dom'
 
+import Viralkarlogo from '@/assets/ViralkarLogoK.svg'
 import { ROUTES } from '@/constants'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAuthStore } from '@/stores/auth.store'
@@ -153,6 +154,15 @@ const NAV_GROUPS: NavGroup[] = [
           </svg>
         ),
       },
+      {
+        label: 'Webhooks',
+        to: ROUTES.WEBHOOKS,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+          </svg>
+        ),
+      },
     ],
   },
 ]
@@ -216,10 +226,8 @@ function SidebarContent({ collapsed, onClose, onLogout, loggingOut }: SidebarCon
     <div className="flex h-full flex-col">
       {/* ── Logo ── */}
       <div className={cn('flex h-14 flex-shrink-0 items-center border-b border-slate-100 px-4', collapsed ? 'justify-center' : 'gap-3')}>
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-orange-400 to-orange-600 shadow-sm">
-          <svg viewBox="0 0 24 24" fill="none" className="h-4.5 w-4.5 h-[18px] w-[18px]" aria-hidden="true">
-            <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" fill="white" />
-          </svg>
+        <div className="flex h-8 flex-shrink-0 items-center justify-center">
+          <img src={Viralkarlogo} alt="Viralkar Logo" className="h-8 w-auto" />
         </div>
         {!collapsed && (
           <div className="min-w-0">

@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { SettlementQueryDto } from '../dto';
+import { SettlementRepository } from '../repositories';
 import { SettlementService } from '../services';
 
 import { AdminSettlementController } from './admin-settlement.controller';
@@ -8,15 +10,28 @@ describe('AdminSettlementController', () => {
   let controller: AdminSettlementController;
 
   const mockSettlementService = { generateForPeriod: jest.fn(), generateForPreviousDay: jest.fn() };
+  const mockSettlementRepository = { findAll: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminSettlementController],
-      providers: [{ provide: SettlementService, useValue: mockSettlementService }],
+      providers: [
+        { provide: SettlementService, useValue: mockSettlementService },
+        { provide: SettlementRepository, useValue: mockSettlementRepository },
+      ],
     }).compile();
 
     controller = module.get<AdminSettlementController>(AdminSettlementController);
     jest.clearAllMocks();
+  });
+
+  it('should list settlements via the repository', async () => {
+    const result = { data: [], total: 0, page: 1, limit: 20 };
+    mockSettlementRepository.findAll.mockResolvedValue(result);
+
+    const query = Object.assign(new SettlementQueryDto(), { page: 1, limit: 20 });
+    await expect(controller.list(query)).resolves.toBe(result);
+    expect(mockSettlementRepository.findAll).toHaveBeenCalledWith(1, 20);
   });
 
   it('should generate for the previous day when no period is given', async () => {

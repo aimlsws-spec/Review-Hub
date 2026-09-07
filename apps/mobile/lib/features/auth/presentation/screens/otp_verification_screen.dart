@@ -132,7 +132,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 decoration: const InputDecoration(counterText: ''),
               ),
               const SizedBox(height: 16),
-              LoadingButton(label: 'Verify', isLoading: _isVerifying, onPressed: _verify),
+              LoadingButton(label: 'Verify', isLoading: _isVerifying, gradient: true, onPressed: _verify),
               const SizedBox(height: 16),
               Center(
                 child: _cooldownSeconds > 0
@@ -142,6 +142,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                       )
                     : TextButton(
                         onPressed: _isResending ? null : _resend,
+                        style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
                         child: Text(_isResending ? 'Sending…' : 'Resend code'),
                       ),
               ),

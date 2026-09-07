@@ -46,3 +46,10 @@ final dioProvider = Provider<Dio>((ref) {
 /// (or any listener) can react without the network layer depending on
 /// navigation directly.
 final sessionExpiredProvider = StateProvider<int>((ref) => 0);
+
+/// Keeps the splash screen visible for a minimum stretch. Without this, the
+/// router's redirect (see `app_router.dart`) can resolve `authStateProvider`
+/// in a single frame, making the splash screen flash by unnoticed.
+final splashMinDurationProvider = FutureProvider<void>((ref) {
+  return Future.delayed(const Duration(milliseconds: 1100));
+});

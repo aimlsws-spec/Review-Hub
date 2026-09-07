@@ -19,6 +19,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AiModule } from './modules/ai/ai.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { CampaignModule } from './modules/campaign/campaign.module';
@@ -28,11 +29,14 @@ import { MerchantModule } from './modules/merchant/merchant.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ReferralModule } from './modules/referral/referral.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { ScheduledJobsModule } from './modules/scheduled-jobs/scheduled-jobs.module';
 import { SettlementModule } from './modules/settlement/settlement.module';
 import { SupportModule } from './modules/support/support.module';
 import { TaskModule } from './modules/task/task.module';
 import { UserKycModule } from './modules/user-kyc/user-kyc.module';
 import { WalletModule } from './modules/wallet/wallet.module';
+import { WebhookModule } from './modules/webhooks/webhook.module';
 import { QueueModule } from './queues/queue.module';
 import { AuditModule } from './shared/audit/audit.module';
 import { HealthModule } from './shared/health/health.module';
@@ -84,6 +88,10 @@ import { StorageModule } from './storage/storage.module';
     JobsModule,
     AdminModule,
     HealthModule,
+    WebhookModule,
+    ScheduledJobsModule,
+    AnalyticsModule,
+    ReportsModule,
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

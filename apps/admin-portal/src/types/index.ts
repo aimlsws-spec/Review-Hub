@@ -299,6 +299,250 @@ export interface FeatureFlag {
 }
 
 // ============================================================
+// GAMIFICATION TYPES
+// ============================================================
+
+export type BadgeCriteriaType = 'XP_THRESHOLD' | 'STREAK_THRESHOLD' | 'LEVEL_THRESHOLD' | 'REWARD_COUNT'
+
+export interface Badge {
+  id: string
+  code: string
+  name: string
+  description: string
+  iconUrl: string | null
+  criteriaType: BadgeCriteriaType
+  criteriaValue: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DailyRewardPrize {
+  id: string
+  label: string
+  amount: number
+  weight: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================
+// MARKETPLACE TYPES
+// ============================================================
+
+export interface MarketplaceItem {
+  id: string
+  title: string
+  description: string
+  thumbnailUrl: string | null
+  category: string | null
+  costAmount: number
+  stock: number | null
+  isActive: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Redemption {
+  id: string
+  userId: string
+  itemId: string
+  costAmount: number
+  redemptionCode: string
+  createdAt: string
+  item?: MarketplaceItem
+}
+
+// ============================================================
+// SETTLEMENT TYPES
+// ============================================================
+
+export interface Invoice {
+  id: string
+  settlementId: string
+  invoiceNumber: string
+  taxableAmount: number
+  gstRate: number
+  gstAmount: number
+}
+
+export interface Settlement {
+  id: string
+  merchantId: string
+  periodStart: string
+  periodEnd: string
+  totalToppedUp: number
+  totalSpent: number
+  commissionRate: number
+  commissionAmount: number
+  generatedAt: string
+  invoice?: Invoice | null
+  merchant?: { businessName: string }
+}
+
+// ============================================================
+// ANALYTICS TYPES
+// ============================================================
+
+export interface AnalyticsEvent {
+  id: string
+  eventName: string
+  eventCategory: string
+  entityType: string | null
+  entityId: string | null
+  userId: string | null
+  merchantId: string | null
+  campaignId: string | null
+  metadata: unknown
+  createdAt: string
+}
+
+export interface DailyAnalytics {
+  id: string
+  date: string
+  newUsers: number
+  activeUsers: number
+  campaignsCreated: number
+  campaignsCompleted: number
+  submissions: number
+  rewardsPaid: number
+  withdrawals: number
+  revenue: number
+  platformCommission: number
+}
+
+export interface MerchantAnalytics {
+  id: string
+  merchantId: string
+  totalCampaigns: number
+  totalParticipants: number
+  totalBudget: number
+  totalSpent: number
+  averageCompletionRate: number
+  totalRevenueGenerated: number
+}
+
+export interface UserAnalytics {
+  id: string
+  userId: string
+  campaignsJoined: number
+  campaignsCompleted: number
+  rewardsEarned: number
+  referrals: number
+  withdrawals: number
+  fraudFlags: number
+}
+
+// ============================================================
+// SCHEDULED JOBS TYPES
+// ============================================================
+
+export type JobType =
+  | 'CAMPAIGN_EXPIRY'
+  | 'REWARD_PROCESSING'
+  | 'ANALYTICS_AGGREGATION'
+  | 'REPORT_GENERATION'
+  | 'NOTIFICATION_DISPATCH'
+  | 'FRAUD_SCAN'
+
+export interface ScheduledJob {
+  id: string
+  jobName: string
+  jobType: JobType
+  cronExpression: string
+  enabled: boolean
+  lastRun: string | null
+  nextRun: string | null
+  retries: number
+  configuration: unknown
+  createdAt: string
+  updatedAt: string
+}
+
+export interface JobExecutionLog {
+  id: string
+  jobId: string
+  startedAt: string
+  completedAt: string | null
+  duration: number | null
+  success: boolean
+  errorMessage: string | null
+  createdAt: string
+}
+
+// ============================================================
+// AI PROVIDER TYPES
+// ============================================================
+
+export interface AiModel {
+  id: string
+  providerId: string
+  modelName: string
+  version: string | null
+  maxTokens: number
+  temperature: number
+  enabled: boolean
+}
+
+export interface AiPromptTemplate {
+  id: string
+  providerId: string
+  name: string
+  prompt: string
+  version: string
+  active: boolean
+}
+
+export interface AiProvider {
+  id: string
+  name: string
+  provider: string
+  apiEndpoint: string | null
+  model: string | null
+  enabled: boolean
+  priority: number
+  timeout: number
+  configuration: unknown
+  createdAt: string
+  updatedAt: string
+  models?: AiModel[]
+  prompts?: AiPromptTemplate[]
+}
+
+export type AiUsageResponseStatus = 'SUCCESS' | 'FAILURE' | 'TIMEOUT'
+
+export interface AiUsageLog {
+  id: string
+  providerId: string
+  userId: string | null
+  submissionId: string | null
+  tokens: number
+  latency: number
+  cost: number
+  responseStatus: AiUsageResponseStatus
+  createdAt: string
+}
+
+// ============================================================
+// PLATFORM CONFIGURATION TYPES
+// ============================================================
+
+export interface PlatformConfiguration {
+  id: string
+  platformName: string
+  supportEmail: string | null
+  supportPhone: string | null
+  commissionPercentage: number
+  minimumWithdrawal: number
+  maximumWithdrawal: number
+  maintenanceMode: boolean
+  appVersion: string
+  apiVersion: string
+}
+
+// ============================================================
 // SUPPORT TYPES
 // ============================================================
 
