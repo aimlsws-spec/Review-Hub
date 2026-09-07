@@ -26,38 +26,57 @@ class SplashScreen extends ConsumerWidget {
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: AppColors.authGradient,
+          image: DecorationImage(
+            image: AssetImage('assets/images/splash_bg_clean.png'),
+            fit: BoxFit.cover,
           ),
         ),
-        child: Center(
+        child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                _LogoMark(dimmed: isOffline),
-                const SizedBox(height: 24),
-                const Text(
-                  'VIRAL KAR',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
+                const Spacer(flex: 3),
+                Opacity(
+                  opacity: isOffline ? 0.6 : 1,
+                  child: SvgPicture.asset(
+                    'assets/images/viralkar_logo.svg',
+                    width: 230,
                   ),
                 ),
-                const SizedBox(height: 32),
-                if (isOffline)
-                  _OfflineNotice(onRetry: () => ref.invalidate(authStateProvider))
-                else
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                const SizedBox(height: 40),
+                const Text(
+                  'Earn Rewards.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.navy900,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
                   ),
+                ),
+                const Text(
+                  'Do What You Love.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.orange500,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 36),
+                if (isOffline)
+                  _OfflineNotice(
+                    onRetry: () => ref.invalidate(authStateProvider),
+                  )
+                else
+                  const _LoadingIndicator(),
+                const Spacer(flex: 4),
+                const SizedBox(
+                  height: 84,
+                ), // Placeholder for spacing where the old illustration was
+                const SizedBox(height: 28),
               ],
             ),
           ),
@@ -67,27 +86,37 @@ class SplashScreen extends ConsumerWidget {
   }
 }
 
-class _LogoMark extends StatelessWidget {
-  const _LogoMark({required this.dimmed});
-  final bool dimmed;
+class _LoadingIndicator extends StatelessWidget {
+  const _LoadingIndicator();
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: dimmed ? 0.7 : 1,
-      child: Container(
-        width: 96,
-        height: 96,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(26),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 24, offset: const Offset(0, 10)),
-          ],
+    return const Column(
+      children: [
+        SizedBox(
+          width: 32,
+          height: 32,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
+                strokeWidth: 3,
+                value: 1,
+                color: AppColors.slate200,
+              ),
+              CircularProgressIndicator(
+                strokeWidth: 3,
+                color: AppColors.orange500,
+              ),
+            ],
+          ),
         ),
-        child: SvgPicture.asset('assets/images/viralkar_logo.svg'),
-      ),
+        SizedBox(height: 16),
+        Text(
+          'Loading your world of rewards…',
+          style: TextStyle(color: AppColors.slate500, fontSize: 13.5),
+        ),
+      ],
     );
   }
 }
@@ -100,17 +129,25 @@ class _OfflineNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 28),
+        const Icon(
+          Icons.cloud_off_rounded,
+          color: AppColors.slate400,
+          size: 28,
+        ),
         const SizedBox(height: 12),
         const Text(
           'No internet connection',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: AppColors.navy900,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: 6),
-        Text(
+        const Text(
           'Check your connection and try again.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13.5),
+          style: TextStyle(color: AppColors.slate500, fontSize: 13.5),
         ),
         const SizedBox(height: 20),
         SizedBox(
@@ -118,8 +155,8 @@ class _OfflineNotice extends StatelessWidget {
           child: ElevatedButton(
             onPressed: onRetry,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.orange700,
+              backgroundColor: AppColors.orange500,
+              foregroundColor: Colors.white,
               elevation: 0,
             ),
             child: const Text('Retry'),

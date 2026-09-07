@@ -51,5 +51,5 @@ final sessionExpiredProvider = StateProvider<int>((ref) => 0);
 /// router's redirect (see `app_router.dart`) can resolve `authStateProvider`
 /// in a single frame, making the splash screen flash by unnoticed.
 final splashMinDurationProvider = FutureProvider<void>((ref) {
-  return Future.delayed(const Duration(milliseconds: 1100));
+  return Future.delayed(const Duration(milliseconds: 3000));
 });
