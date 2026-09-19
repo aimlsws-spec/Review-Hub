@@ -4,6 +4,7 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../core/errors/result.dart';
 import '../../../core/network/failure_mapper.dart';
 import '../../../shared/models/api_response.dart';
+import 'models/recommended_task_model.dart';
 import 'models/task_submission_model.dart';
 import 'models/text_suggestion_model.dart';
 
@@ -75,6 +76,18 @@ class TaskRepository {
     try {
       final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.submission(submissionId));
       return Result.success(TaskSubmissionModel.fromJson(response.data!['data'] as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  Future<Result<List<RecommendedTaskModel>>> getRecommendedTasks() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.tasksRecommended);
+      final rawList = response.data!['data'] as List<dynamic>;
+      return Result.success(
+        rawList.map((json) => RecommendedTaskModel.fromJson(json as Map<String, dynamic>)).toList(),
+      );
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));
     }

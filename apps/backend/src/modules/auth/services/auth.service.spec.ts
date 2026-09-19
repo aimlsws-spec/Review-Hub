@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { ConflictException, NotFoundException, UnauthorizedException, BadRequestException } from '@common/exceptions/domain.exceptions';
 
+import { LocalStorageService } from '../../../storage/storage.service';
 import { LoginHistoryRepository } from '../repositories/login-history.repository';
 import { UserRepository } from '../repositories/user.repository';
 
@@ -111,6 +112,7 @@ describe('AuthService', () => {
         { provide: OtpService, useValue: mockOtpService },
         { provide: LoginHistoryRepository, useValue: mockLoginHistoryRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: LocalStorageService, useValue: { saveFile: jest.fn(), deleteFile: jest.fn() } },
       ],
     }).compile();
 

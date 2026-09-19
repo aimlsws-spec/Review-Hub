@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/storage_keys.dart';
@@ -7,6 +8,8 @@ import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/providers/core_providers.dart';
 import '../../../../shared/widgets/loading_button.dart';
+
+final _onboardingPageProvider = StateProvider.autoDispose<int>((ref) => 0);
 
 class _OnboardingSlide {
   const _OnboardingSlide({required this.icon, required this.title, required this.description});
@@ -47,7 +50,6 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
-  int _page = 0;
 
   @override
   void dispose() {
@@ -62,7 +64,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _page == _slides.length - 1;
+    final page = ref.watch(_onboardingPageProvider);
+    final isLast = page == _slides.length - 1;
 
     return Scaffold(
       body: SafeArea(
@@ -80,7 +83,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: PageView.builder(
                 controller: _controller,
                 itemCount: _slides.length,
-                onPageChanged: (i) => setState(() => _page = i),
+                onPageChanged: (i) => ref.read(_onboardingPageProvider.notifier).state = i,
                 itemBuilder: (context, i) {
                   final slide = _slides[i];
                   return Padding(
@@ -125,10 +128,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 (i) => AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: i == _page ? 20 : 6,
+                  width: i == page ? 20 : 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: i == _page ? AppColors.orange500 : AppColors.slate200,
+                    color: i == page ? AppColors.orange500 : AppColors.slate200,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),

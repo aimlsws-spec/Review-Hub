@@ -38,55 +38,78 @@ class WalletScreen extends ConsumerWidget {
                 failure: (failure) => Text(failure.message, style: const TextStyle(color: AppColors.danger)),
               ),
             ),
-            const SizedBox(height: 16),
-            GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.85,
+            const SizedBox(height: 20),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ActionButton(
-                  icon: Icons.arrow_upward_rounded,
-                  label: 'Withdraw',
-                  onTap: () => context.push(RoutePaths.withdraw),
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.add_circle_outline_rounded,
+                    label: 'Add Funds',
+                    onTap: () async {
+                      // Trigger mock add funds
+                      final success = await ref.read(simulateAddFundsProvider.notifier).addFunds(500);
+                      if (context.mounted && success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Simulated adding ₹500 to wallet.')),
+                        );
+                      }
+                    },
+                  ),
                 ),
-                _ActionButton(
-                  icon: Icons.account_balance_rounded,
-                  label: 'Bank\naccounts',
-                  onTap: () => context.push(RoutePaths.bankAccounts),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.arrow_upward_rounded,
+                    label: 'Withdraw',
+                    onTap: () => context.push(RoutePaths.withdraw),
+                  ),
                 ),
-                _ActionButton(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Withdrawals',
-                  onTap: () => context.push(RoutePaths.withdrawalHistory),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.account_balance_rounded,
+                    label: 'Banks',
+                    onTap: () => context.push(RoutePaths.bankAccounts),
+                  ),
                 ),
-                _ActionButton(
-                  icon: Icons.card_giftcard_rounded,
-                  label: 'Rewards',
-                  onTap: () => context.push(RoutePaths.walletRewards),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.receipt_long_rounded,
+                    label: 'History',
+                    onTap: () => context.push(RoutePaths.withdrawalHistory),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Recent activity', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                TextButton(
-                  onPressed: () => context.push(RoutePaths.walletTransactions),
-                  child: const Text('See all'),
+                const Text('Recent activity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy900)),
+                InkWell(
+                  onTap: () => context.push(RoutePaths.walletTransactions),
+                  child: const Row(
+                    children: [
+                      Text('See all', style: TextStyle(color: AppColors.primary600, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Icon(Icons.chevron_right_rounded, color: AppColors.primary600, size: 16),
+                    ],
+                  ),
                 ),
               ],
             ),
+            const SizedBox(height: 8),
             transactionsAsync.when(
               loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: PageLoader()),
               error: (error, stack) => Text('$error'),
               data: (result) => result.when(
                 success: (page) {
                   if (page.items.isEmpty) {
-                    return const EmptyState(icon: Icons.receipt_long_outlined, title: 'No transactions yet');
+                    return const Padding(
+                      padding: EdgeInsets.only(top: 20),
+                      child: EmptyState(icon: Icons.receipt_long_outlined, title: 'No transactions yet'),
+                    );
                   }
                   return Column(
                     children: page.items.take(5).map((t) => TransactionTile(transaction: t)).toList(),
@@ -113,28 +136,61 @@ class _BalanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.primary600, AppColors.primary800],
+          colors: [AppColors.navy900, Color(0xFF193255), Color(0xFFE56A00), AppColors.orange500],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          stops: [0.0, 0.45, 0.75, 1.0],
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: AppColors.navy900.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 6))],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          const Text('Available balance', style: TextStyle(color: Colors.white70, fontSize: 13)),
-          const SizedBox(height: 6),
-          Text('₹${available.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _StatChip(label: 'Pending', value: '₹${pending.toStringAsFixed(0)}'),
-              const SizedBox(width: 20),
-              _StatChip(label: 'Lifetime earned', value: '₹${lifetime.toStringAsFixed(0)}'),
-            ],
+          // Subtle background decoration
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Icon(Icons.account_balance_wallet_rounded, color: Colors.white.withValues(alpha: 0.05), size: 140),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                      child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Available balance', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text('₹${available.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _StatChip(label: 'Pending', value: '₹${pending.toStringAsFixed(0)}'),
+                      Container(width: 1, height: 24, color: Colors.white.withValues(alpha: 0.2)),
+                      _StatChip(label: 'Lifetime earned', value: '₹${lifetime.toStringAsFixed(0)}'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -153,8 +209,9 @@ class _StatChip extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11.5)),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
       ],
     );
   }
@@ -171,19 +228,28 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.slate100),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Column(
           children: [
-            Icon(icon, size: 20, color: AppColors.primary600),
-            const SizedBox(height: 6),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(color: AppColors.primary50, shape: BoxShape.circle),
+              child: Icon(icon, size: 20, color: AppColors.primary600),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.navy900, height: 1.2),
+            ),
           ],
         ),
       ),

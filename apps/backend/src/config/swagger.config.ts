@@ -5,14 +5,14 @@ import { API_PREFIX } from '../common/constants';
 
 export function setupSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
-    .setTitle('ReviewHub API')
+    .setTitle('VIRAL KAR API')
     .setDescription(
-      'ReviewHub Platform — Backend API Documentation.\n\n' +
+      'VIRAL KAR Platform — Backend API Documentation.\n\n' +
       'All endpoints require Bearer JWT authentication unless marked as **Public**.\n\n' +
       'Click **Authorize** and enter your access token to authenticate.',
     )
     .setVersion('1.0')
-    .setContact('ReviewHub Engineering', '', 'engineering@reviewhub.in')
+    .setContact('VIRAL KAR Engineering', '', 'engineering@viralkar.in')
     .addBearerAuth(
       {
         type: 'http',
@@ -35,6 +35,6 @@ export function setupSwagger(app: INestApplication): void {
       filter: true,
       showRequestDuration: true,
     },
-    customSiteTitle: 'ReviewHub API Docs',
+    customSiteTitle: 'VIRAL KAR API Docs',
   });
 }

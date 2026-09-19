@@ -1,4 +1,4 @@
-import { Controller, Headers, HttpCode, HttpStatus, Logger, Post, RawBodyRequest, Req } from '@nestjs/common';
+import { Controller, Headers, HttpCode, HttpStatus, Inject, Logger, Post, RawBodyRequest, Req } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -6,8 +6,8 @@ import { Request } from 'express';
 import { Public } from '@common/decorators';
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
-import { RazorpayWebhookBody } from '../interfaces';
-import { RazorpayService } from '../services';
+
+import { PAYMENT_PROVIDER, PaymentProvider, RazorpayWebhookBody } from '../interfaces';
 
 /**
  * Razorpay calls this directly — no JWT, verified purely by HMAC signature
@@ -20,7 +20,7 @@ export class RazorpayWebhookController {
   private readonly logger = new Logger(RazorpayWebhookController.name);
 
   constructor(
-    private readonly razorpayService: RazorpayService,
+    @Inject(PAYMENT_PROVIDER) private readonly paymentService: PaymentProvider,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -28,22 +28,22 @@ export class RazorpayWebhookController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  async handle(@Req() req: RawBodyRequest<Request>, @Headers('x-razorpay-signature') signature?: string) {
-    if (!signature || !req.rawBody) {
-      throw new BadRequestException('Missing webhook signature');
-    }
+  async handleWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('X-Razorpay-Signature') signature: string,
+  ) {
+    if (!signature || !req.rawBody) throw new BadRequestException('Missing webhook signature');
 
-    const valid = this.razorpayService.verifyWebhookSignature(req.rawBody.toString('utf8'), signature);
-    if (!valid) {
+    const isValid = this.paymentService.verifyWebhookSignature(req.rawBody.toString('utf8'), signature);
+    if (!isValid) {
+      this.logger.warn('Rejected webhook with invalid signature');
       throw new BadRequestException('Invalid webhook signature');
     }
 
-    const body = req.body as RazorpayWebhookBody;
-    this.logger.log(`Received Razorpay webhook: ${body.event}`);
-
-    const event = this.razorpayService.parseWebhookEvent(body);
+    const event = this.paymentService.parseWebhookEvent(req.body as RazorpayWebhookBody);
     if (event) {
       this.eventEmitter.emit(event.name, event.payload);
+      this.logger.log(`Emitted internal event ${event.name} from webhook`);
     }
 
     return { received: true };

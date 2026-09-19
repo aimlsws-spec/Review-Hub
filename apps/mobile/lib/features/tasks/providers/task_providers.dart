@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/errors/result.dart';
 import '../../../shared/models/api_response.dart';
 import '../../../shared/providers/core_providers.dart';
+import '../data/models/recommended_task_model.dart';
 import '../data/models/task_submission_model.dart';
 import '../data/models/text_suggestion_model.dart';
 import '../data/task_repository.dart';
@@ -26,4 +27,12 @@ final mySubmissionsProvider =
 final textSuggestionProvider =
     FutureProvider.autoDispose.family<Result<TextSuggestionModel>, String>((ref, taskId) async {
   return ref.watch(taskRepositoryProvider).getTextSuggestion(taskId);
+});
+
+/// Powers the Home screen "✨ AI Recommended for you" carousel. Loads eagerly
+/// like [campaignsProvider], since it's data the screen always wants —
+/// unlike [textSuggestionProvider], which only runs when the user asks for it.
+final recommendedTasksProvider =
+    FutureProvider.autoDispose<Result<List<RecommendedTaskModel>>>((ref) async {
+  return ref.watch(taskRepositoryProvider).getRecommendedTasks();
 });

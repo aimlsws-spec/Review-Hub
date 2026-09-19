@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -8,6 +9,45 @@ import '../../providers/wallet_providers.dart';
 
 /// IFSC codes are 4 letters + 0 + 6 alphanumeric characters, e.g. HDFC0001234.
 final _ifscPattern = RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$');
+
+final _isPrimaryProvider = StateProvider.autoDispose<bool>((ref) => false);
+
+final _addBankAccountSubmitProvider =
+    AsyncNotifierProvider.autoDispose<_AddBankAccountSubmitNotifier, void>(_AddBankAccountSubmitNotifier.new);
+
+class _AddBankAccountSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> submit({
+    required String bankName,
+    required String accountHolderName,
+    required String accountNumber,
+    required String ifscCode,
+    required String branch,
+    required String upiId,
+    required bool isPrimary,
+  }) async {
+    state = const AsyncLoading();
+    final result = await ref.read(walletRepositoryProvider).addBankAccount(
+          bankName: bankName,
+          accountHolderName: accountHolderName,
+          accountNumber: accountNumber,
+          ifscCode: ifscCode,
+          branch: branch,
+          upiId: upiId,
+          isPrimary: isPrimary,
+        );
+
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Could not add this account.', StackTrace.current);
+      return false;
+    }
+    state = const AsyncData(null);
+    ref.read(walletRefreshProvider.notifier).state++;
+    return true;
+  }
+}
 
 class AddBankAccountScreen extends ConsumerStatefulWidget {
   const AddBankAccountScreen({super.key});
@@ -24,9 +64,6 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
   final _ifscController = TextEditingController();
   final _branchController = TextEditingController();
   final _upiController = TextEditingController();
-  bool _isPrimary = false;
-  bool _isSubmitting = false;
-  String? _errorMessage;
 
   @override
   void dispose() {
@@ -41,35 +78,27 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
 
-    final result = await ref.read(walletRepositoryProvider).addBankAccount(
+    final success = await ref.read(_addBankAccountSubmitProvider.notifier).submit(
           bankName: _bankNameController.text.trim(),
           accountHolderName: _holderNameController.text.trim(),
           accountNumber: _accountNumberController.text.trim(),
           ifscCode: _ifscController.text.trim().toUpperCase(),
           branch: _branchController.text.trim(),
           upiId: _upiController.text.trim(),
-          isPrimary: _isPrimary,
+          isPrimary: ref.read(_isPrimaryProvider),
         );
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message ?? 'Could not add this account.');
-      return;
-    }
-
-    ref.read(walletRefreshProvider.notifier).state++;
-    if (mounted) context.pop();
+    if (!mounted || !success) return;
+    context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final submitState = ref.watch(_addBankAccountSubmitProvider);
+    final isPrimary = ref.watch(_isPrimaryProvider);
+    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Add bank account')),
       body: SafeArea(
@@ -80,12 +109,12 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_errorMessage != null) ...[
+                if (errorMessage != null) ...[
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-                    child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                    decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+                    child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -134,13 +163,13 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                 const SizedBox(height: 8),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
-                  value: _isPrimary,
-                  onChanged: (v) => setState(() => _isPrimary = v ?? false),
+                  value: isPrimary,
+                  onChanged: (v) => ref.read(_isPrimaryProvider.notifier).state = v ?? false,
                   title: const Text('Set as primary account', style: TextStyle(fontSize: 14)),
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
                 const SizedBox(height: 16),
-                LoadingButton(label: 'Add account', isLoading: _isSubmitting, onPressed: _submit),
+                LoadingButton(label: 'Add account', isLoading: submitState.isLoading, onPressed: _submit),
               ],
             ),
           ),

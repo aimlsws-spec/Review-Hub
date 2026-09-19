@@ -6,3 +6,4 @@ export * from './settings.service';
 export * from './feature-flag.service';
 export * from './audit-log-viewer.service';
 export * from './platform-configuration.service';
+export * from './kyc-management.service';

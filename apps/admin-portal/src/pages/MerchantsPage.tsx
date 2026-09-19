@@ -301,6 +301,28 @@ export default function MerchantsPage() {
               )}
             </div>
 
+            <div className="mt-6">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Bank Accounts</p>
+              {!detail.bankAccounts || detail.bankAccounts.length === 0 ? (
+                <p className="text-sm text-gray-400">No bank accounts linked yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {detail.bankAccounts.map((bank) => (
+                    <div key={bank.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-3 shadow-sm">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900">{bank.bankName}</p>
+                          {bank.isPrimary && <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Primary</span>}
+                        </div>
+                        <p className="text-xs text-gray-500">{bank.accountHolderName} &bull; {bank.accountNumber} &bull; {bank.ifscCode}</p>
+                      </div>
+                      <StatusBadge status={bank.verificationStatus} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {detail.verificationStatus !== 'APPROVED' && (
               <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
                 <button className="btn-secondary" onClick={() => openReview(detail, 'request-documents')}>Request Docs</button>

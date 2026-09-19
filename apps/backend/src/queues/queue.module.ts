@@ -29,6 +29,7 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.REWARDS },
       { name: QUEUE_NAMES.EMAILS },
       { name: QUEUE_NAMES.SETTLEMENT },
+      { name: QUEUE_NAMES.AI_VERIFICATION },
     ),
   ],
   exports: [BullModule],

@@ -8,6 +8,25 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../providers/auth_providers.dart';
 
+final _resetPasswordSubmitProvider =
+    AsyncNotifierProvider.autoDispose<_ResetPasswordSubmitNotifier, void>(_ResetPasswordSubmitNotifier.new);
+
+class _ResetPasswordSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> submit({required String email, required String code, required String password}) async {
+    state = const AsyncLoading();
+    final result = await ref.read(authRepositoryProvider).resetPassword(email: email, code: code, password: password);
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Something went wrong.', StackTrace.current);
+      return false;
+    }
+    state = const AsyncData(null);
+    return true;
+  }
+}
+
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({super.key, this.email});
 
@@ -23,8 +42,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _codeController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _isSubmitting = false;
-  String? _errorMessage;
 
   @override
   void initState() {
@@ -43,24 +60,14 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
 
-    final result = await ref.read(authRepositoryProvider).resetPassword(
+    final success = await ref.read(_resetPasswordSubmitProvider.notifier).submit(
           email: _emailController.text.trim(),
           code: _codeController.text.trim(),
           password: _passwordController.text,
         );
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message ?? 'Something went wrong.');
-      return;
-    }
+    if (!mounted || !success) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Password reset successfully. Please sign in.')),
@@ -70,6 +77,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final submitState = ref.watch(_resetPasswordSubmitProvider);
+    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Reset password')),
       body: SafeArea(
@@ -82,12 +92,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               children: [
                 const Text('Enter the OTP sent to your email.', style: TextStyle(fontSize: 14.5, color: AppColors.slate500)),
                 const SizedBox(height: 24),
-                if (_errorMessage != null) ...[
+                if (errorMessage != null) ...[
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-                    child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                    decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+                    child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -123,7 +133,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   validator: (v) => (v != _passwordController.text) ? 'Passwords do not match' : null,
                 ),
                 const SizedBox(height: 24),
-                LoadingButton(label: 'Reset password', isLoading: _isSubmitting, gradient: true, onPressed: _submit),
+                LoadingButton(label: 'Reset password', isLoading: submitState.isLoading, gradient: true, onPressed: _submit),
               ],
             ),
           ),

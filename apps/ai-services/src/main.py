@@ -30,7 +30,6 @@ backend_client = BackendClient(settings)
 ocr_service = OcrService(settings)
 ollama_service = OllamaService(settings)
 engine = VerificationEngine(settings, ocr_service, ollama_service)
-worker = VerificationWorker(settings, backend_client, engine)
 text_assist_engine = TextAssistEngine(ollama_service)
 review_assistant_engine = ReviewAssistantEngine(ollama_service)
 caption_engine = CaptionEngine(ollama_service)
@@ -43,14 +42,7 @@ async def lifespan(_: FastAPI):
         ocr_service.available,
         ollama_service.available,
     )
-    worker_task = asyncio.create_task(worker.run_forever())
     yield
-    worker.stop()
-    worker_task.cancel()
-    try:
-        await worker_task
-    except asyncio.CancelledError:
-        pass
     await backend_client.aclose()
 
 
@@ -79,3 +71,29 @@ async def review_drafts(request: ReviewDraftRequest) -> ReviewDraftResponse:
 @app.post("/v1/assist/captions", response_model=CaptionResponse, dependencies=[Depends(verify_backend_credentials)])
 async def captions(request: CaptionRequest) -> CaptionResponse:
     return await caption_engine.generate(request)
+
+
+from fastapi import UploadFile, File, Form
+from .core.models import Submission, VerificationDecision
+
+@app.post("/v1/verify", dependencies=[Depends(verify_backend_credentials)])
+async def verify_submission_direct(
+    submissionJson: str = Form(...),
+    file: UploadFile = File(None)
+):
+    import json
+    submission_data = json.loads(submissionJson)
+    submission = Submission(**submission_data)
+    
+    evidence_bytes = None
+    if file:
+        evidence_bytes = await file.read()
+        
+    outcome = await engine.verify(submission, evidence_bytes)
+    return {
+        "decision": outcome.decision.value,
+        "confidence": outcome.confidence,
+        "fraudScore": outcome.fraud_score,
+        "explanation": outcome.explanation,
+        "rawResponse": outcome.raw,
+    }

@@ -22,3 +22,5 @@ export interface RazorpayWebhookBody {
 export type RazorpayWebhookEvent =
   | { name: string; payload: PaymentCapturedEventPayload }
   | { name: string; payload: PayoutStatusEventPayload };
+
+export * from './payment-provider.interface';

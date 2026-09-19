@@ -11,6 +11,7 @@ import type {
   DashboardStats,
   PaginatedResponse,
   Campaign,
+  CampaignAnalytics,
   CampaignType,
   CampaignVisibility,
   RewardType,
@@ -60,6 +61,10 @@ export interface CampaignFormInput {
   maxParticipants?: number
   startAt?: string
   endAt?: string
+  targetGender?: 'ALL' | 'MALE' | 'FEMALE' | 'OTHER'
+  minimumAge?: number
+  maximumAge?: number
+  minimumFollowers?: number
 }
 
 /**
@@ -127,6 +132,9 @@ export const merchantApi = {
       { amount },
     ),
 
+  simulateRecharge: (merchantId: string, amount: number) =>
+    apiClient.post<ApiResponse<WalletTransaction>>(`/merchants/${merchantId}/wallet/recharge/simulate`, { amount }),
+
   verifyRecharge: (merchantId: string, data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) =>
     apiClient.post<ApiResponse<WalletTransaction>>(`/merchants/${merchantId}/wallet/recharge/verify`, data),
 
@@ -189,6 +197,9 @@ export const merchantApi = {
   resumeCampaign: (campaignId: string) => apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/resume`),
 
   cancelCampaign: (campaignId: string) => apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/cancel`),
+
+  getCampaignAnalytics: (merchantId: string, campaignId: string) =>
+    apiClient.get<ApiResponse<CampaignAnalytics>>(`/merchants/${merchantId}/campaigns/${campaignId}/analytics`),
 
   deleteCampaign: (campaignId: string) => apiClient.delete<ApiResponse<Campaign>>(`/campaigns/${campaignId}`),
 

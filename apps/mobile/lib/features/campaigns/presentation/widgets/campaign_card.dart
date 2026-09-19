@@ -52,7 +52,7 @@ class CampaignCard extends StatelessWidget {
                         ),
                         if (campaign.featured) ...[
                           const SizedBox(width: 6),
-                          const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                          const Icon(Icons.star_rounded, size: 16, color: AppColors.starRating),
                         ],
                       ],
                     ),

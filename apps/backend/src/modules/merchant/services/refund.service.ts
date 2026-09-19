@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 import { describeError } from '@common/utils';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
-import { RazorpayService } from '../../payment/services';
+import { PAYMENT_PROVIDER, PaymentProvider } from '../../payment/interfaces';
 import { REVIEWABLE_REFUND_STATUSES } from '../constants';
 import { CreateRefundDto, RejectRefundDto } from '../dto';
 import { RefundRequestedEvent, RefundReviewedEvent } from '../events';
@@ -22,7 +22,7 @@ export class RefundService {
     private readonly bankRepository: MerchantBankRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly auditLogService: AuditLogService,
-    private readonly razorpayService: RazorpayService,
+    @Inject(PAYMENT_PROVIDER) private readonly paymentService: PaymentProvider,
   ) {}
 
   async request(merchantId: string, dto: CreateRefundDto) {
@@ -212,14 +212,14 @@ export class RefundService {
     }
 
     try {
-      const customer = await this.razorpayService.createCustomer({ name: refund.bankAccount.accountHolderName });
-      const fundAccount = await this.razorpayService.createFundAccount({
+      const customer = await this.paymentService.createCustomer({ name: refund.bankAccount.accountHolderName });
+      const fundAccount = await this.paymentService.createFundAccount({
         customerId: customer.id,
         accountHolderName: refund.bankAccount.accountHolderName,
         accountNumber: refund.bankAccount.accountNumber,
         ifscCode: refund.bankAccount.ifscCode,
       });
-      const payout = await this.razorpayService.createPayout({
+      const payout = await this.paymentService.createPayout({
         fundAccountId: fundAccount.id,
         amountInRupees: Number(refund.amount),
         referenceId: refund.id,

@@ -129,38 +129,20 @@ class _OfflineNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Icon(
-          Icons.cloud_off_rounded,
-          color: AppColors.slate400,
-          size: 28,
+        const SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.orange500),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         const Text(
-          'No internet connection',
-          style: TextStyle(
-            color: AppColors.navy900,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Check your connection and try again.',
-          textAlign: TextAlign.center,
+          'Your internet connection is off',
           style: TextStyle(color: AppColors.slate500, fontSize: 13.5),
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: onRetry,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.orange500,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: const Text('Retry'),
-          ),
+        TextButton(
+          onPressed: onRetry,
+          style: TextButton.styleFrom(foregroundColor: AppColors.orange500, minimumSize: const Size(0, 32)),
+          child: const Text('Retry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ),
       ],
     );

@@ -39,6 +39,25 @@ class SupportTicketDetailScreen extends ConsumerWidget {
   }
 }
 
+final _replySubmitProvider = AsyncNotifierProvider.autoDispose<_ReplySubmitNotifier, void>(_ReplySubmitNotifier.new);
+
+class _ReplySubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> submit(String ticketId, String text) async {
+    state = const AsyncLoading();
+    final result = await ref.read(supportRepositoryProvider).reply(ticketId, text);
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Could not send reply — please try again.', StackTrace.current);
+      return false;
+    }
+    state = const AsyncData(null);
+    ref.read(supportRefreshProvider.notifier).state++;
+    return true;
+  }
+}
+
 class _TicketDetailBody extends ConsumerStatefulWidget {
   const _TicketDetailBody({required this.ticket});
 
@@ -50,8 +69,6 @@ class _TicketDetailBody extends ConsumerStatefulWidget {
 
 class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
   final _replyController = TextEditingController();
-  bool _isSending = false;
-  String? _errorMessage;
 
   @override
   void dispose() {
@@ -63,28 +80,16 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
     final text = _replyController.text.trim();
     if (text.isEmpty) return;
 
-    setState(() {
-      _isSending = true;
-      _errorMessage = null;
-    });
-
-    final result = await ref.read(supportRepositoryProvider).reply(widget.ticket.id, text);
-
-    if (!mounted) return;
-    setState(() => _isSending = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message ?? 'Could not send reply — please try again.');
-      return;
-    }
-
+    final success = await ref.read(_replySubmitProvider.notifier).submit(widget.ticket.id, text);
+    if (!mounted || !success) return;
     _replyController.clear();
-    ref.read(supportRefreshProvider.notifier).state++;
   }
 
   @override
   Widget build(BuildContext context) {
     final ticket = widget.ticket;
+    final submitState = ref.watch(_replySubmitProvider);
+    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
     final messages = (ticket.messages ?? []).where((message) => !message.internalNote).toList();
 
     return Column(
@@ -138,12 +143,12 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_errorMessage != null) ...[
+                if (errorMessage != null) ...[
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-                    child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 12.5)),
+                    decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+                    child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 12.5)),
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -159,7 +164,7 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _isSending
+                      submitState.isLoading
                           ? const Padding(
                               padding: EdgeInsets.all(8),
                               child: LoadingIndicator(size: 22),
@@ -215,7 +220,7 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isUser = message.senderType == 'USER';
+    final isUser = message.isFromUser;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,

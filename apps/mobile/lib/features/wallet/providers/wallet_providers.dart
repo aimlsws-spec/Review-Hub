@@ -44,3 +44,22 @@ final withdrawalsProvider =
   ref.watch(walletRefreshProvider);
   return ref.watch(walletRepositoryProvider).getWithdrawals();
 });
+
+final simulateAddFundsProvider = AsyncNotifierProvider.autoDispose<_SimulateAddFundsNotifier, void>(_SimulateAddFundsNotifier.new);
+
+class _SimulateAddFundsNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> addFunds(double amount) async {
+    state = const AsyncLoading();
+    final result = await ref.read(walletRepositoryProvider).simulateAddFunds(amount);
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Failed to add funds', StackTrace.current);
+      return false;
+    }
+    state = const AsyncData(null);
+    ref.read(walletRefreshProvider.notifier).state++;
+    return true;
+  }
+}

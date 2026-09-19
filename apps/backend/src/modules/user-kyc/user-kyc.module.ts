@@ -7,7 +7,7 @@ import { UserKycService } from './services';
 @Module({
   controllers: [UserKycController],
   providers: [UserKycService, UserKycDocumentRepository],
-  exports: [UserKycService],
+  exports: [UserKycService, UserKycDocumentRepository],
 })
 export class UserKycModule {
   private readonly logger = new Logger(UserKycModule.name);

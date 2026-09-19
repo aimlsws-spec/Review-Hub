@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
-import { RazorpayService } from '../../payment/services';
+import { PAYMENT_PROVIDER, PaymentProvider } from '../../payment/interfaces';
 import { VerifyRechargeDto } from '../dto';
 import { MerchantRepository, MerchantWalletRepository } from '../repositories';
 
@@ -11,7 +11,7 @@ export class WalletService {
   constructor(
     private readonly merchantRepository: MerchantRepository,
     private readonly walletRepository: MerchantWalletRepository,
-    private readonly razorpayService: RazorpayService,
+    @Inject(PAYMENT_PROVIDER) private readonly paymentService: PaymentProvider,
   ) {}
 
   /** Every merchant has a wallet from first view onward — getOrCreate rather than
@@ -38,10 +38,14 @@ export class WalletService {
     const wallet = await this.walletRepository.getOrCreate(merchantId);
     // Razorpay caps `receipt` at 56 characters — a full UUID plus prefix/timestamp
     // would exceed that, so only a short slice of the wallet id is used.
-    const order = await this.razorpayService.createOrder(amount, `recharge-${wallet.id.slice(0, 8)}-${Date.now()}`);
-    await this.walletRepository.createPendingTopUp({ merchantWalletId: wallet.id, amount, razorpayOrderId: order.id });
+    try {
+      const order = await this.paymentService.createOrder(amount, `recharge-${wallet.id.slice(0, 8)}-${Date.now()}`);
+      await this.walletRepository.createPendingTopUp({ merchantWalletId: wallet.id, amount, razorpayOrderId: order.id });
 
-    return { razorpayOrderId: order.id, amount, currency: order.currency };
+      return { razorpayOrderId: order.id, amount, currency: order.currency };
+    } catch (error) {
+      throw new BadRequestException('Failed to create recharge order');
+    }
   }
 
   /** Confirms a top-up right after Razorpay Checkout succeeds client-side (the webhook is the durable backup for this same confirmation). */
@@ -49,12 +53,36 @@ export class WalletService {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
 
-    const valid = this.razorpayService.verifyPaymentSignature(dto.razorpayOrderId, dto.razorpayPaymentId, dto.razorpaySignature);
+    const valid = this.paymentService.verifyPaymentSignature(
+      dto.razorpayOrderId,
+      dto.razorpayPaymentId,
+      dto.razorpaySignature,
+    );
     if (!valid) throw new BadRequestException('Payment signature verification failed');
 
     const pending = await this.walletRepository.findPendingTopUpByOrderId(dto.razorpayOrderId);
     if (!pending) throw new NotFoundException('Pending recharge for this order');
 
     return this.walletRepository.confirmTopUp(pending.id, dto.razorpayPaymentId);
+  }
+
+  /** MOCK PAYMENT GATEWAY: Simulates a successful wallet recharge without needing Razorpay credentials */
+  async simulateRecharge(merchantId: string, amount: number) {
+    const merchant = await this.merchantRepository.findById(merchantId);
+    if (!merchant) throw new NotFoundException('Merchant');
+
+    const wallet = await this.walletRepository.getOrCreate(merchantId);
+    
+    // Create a dummy pending top-up
+    const mockOrderId = `mock_order_${Date.now()}`;
+    const pending = await this.walletRepository.createPendingTopUp({
+      merchantWalletId: wallet.id,
+      amount,
+      razorpayOrderId: mockOrderId,
+    });
+
+    // Immediately confirm it with a mock payment ID
+    const mockPaymentId = `mock_pay_${Date.now()}`;
+    return this.walletRepository.confirmTopUp(pending.id, mockPaymentId);
   }
 }

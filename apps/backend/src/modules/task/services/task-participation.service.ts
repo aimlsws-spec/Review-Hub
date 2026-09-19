@@ -1,10 +1,13 @@
 import { createHash } from 'crypto';
 
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Queue } from 'bullmq';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { QUEUE_NAMES } from '../../../queues/queue.constants';
 import { LocalStorageService } from '../../../storage/storage.service';
 import { REVIEW_DRAFT_SUPPORTED_TASK_TYPES, TEXT_ASSIST_SUPPORTED_TASK_TYPES } from '../../ai/constants';
 import { DraftReviewDto } from '../../ai/dto';
@@ -15,6 +18,8 @@ import { BLOCKING_SUBMISSION_STATUSES, SUBMISSION_STORAGE } from '../constants';
 import { SubmitTaskDto } from '../dto';
 import { TaskStartedEvent, TaskSubmittedEvent } from '../events';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
+
+
 
 /**
  * Handles a user joining a campaign through its first task, and submitting
@@ -34,6 +39,7 @@ export class TaskParticipationService {
     private readonly eventEmitter: EventEmitter2,
     private readonly aiAssistService: AiAssistService,
     private readonly merchantRepository: MerchantRepository,
+    @InjectQueue(QUEUE_NAMES.AI_VERIFICATION) private readonly aiQueue: Queue,
   ) {}
 
   async startTask(taskId: string, userId: string) {
@@ -185,6 +191,15 @@ export class TaskParticipationService {
       });
     }
 
+    // 1) Push to the background BullMQ Queue for AI Processing
+    await this.aiQueue.add('verify-submission', {
+      submissionId: submission.id,
+      taskId,
+      campaignId: campaign.id,
+      userId,
+    });
+
+    // 2) Emit event for local listeners (if any)
     this.eventEmitter.emit('task.submitted', new TaskSubmittedEvent(submission.id, taskId, campaign.id, userId));
 
     return this.submissionRepository.findById(submission.id);

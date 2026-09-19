@@ -58,7 +58,7 @@ class _RewardTile extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: const BoxDecoration(color: Color(0xFFDCFCE7), shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: AppColors.successBg, shape: BoxShape.circle),
               child: const Icon(Icons.card_giftcard_rounded, color: AppColors.success, size: 20),
             ),
             const SizedBox(width: 12),

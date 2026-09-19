@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
-import { RazorpayService } from '../../payment/services';
+import { PAYMENT_PROVIDER } from '../../payment/interfaces';
 import { MerchantBankRepository, MerchantRefundRepository, MerchantRepository, MerchantWalletRepository } from '../repositories';
 
 import { RefundService } from './refund.service';
@@ -50,7 +50,7 @@ describe('RefundService', () => {
         { provide: MerchantBankRepository, useValue: mockBankRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AuditLogService, useValue: mockAuditLogService },
-        { provide: RazorpayService, useValue: mockRazorpayService },
+        { provide: PAYMENT_PROVIDER, useValue: mockRazorpayService },
       ],
     }).compile();
 

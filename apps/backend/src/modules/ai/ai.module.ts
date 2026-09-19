@@ -3,7 +3,8 @@ import { Logger, Module } from '@nestjs/common';
 import { AdminModule } from '../admin/admin.module';
 import { TaskModule } from '../task/task.module';
 
-import { AdminAiProviderController, AiVerificationController } from './controllers';
+import { AiAssistModule } from './ai-assist.module';
+import { AdminAiProviderController, AiVerificationController, AiAssistController } from './controllers';
 import { ApiKeyGuard } from './guards';
 import {
   AiModelRepository,
@@ -15,8 +16,8 @@ import {
 import { AiProviderAdminService, AiVerificationService } from './services';
 
 @Module({
-  imports: [TaskModule, AdminModule],
-  controllers: [AiVerificationController, AdminAiProviderController],
+  imports: [TaskModule, AdminModule, AiAssistModule],
+  controllers: [AiVerificationController, AdminAiProviderController, AiAssistController],
   providers: [
     AiVerificationService,
     AiVerificationJobRepository,
@@ -27,7 +28,7 @@ import { AiProviderAdminService, AiVerificationService } from './services';
     AiPromptTemplateRepository,
     AiUsageLogRepository,
   ],
-  exports: [AiVerificationService],
+  exports: [AiVerificationService, AiVerificationJobRepository],
 })
 export class AiModule {
   private readonly logger = new Logger(AiModule.name);

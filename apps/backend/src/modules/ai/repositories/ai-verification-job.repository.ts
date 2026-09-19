@@ -15,6 +15,16 @@ export class AiVerificationJobRepository {
     return this.prisma.aIVerificationJob.findUnique({ where: { id }, include: { submission: true } });
   }
 
+  async findActiveBySubmissionId(submissionId: string) {
+    return this.prisma.aIVerificationJob.findFirst({
+      where: {
+        submissionId,
+        status: { in: ['QUEUED', 'PROCESSING'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   /**
    * Atomically claims the oldest QUEUED job by flipping it to PROCESSING in
    * one conditional update — `updateMany`'s `where: { status: 'QUEUED' }`

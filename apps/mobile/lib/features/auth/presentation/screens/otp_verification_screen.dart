@@ -10,6 +10,72 @@ import '../../../../shared/widgets/loading_button.dart';
 import '../../data/otp_type.dart';
 import '../../providers/auth_providers.dart';
 
+final _cooldownProvider = NotifierProvider.autoDispose<_CooldownNotifier, int>(_CooldownNotifier.new);
+
+class _CooldownNotifier extends Notifier<int> {
+  Timer? _timer;
+
+  @override
+  int build() {
+    ref.onDispose(() => _timer?.cancel());
+    return 0;
+  }
+
+  void start(int seconds) {
+    state = seconds;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (state <= 1) {
+        timer.cancel();
+        state = 0;
+      } else {
+        state -= 1;
+      }
+    });
+  }
+}
+
+final _verifySubmitProvider = AsyncNotifierProvider.autoDispose<_VerifySubmitNotifier, void>(_VerifySubmitNotifier.new);
+
+class _VerifySubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> verify(OtpType type, String code) async {
+    if (code.length != AppConstants.otpLength) {
+      state = AsyncError('Enter the ${AppConstants.otpLength}-digit code', StackTrace.current);
+      return false;
+    }
+    state = const AsyncLoading();
+    final result = await ref.read(authRepositoryProvider).verifyOtp(type, code);
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Invalid code, please try again.', StackTrace.current);
+      return false;
+    }
+    await ref.read(authStateProvider.notifier).refreshProfile();
+    state = const AsyncData(null);
+    return true;
+  }
+}
+
+final _resendSubmitProvider = AsyncNotifierProvider.autoDispose<_ResendSubmitNotifier, void>(_ResendSubmitNotifier.new);
+
+class _ResendSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<void> resend(OtpType type) async {
+    state = const AsyncLoading();
+    final result = await ref.read(authRepositoryProvider).resendOtp(type);
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Something went wrong.', StackTrace.current);
+      return;
+    }
+    state = const AsyncData(null);
+    ref.read(_cooldownProvider.notifier).start(AppConstants.otpResendCooldown.inSeconds);
+  }
+}
+
 /// Verifies the signed-in user's email or phone. Reached from a
 /// "verify now" prompt elsewhere in the app (e.g. the profile screen) —
 /// `send-otp`/`verify-otp` both require an authenticated session.
@@ -24,83 +90,40 @@ class OtpVerificationScreen extends ConsumerStatefulWidget {
 
 class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   final _codeController = TextEditingController();
-  bool _isVerifying = false;
-  bool _isResending = false;
-  String? _errorMessage;
-  int _cooldownSeconds = 0;
-  Timer? _cooldownTimer;
 
   String get _label => widget.type == OtpType.emailVerification ? 'email address' : 'phone number';
 
   @override
   void initState() {
     super.initState();
-    _sendInitialOtp();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _sendInitialOtp());
   }
 
   @override
   void dispose() {
     _codeController.dispose();
-    _cooldownTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _sendInitialOtp() async {
     await ref.read(authRepositoryProvider).sendOtp(widget.type);
-    _startCooldown();
-  }
-
-  void _startCooldown() {
-    setState(() => _cooldownSeconds = AppConstants.otpResendCooldown.inSeconds);
-    _cooldownTimer?.cancel();
-    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_cooldownSeconds <= 1) {
-        timer.cancel();
-        setState(() => _cooldownSeconds = 0);
-      } else {
-        setState(() => _cooldownSeconds -= 1);
-      }
-    });
-  }
-
-  Future<void> _resend() async {
-    setState(() => _isResending = true);
-    final result = await ref.read(authRepositoryProvider).resendOtp(widget.type);
-    if (!mounted) return;
-    setState(() => _isResending = false);
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message);
-      return;
-    }
-    _startCooldown();
+    if (mounted) ref.read(_cooldownProvider.notifier).start(AppConstants.otpResendCooldown.inSeconds);
   }
 
   Future<void> _verify() async {
-    if (_codeController.text.trim().length != AppConstants.otpLength) {
-      setState(() => _errorMessage = 'Enter the ${AppConstants.otpLength}-digit code');
-      return;
-    }
-
-    setState(() {
-      _isVerifying = true;
-      _errorMessage = null;
-    });
-
-    final result = await ref.read(authRepositoryProvider).verifyOtp(widget.type, _codeController.text.trim());
-    if (!mounted) return;
-    setState(() => _isVerifying = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message ?? 'Invalid code, please try again.');
-      return;
-    }
-
-    await ref.read(authStateProvider.notifier).refreshProfile();
-    if (mounted) context.pop();
+    final success = await ref.read(_verifySubmitProvider.notifier).verify(widget.type, _codeController.text.trim());
+    if (mounted && success) context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final cooldownSeconds = ref.watch(_cooldownProvider);
+    final verifyState = ref.watch(_verifySubmitProvider);
+    final resendState = ref.watch(_resendSubmitProvider);
+    final errorMessage = verifyState.hasError
+        ? verifyState.error.toString()
+        : (resendState.hasError ? resendState.error.toString() : null);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Verify your account')),
       body: SafeArea(
@@ -114,12 +137,12 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 style: const TextStyle(fontSize: 15, color: AppColors.slate600),
               ),
               const SizedBox(height: 24),
-              if (_errorMessage != null) ...[
+              if (errorMessage != null) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-                  child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                  decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+                  child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -132,18 +155,18 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 decoration: const InputDecoration(counterText: ''),
               ),
               const SizedBox(height: 16),
-              LoadingButton(label: 'Verify', isLoading: _isVerifying, gradient: true, onPressed: _verify),
+              LoadingButton(label: 'Verify', isLoading: verifyState.isLoading, gradient: true, onPressed: _verify),
               const SizedBox(height: 16),
               Center(
-                child: _cooldownSeconds > 0
+                child: cooldownSeconds > 0
                     ? Text(
-                        'Resend code in ${_cooldownSeconds}s',
+                        'Resend code in ${cooldownSeconds}s',
                         style: const TextStyle(fontSize: 13, color: AppColors.slate400),
                       )
                     : TextButton(
-                        onPressed: _isResending ? null : _resend,
+                        onPressed: resendState.isLoading ? null : () => ref.read(_resendSubmitProvider.notifier).resend(widget.type),
                         style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
-                        child: Text(_isResending ? 'Sending…' : 'Resend code'),
+                        child: Text(resendState.isLoading ? 'Sending…' : 'Resend code'),
                       ),
               ),
             ],

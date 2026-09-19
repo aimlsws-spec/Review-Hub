@@ -4,6 +4,7 @@ import { OtpType } from '@prisma/client';
 
 import { NotFoundException, BadRequestException, ConflictException, UnauthorizedException } from '@common/exceptions/domain.exceptions';
 
+import { LocalStorageService } from '../../../storage/storage.service';
 import { AUTH_EVENTS, ACCOUNT_LOCK } from '../constants';
 import type { LoginResponse, AuthTokens, RegisterInput, SocialLoginInput, UserProfile } from '../interfaces';
 import { LoginHistoryRepository } from '../repositories/login-history.repository';
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly otpService: OtpService,
     private readonly loginHistoryRepository: LoginHistoryRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly storageService: LocalStorageService,
   ) {}
 
   async register(input: RegisterInput, ipAddress?: string, userAgent?: string, deviceSignals?: DeviceSignalsInput): Promise<LoginResponse> {
@@ -345,6 +347,29 @@ export class AuthService {
     await this.userRepository.update(userId, data);
     this.eventEmitter.emit(AUTH_EVENTS.PROFILE_UPDATED, { userId, changes: data as Record<string, unknown> });
 
+    return this.getProfile(userId);
+  }
+
+  async uploadAvatar(userId: string, file: Express.Multer.File): Promise<UserProfile> {
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Invalid file type. Allowed: JPEG, PNG, WebP');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('Avatar too large. Maximum 5MB');
+    }
+
+    const user = await this.userRepository.findByIdSimple(userId);
+    if (!user) throw new NotFoundException('User');
+
+    const uploadResult = await this.storageService.saveFile(file.buffer, file.originalname, 'profile');
+    
+    // Optionally delete old avatar file if it's local (not an external URL)
+    if (user.avatarUrl && !user.avatarUrl.startsWith('http')) {
+      await this.storageService.deleteFile(user.avatarUrl).catch(() => {});
+    }
+
+    await this.userRepository.update(userId, { avatarUrl: uploadResult.path });
     return this.getProfile(userId);
   }
 

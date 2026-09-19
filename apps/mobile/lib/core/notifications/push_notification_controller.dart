@@ -1,13 +1,21 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/auth/providers/auth_providers.dart';
 import '../router/app_router.dart';
 import '../router/route_paths.dart';
 import 'push_notification_service.dart';
 
 final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
   return PushNotificationService();
+});
+
+/// Port for syncing a refreshed push token with whoever owns "the signed-in
+/// user" — deliberately *not* the auth feature's own provider, so this core
+/// module never imports `features/`. The composition root (`main.dart`)
+/// overrides this with the real auth-aware implementation; the no-op default
+/// below only matters if that override is ever forgotten.
+final pushTokenSyncProvider = Provider<Future<void> Function(String token)>((ref) {
+  return (token) async {};
 });
 
 final pushNotificationControllerProvider = Provider<PushNotificationController>((ref) {
@@ -75,9 +83,7 @@ class PushNotificationController {
   }
 
   Future<void> _syncToken(String token) async {
-    final isSignedIn = _ref.read(authStateProvider).value != null;
-    if (!isSignedIn) return;
-    await _ref.read(authRepositoryProvider).updatePushToken(token);
+    await _ref.read(pushTokenSyncProvider)(token);
   }
 
   void _navigateTo(RemoteMessage message) {

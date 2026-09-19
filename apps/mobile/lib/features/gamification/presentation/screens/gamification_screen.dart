@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -125,26 +126,21 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-class _DailyRewardCard extends ConsumerStatefulWidget {
+final _claimingProvider = StateProvider.autoDispose<bool>((ref) => false);
+final _claimedJustNowProvider = StateProvider.autoDispose<bool>((ref) => false);
+
+class _DailyRewardCard extends ConsumerWidget {
   const _DailyRewardCard();
 
-  @override
-  ConsumerState<_DailyRewardCard> createState() => _DailyRewardCardState();
-}
-
-class _DailyRewardCardState extends ConsumerState<_DailyRewardCard> {
-  bool _claiming = false;
-  bool _claimedJustNow = false;
-
-  Future<void> _claim() async {
-    setState(() => _claiming = true);
+  Future<void> _claim(BuildContext context, WidgetRef ref) async {
+    ref.read(_claimingProvider.notifier).state = true;
     final result = await ref.read(gamificationRepositoryProvider).claimDailyReward();
-    if (!mounted) return;
-    setState(() => _claiming = false);
+    ref.read(_claimingProvider.notifier).state = false;
+    if (!context.mounted) return;
 
     result.when(
       success: (reward) {
-        setState(() => _claimedJustNow = true);
+        ref.read(_claimedJustNowProvider.notifier).state = true;
         ref.read(gamificationRefreshProvider.notifier).state++;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('You won ${reward.prize.label} (+₹${reward.prize.amount.toStringAsFixed(0)})!')),
@@ -157,8 +153,9 @@ class _DailyRewardCardState extends ConsumerState<_DailyRewardCard> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final claimed = _claimedJustNow;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final claiming = ref.watch(_claimingProvider);
+    final claimed = ref.watch(_claimedJustNowProvider);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -182,8 +179,8 @@ class _DailyRewardCardState extends ConsumerState<_DailyRewardCard> {
             ),
             LoadingButton(
               label: claimed ? 'Claimed' : 'Claim',
-              isLoading: _claiming,
-              onPressed: claimed ? null : _claim,
+              isLoading: claiming,
+              onPressed: claimed ? null : () => _claim(context, ref),
             ),
           ],
         ),

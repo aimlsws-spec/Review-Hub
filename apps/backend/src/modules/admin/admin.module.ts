@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
 import { MerchantModule } from '../merchant/merchant.module';
 import { SupportModule } from '../support/support.module';
+import { UserKycModule } from '../user-kyc/user-kyc.module';
 import { WalletModule } from '../wallet/wallet.module';
 
 import {
@@ -18,6 +19,7 @@ import {
   PlatformConfigurationController,
   SettingsController,
   UserManagementController,
+  KycManagementController,
 } from './controllers';
 import {
   AuditLogRepository,
@@ -38,10 +40,11 @@ import {
   PlatformConfigurationService,
   SettingsService,
   UserManagementService,
+  KycManagementService,
 } from './services';
 
 @Module({
-  imports: [AuthModule, CampaignModule, MerchantModule, WalletModule, SupportModule],
+  imports: [AuthModule, CampaignModule, MerchantModule, WalletModule, SupportModule, UserKycModule],
   controllers: [
     UserManagementController,
     AdminCampaignQueueController,
@@ -54,6 +57,7 @@ import {
     AuditLogController,
     AdminSupportTicketController,
     PlatformConfigurationController,
+    KycManagementController,
   ],
   providers: [
     UserManagementService,
@@ -64,6 +68,7 @@ import {
     FeatureFlagService,
     AuditLogViewerService,
     PlatformConfigurationService,
+    KycManagementService,
     UserAdminRepository,
     FraudFlagRepository,
     CmsPageRepository,

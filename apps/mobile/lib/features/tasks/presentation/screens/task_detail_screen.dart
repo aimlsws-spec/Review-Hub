@@ -9,41 +9,41 @@ import '../../../campaigns/data/models/campaign_task_model.dart';
 import '../../../campaigns/providers/campaign_providers.dart';
 import '../../providers/task_providers.dart';
 
-class TaskDetailScreen extends ConsumerStatefulWidget {
+final _startTaskSubmitProvider = AsyncNotifierProvider.autoDispose<_StartTaskSubmitNotifier, void>(_StartTaskSubmitNotifier.new);
+
+class _StartTaskSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> start(String taskId) async {
+    state = const AsyncLoading();
+    final result = await ref.read(taskRepositoryProvider).startTask(taskId);
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Could not start this task.', StackTrace.current);
+      return false;
+    }
+    state = const AsyncData(null);
+    return true;
+  }
+}
+
+class TaskDetailScreen extends ConsumerWidget {
   const TaskDetailScreen({super.key, required this.campaignId, required this.taskId});
 
   final String campaignId;
   final String taskId;
 
-  @override
-  ConsumerState<TaskDetailScreen> createState() => _TaskDetailScreenState();
-}
-
-class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
-  bool _isStarting = false;
-  String? _errorMessage;
-
-  Future<void> _startAndContinue(CampaignTaskModel task) async {
-    setState(() {
-      _isStarting = true;
-      _errorMessage = null;
-    });
-
-    final result = await ref.read(taskRepositoryProvider).startTask(widget.taskId);
-
-    if (!mounted) return;
-    setState(() => _isStarting = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message ?? 'Could not start this task.');
-      return;
-    }
-    context.push(RoutePaths.taskSubmissionPath(widget.taskId), extra: task);
+  Future<void> _startAndContinue(BuildContext context, WidgetRef ref, CampaignTaskModel task) async {
+    final success = await ref.read(_startTaskSubmitProvider.notifier).start(taskId);
+    if (!context.mounted || !success) return;
+    context.push(RoutePaths.taskSubmissionPath(taskId), extra: task);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final tasksAsync = ref.watch(campaignTasksProvider(widget.campaignId));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tasksAsync = ref.watch(campaignTasksProvider(campaignId));
+    final submitState = ref.watch(_startTaskSubmitProvider);
+    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Task details')),
@@ -53,7 +53,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         data: (result) => result.when(
           failure: (failure) => Center(child: Text(failure.message)),
           success: (tasks) {
-            final matches = tasks.where((t) => t.id == widget.taskId);
+            final matches = tasks.where((t) => t.id == taskId);
             if (matches.isEmpty) {
               return const Center(child: Text('This task is no longer available.'));
             }
@@ -107,19 +107,19 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                         ),
                       ),
                     ),
-                    if (_errorMessage != null) ...[
+                    if (errorMessage != null) ...[
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-                        child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                        decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+                        child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
                       ),
                       const SizedBox(height: 12),
                     ],
                     LoadingButton(
                       label: 'Start task',
-                      isLoading: _isStarting,
-                      onPressed: () => _startAndContinue(task),
+                      isLoading: submitState.isLoading,
+                      onPressed: () => _startAndContinue(context, ref, task),
                     ),
                   ],
                 ),

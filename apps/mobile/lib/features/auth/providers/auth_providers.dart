@@ -96,7 +96,23 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
           language: language,
         );
     result.when(
-      success: (user) => state = AsyncData(user),
+      // Merge only the fields this call actually changed rather than trusting
+      // the response as a full replacement — if this endpoint's response
+      // shape ever narrows to a partial payload, a wholesale `state = AsyncData(user)`
+      // would silently drop everything else cached on the profile (avatarUrl,
+      // verification timestamps, etc.). Fall back to the raw response only if
+      // there's no cached profile to merge into yet.
+      success: (user) {
+        final current = state.value;
+        state = AsyncData(current == null
+            ? user
+            : current.copyWith(
+                firstName: firstName ?? current.firstName,
+                lastName: lastName ?? current.lastName,
+                timezone: timezone ?? current.timezone,
+                language: language ?? current.language,
+              ));
+      },
       failure: (_) {},
     );
     return result;

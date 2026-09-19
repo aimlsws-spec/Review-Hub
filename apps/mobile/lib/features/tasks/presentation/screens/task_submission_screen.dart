@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -11,6 +12,79 @@ import '../../../../shared/widgets/loading_button.dart';
 import '../../../campaigns/data/models/campaign_task_model.dart';
 import '../../data/models/text_suggestion_model.dart';
 import '../../providers/task_providers.dart';
+
+final _pickedFileProvider = StateProvider.autoDispose<File?>((ref) => null);
+
+final _suggestionProvider =
+    AsyncNotifierProvider.autoDispose<_SuggestionNotifier, TextSuggestionModel?>(_SuggestionNotifier.new);
+
+class _SuggestionNotifier extends AsyncNotifier<TextSuggestionModel?> {
+  @override
+  Future<TextSuggestionModel?> build() async => null;
+
+  Future<void> generate(String taskId) async {
+    state = const AsyncLoading();
+    final result = await ref.read(taskRepositoryProvider).getTextSuggestion(taskId);
+    state = result.when(
+      success: AsyncData.new,
+      failure: (failure) => AsyncError(
+        failure.message.isEmpty ? 'Could not get a suggestion right now — try writing your own.' : failure.message,
+        StackTrace.current,
+      ),
+    );
+  }
+
+  void clear() => state = const AsyncData(null);
+}
+
+final _taskSubmitProvider = AsyncNotifierProvider.autoDispose<_TaskSubmitNotifier, void>(_TaskSubmitNotifier.new);
+
+class _TaskSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> submit({
+    required CampaignTaskModel task,
+    required String taskId,
+    required File? pickedFile,
+    required String url,
+    required String text,
+  }) async {
+    final needsFile = task.acceptsFile && task.proofRequired;
+    final needsUrl = task.acceptsUrl;
+    final needsText = task.acceptsText;
+
+    if (needsFile && pickedFile == null && url.isEmpty && text.isEmpty) {
+      state = AsyncError('Please attach evidence: a screenshot, a link, or a written answer.', StackTrace.current);
+      return false;
+    }
+    if (needsUrl && !needsFile && url.isEmpty) {
+      state = AsyncError('Please enter a link as evidence.', StackTrace.current);
+      return false;
+    }
+    if (needsText && !needsFile && !needsUrl && text.isEmpty) {
+      state = AsyncError('Please write your answer.', StackTrace.current);
+      return false;
+    }
+
+    state = const AsyncLoading();
+    final result = await ref.read(taskRepositoryProvider).submitTask(
+          taskId,
+          filePath: pickedFile?.path,
+          externalUrl: url,
+          textAnswer: text,
+        );
+
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Could not submit — please try again.', StackTrace.current);
+      return false;
+    }
+
+    state = const AsyncData(null);
+    ref.read(submissionsRefreshProvider.notifier).state++;
+    return true;
+  }
+}
 
 class TaskSubmissionScreen extends ConsumerStatefulWidget {
   const TaskSubmissionScreen({super.key, required this.taskId, required this.task});
@@ -25,13 +99,6 @@ class TaskSubmissionScreen extends ConsumerStatefulWidget {
 class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
   final _urlController = TextEditingController();
   final _textController = TextEditingController();
-  File? _pickedFile;
-  bool _isSubmitting = false;
-  String? _errorMessage;
-
-  bool _isLoadingSuggestion = false;
-  TextSuggestionModel? _suggestion;
-  String? _suggestionError;
 
   @override
   void dispose() {
@@ -40,79 +107,31 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
     super.dispose();
   }
 
-  Future<void> _getSuggestion() async {
-    setState(() {
-      _isLoadingSuggestion = true;
-      _suggestionError = null;
-    });
-
-    final result = await ref.refresh(textSuggestionProvider(widget.taskId).future);
-
-    if (!mounted) return;
-    setState(() {
-      _isLoadingSuggestion = false;
-      _suggestion = result.valueOrNull;
-      if (result.isFailure) {
-        _suggestionError = result.failureOrNull?.message ?? 'Could not get a suggestion right now — try writing your own.';
-      }
-    });
-  }
-
-  void _copySuggestion() {
-    Clipboard.setData(ClipboardData(text: _suggestion!.suggestion));
+  void _copySuggestion(TextSuggestionModel suggestion) {
+    Clipboard.setData(ClipboardData(text: suggestion.suggestion));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));
   }
 
-  void _useSuggestion() {
-    _textController.text = _suggestion!.suggestion;
-    setState(() => _suggestion = null);
+  void _useSuggestion(TextSuggestionModel suggestion) {
+    _textController.text = suggestion.suggestion;
+    ref.read(_suggestionProvider.notifier).clear();
   }
 
   Future<void> _pickImage(ImageSource source) async {
     final picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
-    if (picked != null) setState(() => _pickedFile = File(picked.path));
+    if (picked != null) ref.read(_pickedFileProvider.notifier).state = File(picked.path);
   }
 
   Future<void> _submit() async {
-    final needsFile = widget.task.acceptsFile && widget.task.proofRequired;
-    final needsUrl = widget.task.acceptsUrl;
-    final needsText = widget.task.acceptsText;
-
-    if (needsFile && _pickedFile == null && _urlController.text.trim().isEmpty && _textController.text.trim().isEmpty) {
-      setState(() => _errorMessage = 'Please attach evidence: a screenshot, a link, or a written answer.');
-      return;
-    }
-    if (needsUrl && !needsFile && _urlController.text.trim().isEmpty) {
-      setState(() => _errorMessage = 'Please enter a link as evidence.');
-      return;
-    }
-    if (needsText && !needsFile && !needsUrl && _textController.text.trim().isEmpty) {
-      setState(() => _errorMessage = 'Please write your answer.');
-      return;
-    }
-
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
-    final result = await ref.read(taskRepositoryProvider).submitTask(
-          widget.taskId,
-          filePath: _pickedFile?.path,
-          externalUrl: _urlController.text.trim(),
-          textAnswer: _textController.text.trim(),
+    final success = await ref.read(_taskSubmitProvider.notifier).submit(
+          task: widget.task,
+          taskId: widget.taskId,
+          pickedFile: ref.read(_pickedFileProvider),
+          url: _urlController.text.trim(),
+          text: _textController.text.trim(),
         );
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message ?? 'Could not submit — please try again.');
-      return;
-    }
-
-    ref.read(submissionsRefreshProvider.notifier).state++;
-    if (!mounted) return;
+    if (!mounted || !success) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Submitted! We\'ll review it shortly.')),
     );
@@ -124,6 +143,10 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
   @override
   Widget build(BuildContext context) {
     final task = widget.task;
+    final pickedFile = ref.watch(_pickedFileProvider);
+    final submitState = ref.watch(_taskSubmitProvider);
+    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
+    final suggestionState = ref.watch(_suggestionProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Submit evidence')),
@@ -135,36 +158,36 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
             children: [
               Text(task.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
               const SizedBox(height: 20),
-              if (_errorMessage != null) ...[
+              if (errorMessage != null) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-                  child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                  decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+                  child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
                 ),
                 const SizedBox(height: 16),
               ],
               if (task.supportsTextAssist) ...[
                 _TextAssistCard(
-                  isLoading: _isLoadingSuggestion,
-                  suggestion: _suggestion,
-                  error: _suggestionError,
+                  isLoading: suggestionState.isLoading,
+                  suggestion: suggestionState.value,
+                  error: suggestionState.hasError ? suggestionState.error.toString() : null,
                   showUseButton: task.acceptsText,
-                  onGenerate: _getSuggestion,
-                  onCopy: _copySuggestion,
-                  onUse: _useSuggestion,
+                  onGenerate: () => ref.read(_suggestionProvider.notifier).generate(widget.taskId),
+                  onCopy: () => _copySuggestion(suggestionState.value!),
+                  onUse: () => _useSuggestion(suggestionState.value!),
                 ),
                 const SizedBox(height: 20),
               ],
               if (task.acceptsFile) ...[
                 const Text('Screenshot or photo', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                if (_pickedFile != null)
+                if (pickedFile != null)
                   Stack(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.file(_pickedFile!, height: 180, width: double.infinity, fit: BoxFit.cover),
+                        child: Image.file(pickedFile, height: 180, width: double.infinity, fit: BoxFit.cover),
                       ),
                       Positioned(
                         top: 6,
@@ -172,7 +195,7 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
                         child: IconButton(
                           style: IconButton.styleFrom(backgroundColor: Colors.black54, foregroundColor: Colors.white),
                           icon: const Icon(Icons.close, size: 18),
-                          onPressed: () => setState(() => _pickedFile = null),
+                          onPressed: () => ref.read(_pickedFileProvider.notifier).state = null,
                         ),
                       ),
                     ],
@@ -216,7 +239,7 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
                 ),
                 const SizedBox(height: 12),
               ],
-              LoadingButton(label: 'Submit', isLoading: _isSubmitting, onPressed: _submit),
+              LoadingButton(label: 'Submit', isLoading: submitState.isLoading, onPressed: _submit),
             ],
           ),
         ),

@@ -36,7 +36,7 @@ class ReferralScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('People you referred', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const Text('People you referred', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy900)),
           const SizedBox(height: 8),
           referralsAsync.when(
             loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: PageLoader()),
@@ -70,44 +70,77 @@ class _ReferralCodeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.brand500, AppColors.brand600],
+          colors: [AppColors.navy900, Color(0xFF193255), AppColors.orange500],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          stops: [0.0, 0.6, 1.0],
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: AppColors.navy900.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 6))],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          const Text('Your referral code', style: TextStyle(color: Colors.white70, fontSize: 13)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                code ?? '—',
-                style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 2),
-              ),
-              const Spacer(),
-              if (code != null)
-                IconButton(
-                  icon: const Icon(Icons.copy_rounded, color: Colors.white),
-                  tooltip: 'Copy code',
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: code!));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Referral code copied')),
-                    );
-                  },
-                ),
-            ],
+          Positioned(
+            right: -20,
+            top: -10,
+            child: Icon(Icons.card_giftcard_rounded, color: Colors.white.withValues(alpha: 0.05), size: 120),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Share this code with friends — you both earn a bonus when they join.',
-            style: TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Your referral code', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          code ?? '—',
+                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    if (code != null)
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: code!));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Referral code copied')),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+                          ),
+                          child: const Icon(Icons.copy_rounded, color: AppColors.navy900, size: 24),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Share this code with friends — you both earn a bonus when they join.',
+                  style: TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -124,36 +157,43 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _StatCard(label: 'Referred', value: '${stats.totalReferred}')),
-        const SizedBox(width: 12),
-        Expanded(child: _StatCard(label: 'Rewarded', value: '${stats.totalRewarded}')),
-        const SizedBox(width: 12),
-        Expanded(child: _StatCard(label: 'Earned', value: '₹${stats.totalRewardEarned.toStringAsFixed(0)}')),
+        Expanded(child: _StatCard(icon: Icons.people_alt_rounded, label: 'Referred', value: '${stats.totalReferred}')),
+        const SizedBox(width: 10),
+        Expanded(child: _StatCard(icon: Icons.check_circle_rounded, label: 'Rewarded', value: '${stats.totalRewarded}')),
+        const SizedBox(width: 10),
+        Expanded(child: _StatCard(icon: Icons.monetization_on_rounded, label: 'Earned', value: '₹${stats.totalRewardEarned.toStringAsFixed(0)}')),
       ],
     );
   }
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value});
+  const _StatCard({required this.icon, required this.label, required this.value});
 
+  final IconData icon;
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.slate100),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
-          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.slate500)),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(color: AppColors.primary50, shape: BoxShape.circle),
+            child: Icon(icon, size: 18, color: AppColors.primary600),
+          ),
+          const SizedBox(height: 10),
+          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy900)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.slate500, fontWeight: FontWeight.w500)),
         ],
       ),
     );

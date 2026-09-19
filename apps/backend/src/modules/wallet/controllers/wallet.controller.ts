@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SWAGGER_TAGS } from '@common/constants';
@@ -34,5 +34,13 @@ export class WalletController {
   @ApiOperation({ summary: 'Get my task rewards' })
   async getRewards(@CurrentUser('id') userId: string, @Query() query: RewardQueryDto) {
     return this.walletService.getMyRewards(userId, query);
+  }
+
+  @Post('simulate-add-funds')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[MOCK] Add funds to user wallet for testing' })
+  async simulateAddFunds(@CurrentUser('id') userId: string, @Body('amount') amount: number) {
+    return this.walletService.simulateAddFunds(userId, amount);
   }
 }

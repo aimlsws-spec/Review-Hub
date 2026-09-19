@@ -279,12 +279,50 @@ export default function CampaignsPage() {
                 {...register('totalBudget', { required: 'Required', valueAsNumber: true, min: { value: 1, message: 'Must be at least ₹1' } })}
               />
             </div>
-            <Input
-              label="Max participants"
-              type="number"
-              hint="Leave blank for unlimited"
-              {...register('maxParticipants', { valueAsNumber: true })}
-            />
+            
+            <div className="pt-4 mt-4 border-t border-gray-100">
+              <h4 className="text-sm font-medium text-gray-900 mb-4">Audience Targeting (Optional)</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Minimum Age"
+                  type="number"
+                  hint="Leave blank for any"
+                  {...register('minimumAge', { valueAsNumber: true })}
+                />
+                <Input
+                  label="Maximum Age"
+                  type="number"
+                  hint="Leave blank for any"
+                  {...register('maximumAge', { valueAsNumber: true })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <Select
+                  label="Target Gender"
+                  options={[
+                    { value: 'ALL', label: 'All Genders' },
+                    { value: 'MALE', label: 'Male Only' },
+                    { value: 'FEMALE', label: 'Female Only' },
+                  ]}
+                  {...register('targetGender')}
+                />
+                <Input
+                  label="Min. Social Followers"
+                  type="number"
+                  hint="For influencer tasks"
+                  {...register('minimumFollowers', { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-gray-100">
+              <Input
+                label="Max participants"
+                type="number"
+                hint="Leave blank for unlimited"
+                {...register('maxParticipants', { valueAsNumber: true })}
+              />
+            </div>
           </form>
         </Modal>
       )}

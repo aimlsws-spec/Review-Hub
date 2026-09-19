@@ -466,10 +466,16 @@ model User {
   language            String?    @default("en")
   referralCode        String     @unique @default(uuid())
   referredById        String?
-  isTwoFactorEnabled  Boolean    @default(false)
-  failedLoginAttempts Int        @default(0)
+  isTwoFactorEnabled  Boolean       @default(false)
+  failedLoginAttempts Int           @default(0)
   lockedUntil         DateTime?
-  createdAt           DateTime   @default(now())
+  dateOfBirth         DateTime?     @db.Date
+  gender              TargetGender?
+  countryId           String?
+  stateId             String?
+  cityId              String?
+  socialFollowers     Int           @default(0)
+  createdAt           DateTime      @default(now())
   updatedAt           DateTime   @updatedAt
   deletedAt           DateTime?
 

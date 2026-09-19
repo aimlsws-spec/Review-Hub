@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
-import { MerchantDocumentRepository, MerchantRepository } from '../repositories';
+import { MerchantBankRepository, MerchantDocumentRepository, MerchantRepository } from '../repositories';
 
 import { AdminService } from './admin.service';
 
@@ -18,6 +18,7 @@ describe('AdminService', () => {
     findWithFilters: jest.fn(),
   };
   const mockDocumentRepository = { findByMerchantId: jest.fn() };
+  const mockBankRepository = { findByMerchantId: jest.fn().mockResolvedValue([]) };
   const mockEventEmitter = { emit: jest.fn() };
   const mockAuditLogService = { record: jest.fn() };
 
@@ -35,6 +36,7 @@ describe('AdminService', () => {
         AdminService,
         { provide: MerchantRepository, useValue: mockMerchantRepository },
         { provide: MerchantDocumentRepository, useValue: mockDocumentRepository },
+        { provide: MerchantBankRepository, useValue: mockBankRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AuditLogService, useValue: mockAuditLogService },
       ],

@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
 import { PAYMENT_EVENTS } from '../constants';
-import { RazorpayService } from '../services';
+import { PAYMENT_PROVIDER } from '../interfaces';
 
 import { RazorpayWebhookController } from './razorpay-webhook.controller';
 
@@ -29,7 +29,7 @@ describe('RazorpayWebhookController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RazorpayWebhookController],
       providers: [
-        { provide: RazorpayService, useValue: mockRazorpayService },
+        { provide: PAYMENT_PROVIDER, useValue: mockRazorpayService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
@@ -41,21 +41,21 @@ describe('RazorpayWebhookController', () => {
   it('should throw BadRequestException when the signature header is missing', async () => {
     const req = buildRequest({ event: 'payment.captured', payload: {} });
 
-    await expect(controller.handle(req as never, undefined)).rejects.toThrow(BadRequestException);
+    await expect(controller.handleWebhook(req as never, '')).rejects.toThrow(BadRequestException);
     expect(mockRazorpayService.verifyWebhookSignature).not.toHaveBeenCalled();
   });
 
   it('should throw BadRequestException when the raw body is missing', async () => {
-    const req = buildRequest({ event: 'payment.captured', payload: {} }, undefined);
+    const req = buildRequest({ event: 'payment.captured', payload: {} }, null as never);
 
-    await expect(controller.handle(req as never, 'sig_1')).rejects.toThrow(BadRequestException);
+    await expect(controller.handleWebhook(req as never, 'sig_1')).rejects.toThrow(BadRequestException);
   });
 
   it('should throw BadRequestException when the signature is invalid', async () => {
     mockRazorpayService.verifyWebhookSignature.mockReturnValue(false);
     const req = buildRequest({ event: 'payment.captured', payload: {} });
 
-    await expect(controller.handle(req as never, 'sig_1')).rejects.toThrow(BadRequestException);
+    await expect(controller.handleWebhook(req as never, 'sig_1')).rejects.toThrow(BadRequestException);
     expect(mockEventEmitter.emit).not.toHaveBeenCalled();
   });
 
@@ -70,7 +70,7 @@ describe('RazorpayWebhookController', () => {
       payload: { payment: { entity: { id: 'pay_1', order_id: 'order_1' } } },
     });
 
-    const result = await controller.handle(req as never, 'sig_1');
+    const result = await controller.handleWebhook(req as never, 'sig_1');
 
     expect(mockRazorpayService.parseWebhookEvent).toHaveBeenCalledWith(req.body);
     expect(mockEventEmitter.emit).toHaveBeenCalledWith(PAYMENT_EVENTS.PAYMENT_CAPTURED, {
@@ -85,7 +85,7 @@ describe('RazorpayWebhookController', () => {
     mockRazorpayService.parseWebhookEvent.mockReturnValue(null);
     const req = buildRequest({ event: 'order.paid', payload: {} });
 
-    const result = await controller.handle(req as never, 'sig_1');
+    const result = await controller.handleWebhook(req as never, 'sig_1');
 
     expect(mockEventEmitter.emit).not.toHaveBeenCalled();
     expect(result).toEqual({ received: true });

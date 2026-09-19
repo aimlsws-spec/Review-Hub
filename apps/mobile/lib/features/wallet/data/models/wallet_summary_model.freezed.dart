@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$WalletSummaryModel {
 
- String get id; String get availableBalance; String get pendingBalance; String get lockedBalance; String get lifetimeEarnings;
+ String get id; String get availableBalance; String get pendingBalance; String get lockedBalance; String get lifetimeEarnings; String get todayEarnings;
 /// Create a copy of WalletSummaryModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $WalletSummaryModelCopyWith<WalletSummaryModel> get copyWith => _$WalletSummaryM
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WalletSummaryModel&&(identical(other.id, id) || other.id == id)&&(identical(other.availableBalance, availableBalance) || other.availableBalance == availableBalance)&&(identical(other.pendingBalance, pendingBalance) || other.pendingBalance == pendingBalance)&&(identical(other.lockedBalance, lockedBalance) || other.lockedBalance == lockedBalance)&&(identical(other.lifetimeEarnings, lifetimeEarnings) || other.lifetimeEarnings == lifetimeEarnings));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WalletSummaryModel&&(identical(other.id, id) || other.id == id)&&(identical(other.availableBalance, availableBalance) || other.availableBalance == availableBalance)&&(identical(other.pendingBalance, pendingBalance) || other.pendingBalance == pendingBalance)&&(identical(other.lockedBalance, lockedBalance) || other.lockedBalance == lockedBalance)&&(identical(other.lifetimeEarnings, lifetimeEarnings) || other.lifetimeEarnings == lifetimeEarnings)&&(identical(other.todayEarnings, todayEarnings) || other.todayEarnings == todayEarnings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,availableBalance,pendingBalance,lockedBalance,lifetimeEarnings);
+int get hashCode => Object.hash(runtimeType,id,availableBalance,pendingBalance,lockedBalance,lifetimeEarnings,todayEarnings);
 
 @override
 String toString() {
-  return 'WalletSummaryModel(id: $id, availableBalance: $availableBalance, pendingBalance: $pendingBalance, lockedBalance: $lockedBalance, lifetimeEarnings: $lifetimeEarnings)';
+  return 'WalletSummaryModel(id: $id, availableBalance: $availableBalance, pendingBalance: $pendingBalance, lockedBalance: $lockedBalance, lifetimeEarnings: $lifetimeEarnings, todayEarnings: $todayEarnings)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $WalletSummaryModelCopyWith<$Res>  {
   factory $WalletSummaryModelCopyWith(WalletSummaryModel value, $Res Function(WalletSummaryModel) _then) = _$WalletSummaryModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String availableBalance, String pendingBalance, String lockedBalance, String lifetimeEarnings
+ String id, String availableBalance, String pendingBalance, String lockedBalance, String lifetimeEarnings, String todayEarnings
 });
 
 
@@ -65,13 +65,14 @@ class _$WalletSummaryModelCopyWithImpl<$Res>
 
 /// Create a copy of WalletSummaryModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? availableBalance = null,Object? pendingBalance = null,Object? lockedBalance = null,Object? lifetimeEarnings = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? availableBalance = null,Object? pendingBalance = null,Object? lockedBalance = null,Object? lifetimeEarnings = null,Object? todayEarnings = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,availableBalance: null == availableBalance ? _self.availableBalance : availableBalance // ignore: cast_nullable_to_non_nullable
 as String,pendingBalance: null == pendingBalance ? _self.pendingBalance : pendingBalance // ignore: cast_nullable_to_non_nullable
 as String,lockedBalance: null == lockedBalance ? _self.lockedBalance : lockedBalance // ignore: cast_nullable_to_non_nullable
 as String,lifetimeEarnings: null == lifetimeEarnings ? _self.lifetimeEarnings : lifetimeEarnings // ignore: cast_nullable_to_non_nullable
+as String,todayEarnings: null == todayEarnings ? _self.todayEarnings : todayEarnings // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -157,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String availableBalance,  String pendingBalance,  String lockedBalance,  String lifetimeEarnings)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String availableBalance,  String pendingBalance,  String lockedBalance,  String lifetimeEarnings,  String todayEarnings)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _WalletSummaryModel() when $default != null:
-return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.lockedBalance,_that.lifetimeEarnings);case _:
+return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.lockedBalance,_that.lifetimeEarnings,_that.todayEarnings);case _:
   return orElse();
 
 }
@@ -178,10 +179,10 @@ return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.locke
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String availableBalance,  String pendingBalance,  String lockedBalance,  String lifetimeEarnings)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String availableBalance,  String pendingBalance,  String lockedBalance,  String lifetimeEarnings,  String todayEarnings)  $default,) {final _that = this;
 switch (_that) {
 case _WalletSummaryModel():
-return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.lockedBalance,_that.lifetimeEarnings);case _:
+return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.lockedBalance,_that.lifetimeEarnings,_that.todayEarnings);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +199,10 @@ return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.locke
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String availableBalance,  String pendingBalance,  String lockedBalance,  String lifetimeEarnings)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String availableBalance,  String pendingBalance,  String lockedBalance,  String lifetimeEarnings,  String todayEarnings)?  $default,) {final _that = this;
 switch (_that) {
 case _WalletSummaryModel() when $default != null:
-return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.lockedBalance,_that.lifetimeEarnings);case _:
+return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.lockedBalance,_that.lifetimeEarnings,_that.todayEarnings);case _:
   return null;
 
 }
@@ -213,7 +214,7 @@ return $default(_that.id,_that.availableBalance,_that.pendingBalance,_that.locke
 @JsonSerializable()
 
 class _WalletSummaryModel implements WalletSummaryModel {
-  const _WalletSummaryModel({required this.id, required this.availableBalance, required this.pendingBalance, required this.lockedBalance, required this.lifetimeEarnings});
+  const _WalletSummaryModel({required this.id, required this.availableBalance, required this.pendingBalance, required this.lockedBalance, required this.lifetimeEarnings, required this.todayEarnings});
   factory _WalletSummaryModel.fromJson(Map<String, dynamic> json) => _$WalletSummaryModelFromJson(json);
 
 @override final  String id;
@@ -221,6 +222,7 @@ class _WalletSummaryModel implements WalletSummaryModel {
 @override final  String pendingBalance;
 @override final  String lockedBalance;
 @override final  String lifetimeEarnings;
+@override final  String todayEarnings;
 
 /// Create a copy of WalletSummaryModel
 /// with the given fields replaced by the non-null parameter values.
@@ -235,16 +237,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WalletSummaryModel&&(identical(other.id, id) || other.id == id)&&(identical(other.availableBalance, availableBalance) || other.availableBalance == availableBalance)&&(identical(other.pendingBalance, pendingBalance) || other.pendingBalance == pendingBalance)&&(identical(other.lockedBalance, lockedBalance) || other.lockedBalance == lockedBalance)&&(identical(other.lifetimeEarnings, lifetimeEarnings) || other.lifetimeEarnings == lifetimeEarnings));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WalletSummaryModel&&(identical(other.id, id) || other.id == id)&&(identical(other.availableBalance, availableBalance) || other.availableBalance == availableBalance)&&(identical(other.pendingBalance, pendingBalance) || other.pendingBalance == pendingBalance)&&(identical(other.lockedBalance, lockedBalance) || other.lockedBalance == lockedBalance)&&(identical(other.lifetimeEarnings, lifetimeEarnings) || other.lifetimeEarnings == lifetimeEarnings)&&(identical(other.todayEarnings, todayEarnings) || other.todayEarnings == todayEarnings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,availableBalance,pendingBalance,lockedBalance,lifetimeEarnings);
+int get hashCode => Object.hash(runtimeType,id,availableBalance,pendingBalance,lockedBalance,lifetimeEarnings,todayEarnings);
 
 @override
 String toString() {
-  return 'WalletSummaryModel(id: $id, availableBalance: $availableBalance, pendingBalance: $pendingBalance, lockedBalance: $lockedBalance, lifetimeEarnings: $lifetimeEarnings)';
+  return 'WalletSummaryModel(id: $id, availableBalance: $availableBalance, pendingBalance: $pendingBalance, lockedBalance: $lockedBalance, lifetimeEarnings: $lifetimeEarnings, todayEarnings: $todayEarnings)';
 }
 
 
@@ -255,7 +257,7 @@ abstract mixin class _$WalletSummaryModelCopyWith<$Res> implements $WalletSummar
   factory _$WalletSummaryModelCopyWith(_WalletSummaryModel value, $Res Function(_WalletSummaryModel) _then) = __$WalletSummaryModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String availableBalance, String pendingBalance, String lockedBalance, String lifetimeEarnings
+ String id, String availableBalance, String pendingBalance, String lockedBalance, String lifetimeEarnings, String todayEarnings
 });
 
 
@@ -272,13 +274,14 @@ class __$WalletSummaryModelCopyWithImpl<$Res>
 
 /// Create a copy of WalletSummaryModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? availableBalance = null,Object? pendingBalance = null,Object? lockedBalance = null,Object? lifetimeEarnings = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? availableBalance = null,Object? pendingBalance = null,Object? lockedBalance = null,Object? lifetimeEarnings = null,Object? todayEarnings = null,}) {
   return _then(_WalletSummaryModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,availableBalance: null == availableBalance ? _self.availableBalance : availableBalance // ignore: cast_nullable_to_non_nullable
 as String,pendingBalance: null == pendingBalance ? _self.pendingBalance : pendingBalance // ignore: cast_nullable_to_non_nullable
 as String,lockedBalance: null == lockedBalance ? _self.lockedBalance : lockedBalance // ignore: cast_nullable_to_non_nullable
 as String,lifetimeEarnings: null == lifetimeEarnings ? _self.lifetimeEarnings : lifetimeEarnings // ignore: cast_nullable_to_non_nullable
+as String,todayEarnings: null == todayEarnings ? _self.todayEarnings : todayEarnings // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

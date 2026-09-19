@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, WalletTransactionType } from '@prisma/client';
 
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
+import { getIstDayBoundaries } from '@common/utils';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
@@ -34,6 +35,16 @@ export class UserWalletRepository {
     ]);
 
     return { data, total, page, limit };
+  }
+
+  /** Sum of today's (IST) successful credits — powers the "Today's Earnings" home screen figure. */
+  async getTodayEarnings(walletId: string): Promise<Prisma.Decimal> {
+    const { start, end } = getIstDayBoundaries();
+    const result = await this.prisma.walletTransaction.aggregate({
+      where: { walletId, type: 'CREDIT', status: 'SUCCESS', createdAt: { gte: start, lt: end } },
+      _sum: { amount: true },
+    });
+    return result._sum.amount ?? new Prisma.Decimal(0);
   }
 
   /** Credits the available balance immediately — used for rewards and referral bonuses. */

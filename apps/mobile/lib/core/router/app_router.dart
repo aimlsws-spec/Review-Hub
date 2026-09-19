@@ -118,14 +118,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => OtpVerificationScreen(type: state.extra as OtpType),
       ),
 
-      // Bottom-nav tabs — each a top-level route wrapped by the same shell.
-      ShellRoute(
-        builder: (context, state, child) => AppShell(child: child),
-        routes: [
-          GoRoute(path: RoutePaths.home, builder: (context, state) => const HomeScreen()),
-          GoRoute(path: RoutePaths.tasks, builder: (context, state) => const CampaignsScreen()),
-          GoRoute(path: RoutePaths.wallet, builder: (context, state) => const WalletScreen()),
-          GoRoute(path: RoutePaths.profile, builder: (context, state) => const ProfileScreen()),
+      // Bottom-nav tabs — each branch keeps its own navigator alive in an
+      // IndexedStack, so switching tabs no longer disposes the previous
+      // tab's screen (and the autoDispose providers it was watching) and
+      // refetching from scratch every time it's revisited.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.home, builder: (context, state) => const HomeScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.tasks, builder: (context, state) => const CampaignsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.wallet, builder: (context, state) => const WalletScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.gamification, builder: (context, state) => const GamificationScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.profile, builder: (context, state) => const ProfileScreen()),
+          ]),
         ],
       ),
 
@@ -158,8 +172,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: RoutePaths.withdrawalHistory, builder: (context, state) => const WithdrawalHistoryScreen()),
 
       GoRoute(path: RoutePaths.referral, builder: (context, state) => const ReferralScreen()),
-
-      GoRoute(path: RoutePaths.gamification, builder: (context, state) => const GamificationScreen()),
 
       GoRoute(path: RoutePaths.marketplace, builder: (context, state) => const MarketplaceScreen()),
       GoRoute(path: RoutePaths.marketplaceRedemptions, builder: (context, state) => const MyRedemptionsScreen()),

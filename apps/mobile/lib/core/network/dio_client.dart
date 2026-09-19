@@ -3,6 +3,7 @@ import 'package:logger/logger.dart';
 
 import '../config/app_config.dart';
 import 'auth_interceptor.dart';
+import 'retry_interceptor.dart';
 import 'token_storage.dart';
 
 /// Builds the app's two Dio instances:
@@ -28,6 +29,10 @@ class DioClientFactory {
     dio.interceptors.add(
       AuthInterceptor(tokenStorage, refreshDio, onSessionExpired: onSessionExpired),
     );
+    // After auth — a 401 should be refreshed-and-retried by AuthInterceptor
+    // first; only genuinely transient failures (timeouts, connection drops,
+    // 5xx) reach this one.
+    dio.interceptors.add(RetryInterceptor(dio));
 
     if (AppConfig.enableLogging) {
       final logger = Logger(printer: PrettyPrinter(methodCount: 0));

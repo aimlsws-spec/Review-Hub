@@ -17,6 +17,7 @@ class CampaignRepository {
     int limit = 20,
     String? campaignType,
     String? search,
+    String sort = 'featured',
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -24,6 +25,7 @@ class CampaignRepository {
         queryParameters: {
           'page': page,
           'limit': limit,
+          'sort': sort,
           'campaignType': ?campaignType,
           if (search != null && search.isNotEmpty) 'search': search,
         },

@@ -46,6 +46,7 @@ describe('WalletPage', () => {
     vi.mocked(useWalletMutations).mockReturnValue({
       rechargeMutation: { mutate: rechargeMutateMock, isPending: false },
       verifyMutation: { mutate: vi.fn(), isPending: false },
+      simulateMutation: { mutate: vi.fn(), isPending: false },
       refreshWallet: vi.fn(),
     } as never)
     rechargeMutateMock.mockReset()

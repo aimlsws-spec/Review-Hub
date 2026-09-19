@@ -1,11 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../providers/auth_providers.dart';
+
+final _sentProvider = StateProvider.autoDispose<bool>((ref) => false);
+
+final _forgotPasswordSubmitProvider =
+    AsyncNotifierProvider.autoDispose<_ForgotPasswordSubmitNotifier, void>(_ForgotPasswordSubmitNotifier.new);
+
+class _ForgotPasswordSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<void> submit(String email) async {
+    state = const AsyncLoading();
+    final result = await ref.read(authRepositoryProvider).forgotPassword(email: email);
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Something went wrong.', StackTrace.current);
+      return;
+    }
+    state = const AsyncData(null);
+    ref.read(_sentProvider.notifier).state = true;
+  }
+}
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -17,9 +39,6 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  bool _isSubmitting = false;
-  bool _sent = false;
-  String? _errorMessage;
 
   @override
   void dispose() {
@@ -29,31 +48,19 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
-    final result = await ref.read(authRepositoryProvider).forgotPassword(email: _emailController.text.trim());
-
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message);
-      return;
-    }
-    setState(() => _sent = true);
+    await ref.read(_forgotPasswordSubmitProvider.notifier).submit(_emailController.text.trim());
   }
 
   @override
   Widget build(BuildContext context) {
+    final sent = ref.watch(_sentProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Forgot password')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: _sent ? _buildSentState(context) : _buildForm(),
+          child: sent ? _buildSentState(context) : _buildForm(),
         ),
       ),
     );
@@ -81,6 +88,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Widget _buildForm() {
+    final submitState = ref.watch(_forgotPasswordSubmitProvider);
+    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
+
     return Form(
       key: _formKey,
       child: Column(
@@ -91,12 +101,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             style: TextStyle(fontSize: 14.5, color: AppColors.slate500),
           ),
           const SizedBox(height: 24),
-          if (_errorMessage != null) ...[
+          if (errorMessage != null) ...[
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-              child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+              decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+              child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
             ),
             const SizedBox(height: 16),
           ],
@@ -107,7 +117,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Email is required' : null,
           ),
           const SizedBox(height: 24),
-          LoadingButton(label: 'Send reset OTP', isLoading: _isSubmitting, gradient: true, onPressed: _submit),
+          LoadingButton(label: 'Send reset OTP', isLoading: submitState.isLoading, gradient: true, onPressed: _submit),
         ],
       ),
     );

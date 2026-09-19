@@ -19,7 +19,7 @@ class CampaignDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final campaignsAsync = ref.watch(campaignsProvider);
+    final campaignsAsync = ref.watch(campaignsProvider('featured'));
     final tasksAsync = ref.watch(campaignTasksProvider(campaignId));
 
     // The campaign itself was already fetched by the browse list; find it

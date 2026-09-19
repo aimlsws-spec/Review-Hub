@@ -125,4 +125,16 @@ class WalletRepository {
       return Result.failure(mapDioExceptionToFailure(e));
     }
   }
+
+  Future<Result<void>> simulateAddFunds(double amount) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '${ApiEndpoints.wallet}/simulate-add-funds',
+        data: {'amount': amount},
+      );
+      return const Result.success(null);
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
 }

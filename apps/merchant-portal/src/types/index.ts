@@ -230,6 +230,20 @@ export type CampaignType =
 export type RewardType = 'CASH' | 'POINTS' | 'COUPON' | 'GIFT_CARD' | 'PRODUCT' | 'DISCOUNT'
 export type CampaignVisibility = 'PUBLIC' | 'PRIVATE' | 'INVITE_ONLY'
 
+/** Mirrors the backend CampaignAnalytics record. Decimal columns serialize as strings; rates are 0–1 fractions. */
+export interface CampaignAnalytics {
+  views: number
+  uniqueViews: number
+  joins: number
+  completions: number
+  rejections: number
+  completionRate: string | number
+  conversionRate: string | number
+  budgetUsed: string | number
+  rewardPaid: string | number
+  avgCompletionSec: number
+}
+
 export interface Campaign {
   id: string
   merchantId: string

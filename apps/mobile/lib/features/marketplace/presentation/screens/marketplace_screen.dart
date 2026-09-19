@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_paths.dart';
@@ -63,20 +64,16 @@ class MarketplaceScreen extends ConsumerWidget {
   }
 }
 
-class _ItemCard extends ConsumerStatefulWidget {
+/// Keyed by item id — a `GridView` renders many `_ItemCard`s at once, each
+/// needing its own independent redeeming flag, not one shared across all.
+final _redeemingProvider = StateProvider.autoDispose.family<bool, String>((ref, itemId) => false);
+
+class _ItemCard extends ConsumerWidget {
   const _ItemCard({required this.item});
 
   final MarketplaceItemModel item;
 
-  @override
-  ConsumerState<_ItemCard> createState() => _ItemCardState();
-}
-
-class _ItemCardState extends ConsumerState<_ItemCard> {
-  bool _redeeming = false;
-
-  Future<void> _confirmAndRedeem() async {
-    final item = widget.item;
+  Future<void> _confirmAndRedeem(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -88,12 +85,13 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !context.mounted) return;
 
-    setState(() => _redeeming = true);
+    final redeemingNotifier = ref.read(_redeemingProvider(item.id).notifier);
+    redeemingNotifier.state = true;
     final result = await ref.read(marketplaceRepositoryProvider).redeem(item.id);
-    if (!mounted) return;
-    setState(() => _redeeming = false);
+    redeemingNotifier.state = false;
+    if (!context.mounted) return;
 
     result.when(
       success: (redemption) {
@@ -125,9 +123,9 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final item = widget.item;
-    final disabled = item.isOutOfStock || _redeeming;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final redeeming = ref.watch(_redeemingProvider(item.id));
+    final disabled = item.isOutOfStock || redeeming;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -162,8 +160,8 @@ class _ItemCardState extends ConsumerState<_ItemCard> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: disabled ? null : _confirmAndRedeem,
-              child: _redeeming
+              onPressed: disabled ? null : () => _confirmAndRedeem(context, ref),
+              child: redeeming
                   ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Redeem', style: TextStyle(fontSize: 12)),
             ),

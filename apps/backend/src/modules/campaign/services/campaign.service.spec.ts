@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { PrismaService } from '../../../database/prisma/prisma.service';
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { MerchantWalletRepository } from '../../merchant/repositories';
 import { CampaignRepository } from '../repositories';
@@ -52,6 +53,10 @@ describe('CampaignService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CampaignService,
+        {
+          provide: PrismaService,
+          useValue: { user: { findUnique: jest.fn() }, userGamificationProfile: { findUnique: jest.fn() } },
+        },
         { provide: CampaignRepository, useValue: mockCampaignRepository },
         { provide: MerchantWalletRepository, useValue: mockMerchantWalletRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },

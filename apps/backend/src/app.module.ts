@@ -23,6 +23,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { CampaignModule } from './modules/campaign/campaign.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { MerchantModule } from './modules/merchant/merchant.module';
@@ -64,6 +65,8 @@ import { StorageModule } from './storage/storage.module';
           { rootPath: path.join(uploadsRoot, 'profile'), serveRoot: '/uploads/profile' },
           { rootPath: path.join(uploadsRoot, 'campaign'), serveRoot: '/uploads/campaign' },
           { rootPath: path.join(uploadsRoot, 'cms'), serveRoot: '/uploads/cms' },
+          { rootPath: path.join(uploadsRoot, 'user'), serveRoot: '/uploads/user' },
+          { rootPath: path.join(uploadsRoot, 'merchant'), serveRoot: '/uploads/merchant' },
         ];
       },
     }),
@@ -85,6 +88,7 @@ import { StorageModule } from './storage/storage.module';
     SettlementModule,
     GamificationModule,
     MarketplaceModule,
+    DashboardModule,
     JobsModule,
     AdminModule,
     HealthModule,

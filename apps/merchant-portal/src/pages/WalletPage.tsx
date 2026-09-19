@@ -33,7 +33,7 @@ export default function WalletPage() {
     formState: { errors },
   } = useForm<RechargeFormValues>({ defaultValues: { amount: 5000 } })
 
-  const { rechargeMutation } = useWalletMutations(merchantId, merchant, {
+  const { rechargeMutation, simulateMutation } = useWalletMutations(merchantId, merchant, {
     onRechargeStart: () => setRechargeOpen(false),
   })
 
@@ -83,19 +83,28 @@ export default function WalletPage() {
         onClose={() => setRechargeOpen(false)}
         title="Add Funds"
         footer={
-          <>
-            <button className="btn-secondary" onClick={() => setRechargeOpen(false)} disabled={rechargeMutation.isPending}>
-              Cancel
-            </button>
+          <div className="w-full flex justify-between">
             <button
-              className="btn-primary"
-              onClick={handleSubmit(onSubmitRecharge)}
-              disabled={rechargeMutation.isPending}
+              className="btn-ghost text-primary-600 font-medium"
+              onClick={handleSubmit((v) => simulateMutation.mutate(Number(v.amount)))}
+              disabled={simulateMutation.isPending || rechargeMutation.isPending}
             >
-              {rechargeMutation.isPending && <Spinner size="sm" className="text-white" />}
-              {rechargeMutation.isPending ? 'Redirecting…' : 'Proceed to Pay'}
+              {simulateMutation.isPending ? 'Simulating…' : 'Simulate Payment (Dev)'}
             </button>
-          </>
+            <div className="space-x-2">
+              <button className="btn-secondary" onClick={() => setRechargeOpen(false)} disabled={rechargeMutation.isPending || simulateMutation.isPending}>
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleSubmit(onSubmitRecharge)}
+                disabled={rechargeMutation.isPending || simulateMutation.isPending}
+              >
+                {rechargeMutation.isPending && <Spinner size="sm" className="text-white" />}
+                {rechargeMutation.isPending ? 'Redirecting…' : 'Proceed to Pay'}
+              </button>
+            </div>
+          </div>
         }
       >
         <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>

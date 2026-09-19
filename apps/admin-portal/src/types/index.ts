@@ -75,6 +75,22 @@ export interface Merchant {
   updatedAt: string
 }
 
+export interface MerchantBankAccount {
+  id: string
+  merchantId: string
+  bankName: string
+  accountHolderName: string
+  accountNumber: string
+  ifscCode: string
+  branch: string | null
+  upiId: string | null
+  isPrimary: boolean
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'FAILED'
+  verifiedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface MerchantDocument {
   id: string
   merchantId: string
@@ -89,6 +105,7 @@ export interface MerchantDocument {
 
 export interface MerchantDetail extends Merchant {
   documents: MerchantDocument[]
+  bankAccounts: MerchantBankAccount[]
 }
 
 // ============================================================

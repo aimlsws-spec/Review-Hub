@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_paths.dart';
@@ -13,6 +14,49 @@ import '../../providers/wallet_providers.dart';
 /// Mirrors `WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT` on the backend.
 const _minWithdrawalAmount = 1000;
 
+/// Null until the user explicitly taps an account; the primary (or first)
+/// account is used as the effective default without ever being written back
+/// here, so nothing writes to this provider during a widget's own build.
+final _selectedBankAccountIdProvider = StateProvider.autoDispose<String?>((ref) => null);
+
+String? _defaultBankAccountId(List<BankAccountModel> accounts) {
+  if (accounts.isEmpty) return null;
+  return accounts.firstWhere((a) => a.isPrimary, orElse: () => accounts.first).id;
+}
+
+final _withdrawSubmitProvider = AsyncNotifierProvider.autoDispose<_WithdrawSubmitNotifier, void>(_WithdrawSubmitNotifier.new);
+
+class _WithdrawSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> submit({required double amount, required double availableBalance, required String? bankAccountId}) async {
+    if (amount < _minWithdrawalAmount) {
+      state = AsyncError('Minimum withdrawal amount is ₹$_minWithdrawalAmount.', StackTrace.current);
+      return false;
+    }
+    if (amount > availableBalance) {
+      state = AsyncError('You only have ₹${availableBalance.toStringAsFixed(2)} available.', StackTrace.current);
+      return false;
+    }
+    if (bankAccountId == null) {
+      state = AsyncError('Select a bank account.', StackTrace.current);
+      return false;
+    }
+
+    state = const AsyncLoading();
+    final result = await ref.read(walletRepositoryProvider).requestWithdrawal(amount: amount, bankAccountId: bankAccountId);
+
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Could not submit the withdrawal request.', StackTrace.current);
+      return false;
+    }
+    state = const AsyncData(null);
+    ref.read(walletRefreshProvider.notifier).state++;
+    return true;
+  }
+}
+
 class WithdrawScreen extends ConsumerStatefulWidget {
   const WithdrawScreen({super.key});
 
@@ -22,9 +66,6 @@ class WithdrawScreen extends ConsumerStatefulWidget {
 
 class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   final _amountController = TextEditingController();
-  String? _selectedBankAccountId;
-  bool _isSubmitting = false;
-  String? _errorMessage;
 
   @override
   void dispose() {
@@ -32,42 +73,16 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     super.dispose();
   }
 
-  Future<void> _submit(double availableBalance) async {
-    final amount = double.tryParse(_amountController.text.trim());
+  Future<void> _submit(double availableBalance, String? effectiveBankAccountId) async {
+    final amount = double.tryParse(_amountController.text.trim()) ?? -1;
 
-    if (amount == null || amount < _minWithdrawalAmount) {
-      setState(() => _errorMessage = 'Minimum withdrawal amount is ₹$_minWithdrawalAmount.');
-      return;
-    }
-    if (amount > availableBalance) {
-      setState(() => _errorMessage = 'You only have ₹${availableBalance.toStringAsFixed(2)} available.');
-      return;
-    }
-    if (_selectedBankAccountId == null) {
-      setState(() => _errorMessage = 'Select a bank account.');
-      return;
-    }
-
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
-    final result = await ref.read(walletRepositoryProvider).requestWithdrawal(
+    final success = await ref.read(_withdrawSubmitProvider.notifier).submit(
           amount: amount,
-          bankAccountId: _selectedBankAccountId!,
+          availableBalance: availableBalance,
+          bankAccountId: effectiveBankAccountId,
         );
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message ?? 'Could not submit the withdrawal request.');
-      return;
-    }
-
-    ref.read(walletRefreshProvider.notifier).state++;
-    if (!mounted) return;
+    if (!mounted || !success) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Withdrawal requested — we\'ll process it shortly.')),
     );
@@ -78,6 +93,9 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   Widget build(BuildContext context) {
     final walletAsync = ref.watch(walletSummaryProvider);
     final accountsAsync = ref.watch(bankAccountsProvider);
+    final submitState = ref.watch(_withdrawSubmitProvider);
+    final selectedBankAccountId = ref.watch(_selectedBankAccountIdProvider);
+    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Withdraw')),
@@ -99,12 +117,12 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                       style: const TextStyle(fontSize: 13.5, color: AppColors.slate500),
                     ),
                     const SizedBox(height: 16),
-                    if (_errorMessage != null) ...[
+                    if (errorMessage != null) ...[
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-                        child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                        decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+                        child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -139,16 +157,13 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                               ],
                             );
                           }
-                          _selectedBankAccountId ??= accounts.firstWhere(
-                            (a) => a.isPrimary,
-                            orElse: () => accounts.first,
-                          ).id;
+                          final effectiveSelectedId = selectedBankAccountId ?? _defaultBankAccountId(accounts);
                           return Column(
                             children: accounts
                                 .map((a) => _BankAccountOption(
                                       account: a,
-                                      selected: _selectedBankAccountId == a.id,
-                                      onTap: () => setState(() => _selectedBankAccountId = a.id),
+                                      selected: effectiveSelectedId == a.id,
+                                      onTap: () => ref.read(_selectedBankAccountIdProvider.notifier).state = a.id,
                                     ))
                                 .toList(),
                           );
@@ -156,7 +171,14 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    LoadingButton(label: 'Request withdrawal', isLoading: _isSubmitting, onPressed: () => _submit(available)),
+                    LoadingButton(
+                      label: 'Request withdrawal',
+                      isLoading: submitState.isLoading,
+                      onPressed: () => _submit(
+                        available,
+                        selectedBankAccountId ?? _defaultBankAccountId(accountsAsync.value?.valueOrNull ?? const []),
+                      ),
+                    ),
                   ],
                 );
               },

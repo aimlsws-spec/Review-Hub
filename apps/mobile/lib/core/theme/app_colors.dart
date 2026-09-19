@@ -40,6 +40,14 @@ class AppColors {
   static const Color danger = Color(0xFFDC2626);
   static const Color info = Color(0xFF3B82F6);
 
+  // Semantic — light tint backgrounds (error banners, credit/debit chips,
+  // status pills) and the darker text/icon color paired with each.
+  static const Color dangerBg = Color(0xFFFEE2E2);
+  static const Color successBg = Color(0xFFDCFCE7);
+  static const Color warningBg = Color(0xFFFEF9C3);
+  static const Color warningText = Color(0xFFA16207);
+  static const Color starRating = Color(0xFFF59E0B);
+
   // Neutrals
   static const Color slate50 = Color(0xFFF8FAFC);
   static const Color slate100 = Color(0xFFF1F5F9);

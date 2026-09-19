@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 
 import { StarRating } from '@/components/ReviewCard'
 import { ROUTES } from '@/constants'
+import { useCampaignsQuery, useCampaignAnalyticsQuery } from '@/hooks/useCampaigns'
 import { useDashboardStatsQuery } from '@/hooks/useDashboard'
 import { useNotificationsQuery } from '@/hooks/useNotifications'
 import { useRecentReviewsQuery } from '@/hooks/useReviews'
@@ -192,6 +193,71 @@ function VerificationBanner({ status }: { status: string }) {
       <Link to={ROUTES.DOCUMENTS} className="flex-shrink-0 text-[12px] font-semibold text-slate-700 hover:text-slate-900 underline underline-offset-2 transition-colors">
         {c.label}
       </Link>
+    </div>
+  )
+}
+
+// ─── Active Campaigns Analytics ─────────────────────────────────────────────
+
+function CampaignAnalyticsRow({
+  merchantId,
+  campaignId,
+  title,
+  totalBudget,
+}: {
+  merchantId: string
+  campaignId: string
+  title: string
+  totalBudget: string
+}) {
+  const { data, isLoading } = useCampaignAnalyticsQuery(merchantId, campaignId)
+  const stats = data?.data?.data
+
+  if (isLoading) return <Skeleton className="h-10 w-full mb-2" />
+
+  // Backend stores rates as 0–1 fractions (Decimal → string over JSON), the UI shows percentages.
+  const conversionRate = Number(stats?.conversionRate ?? 0) * 100
+  const completionRate = Number(stats?.completionRate ?? 0) * 100
+  
+  return (
+    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-100 shadow-sm mb-3">
+      <div>
+        <p className="font-semibold text-slate-800 text-[14px]">{title}</p>
+        <p className="text-[12px] text-slate-500 mt-1 flex gap-4">
+          <span>Views: <strong className="text-slate-700">{stats?.views ?? 0}</strong></span>
+          <span>Conversion: <strong className="text-slate-700">{conversionRate.toFixed(1)}%</strong></span>
+          <span>Task Completion: <strong className="text-slate-700">{completionRate.toFixed(1)}%</strong></span>
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-[12px] text-slate-500">Spent / Budget</p>
+        <p className="font-semibold text-[14px] text-slate-800">
+          {formatCurrency(Number(stats?.budgetUsed ?? 0))} / {formatCurrency(Number(totalBudget))}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function ActiveCampaigns({ merchantId }: { merchantId: string }) {
+  const { data, isLoading } = useCampaignsQuery(merchantId, { status: 'ACTIVE', limit: 3 })
+  const campaigns = data?.data?.data?.data ?? []
+
+  if (isLoading) return <div className="p-5"><Skeleton className="h-20 w-full" /></div>
+  
+  if (campaigns.length === 0) return null
+
+  return (
+    <div className="mt-6 mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <p className="section-title">Live Campaign Performance</p>
+        <Link to={ROUTES.CAMPAIGNS} className="text-sm font-medium text-primary-600 hover:text-primary-700">View all</Link>
+      </div>
+      <div className="space-y-3">
+        {campaigns.map(c => (
+          <CampaignAnalyticsRow key={c.id} merchantId={merchantId} campaignId={c.id} title={c.title} totalBudget={c.totalBudget} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -447,6 +513,9 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+
+          {/* Active Campaigns Analytics */}
+          <ActiveCampaigns merchantId={merchant.id} />
 
           {/* Recent Reviews */}
           <RecentReviews merchantId={merchant.id} />

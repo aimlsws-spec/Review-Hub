@@ -6,6 +6,7 @@ import { Campaign, CampaignStatus, Prisma } from '@prisma/client';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { PrismaService } from '../../../database/prisma/prisma.service';
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { MerchantWalletRepository } from '../../merchant/repositories';
 import { CAMPAIGN_STATUS_TRANSITIONS, DELETABLE_CAMPAIGN_STATUSES, EDITABLE_CAMPAIGN_STATUSES } from '../constants';
@@ -26,9 +27,11 @@ import {
 } from '../events';
 import { CampaignRepository } from '../repositories';
 
+
 @Injectable()
 export class CampaignService {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly campaignRepository: CampaignRepository,
     private readonly merchantWalletRepository: MerchantWalletRepository,
     private readonly eventEmitter: EventEmitter2,
@@ -81,6 +84,30 @@ export class CampaignService {
     return campaign;
   }
 
+  async getAnalytics(campaignId: string, merchantId: string) {
+    const campaign = await this.getById(campaignId);
+    if (campaign.merchantId !== merchantId) {
+      throw new BadRequestException('Campaign does not belong to this merchant');
+    }
+    const analytics = await this.campaignRepository.getAnalytics(campaignId);
+    if (!analytics) {
+      // Return zeroes if not generated yet
+      return {
+        views: 0,
+        uniqueViews: 0,
+        joins: 0,
+        completions: 0,
+        rejections: 0,
+        completionRate: 0,
+        conversionRate: 0,
+        budgetUsed: 0,
+        rewardPaid: 0,
+        avgCompletionSec: 0,
+      };
+    }
+    return analytics;
+  }
+
   async listByMerchant(merchantId: string, query: CampaignQueryDto) {
     return this.campaignRepository.findByMerchant({
       merchantId,
@@ -96,6 +123,37 @@ export class CampaignService {
       limit: query.limit,
       campaignType: query.campaignType,
       search: query.search,
+      sort: query.sort,
+    });
+  }
+
+  async listEligibleForUser(userId: string, query: PublicCampaignQueryDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new NotFoundException('User');
+
+    let level = 0;
+    const gamification = await this.prisma.userGamificationProfile.findUnique({ where: { userId } });
+    if (gamification) {
+      level = gamification.level;
+    }
+
+    const age = user.dateOfBirth
+      ? Math.floor((new Date().getTime() - new Date(user.dateOfBirth).getTime()) / 3.15576e+10)
+      : undefined;
+
+    return this.campaignRepository.findAvailableForUser({
+      userId,
+      page: query.page,
+      limit: query.limit,
+      age,
+      gender: user.gender || undefined,
+      followers: user.socialFollowers,
+      level,
+      countryId: user.countryId || undefined,
+      stateId: user.stateId || undefined,
+      cityId: user.cityId || undefined,
     });
   }
 

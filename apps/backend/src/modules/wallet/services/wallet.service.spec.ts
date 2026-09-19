@@ -10,6 +10,7 @@ describe('WalletService', () => {
   const mockWalletRepository = {
     getOrCreate: jest.fn(),
     findTransactions: jest.fn(),
+    getTodayEarnings: jest.fn(),
   };
   const mockRewardRepository = {
     findByUser: jest.fn(),
@@ -32,10 +33,13 @@ describe('WalletService', () => {
   describe('getWallet', () => {
     it('should get or create a wallet for the user', async () => {
       mockWalletRepository.getOrCreate.mockResolvedValue({ id: 'wallet-1', availableBalance: 0 });
+      mockWalletRepository.getTodayEarnings.mockResolvedValue(0);
 
       const result = await service.getWallet('user-1');
       expect(result).toHaveProperty('id', 'wallet-1');
+      expect(result).toHaveProperty('todayEarnings', 0);
       expect(mockWalletRepository.getOrCreate).toHaveBeenCalledWith('user-1');
+      expect(mockWalletRepository.getTodayEarnings).toHaveBeenCalledWith('wallet-1');
     });
   });
 

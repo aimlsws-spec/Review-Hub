@@ -28,7 +28,7 @@ class SettingsScreen extends ConsumerWidget {
             loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: PageLoader()),
             error: (error, stack) => Padding(padding: const EdgeInsets.all(16), child: Text('$error')),
             data: (result) => result.when(
-              success: (prefs) => _NotificationToggles(preferences: prefs),
+              success: (prefs) => const _NotificationToggles(),
               failure: (failure) => Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(failure.message, style: const TextStyle(color: AppColors.danger)),
@@ -55,6 +55,12 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(RoutePaths.changePassword),
           ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.logout_rounded, color: AppColors.danger),
+            title: const Text('Log out', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600)),
+            onTap: () => ref.read(authStateProvider.notifier).logout(),
+          ),
           const SizedBox(height: 24),
         ],
       ),
@@ -79,38 +85,34 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _NotificationToggles extends ConsumerStatefulWidget {
-  const _NotificationToggles({required this.preferences});
+/// Re-seeds from [notificationPreferencesProvider] whenever it changes (e.g.
+/// pull-to-refresh), then lets toggles update optimistically in between —
+/// see Rule 2.3 (Optimistic UI). By the time this mounts the parent has
+/// already gated rendering on that provider resolving successfully, so
+/// `.value` is expected non-null here.
+final _localPrefsProvider =
+    NotifierProvider.autoDispose<_LocalPrefsNotifier, NotificationPreferenceModel?>(_LocalPrefsNotifier.new);
 
-  final NotificationPreferenceModel preferences;
-
+class _LocalPrefsNotifier extends Notifier<NotificationPreferenceModel?> {
   @override
-  ConsumerState<_NotificationToggles> createState() => _NotificationTogglesState();
-}
-
-class _NotificationTogglesState extends ConsumerState<_NotificationToggles> {
-  late NotificationPreferenceModel _local;
-
-  @override
-  void initState() {
-    super.initState();
-    _local = widget.preferences;
+  NotificationPreferenceModel? build() {
+    return ref.watch(notificationPreferencesProvider).value?.valueOrNull;
   }
 
-  Future<void> _update({
+  Future<void> update({
     bool? emailEnabled,
     bool? smsEnabled,
     bool? pushEnabled,
     bool? inAppEnabled,
   }) async {
-    setState(() {
-      _local = _local.copyWith(
-        emailEnabled: emailEnabled ?? _local.emailEnabled,
-        smsEnabled: smsEnabled ?? _local.smsEnabled,
-        pushEnabled: pushEnabled ?? _local.pushEnabled,
-        inAppEnabled: inAppEnabled ?? _local.inAppEnabled,
-      );
-    });
+    final current = state;
+    if (current == null) return;
+    state = current.copyWith(
+      emailEnabled: emailEnabled ?? current.emailEnabled,
+      smsEnabled: smsEnabled ?? current.smsEnabled,
+      pushEnabled: pushEnabled ?? current.pushEnabled,
+      inAppEnabled: inAppEnabled ?? current.inAppEnabled,
+    );
     await ref.read(settingsRepositoryProvider).updateNotificationPreferences(
           emailEnabled: emailEnabled,
           smsEnabled: smsEnabled,
@@ -118,30 +120,38 @@ class _NotificationTogglesState extends ConsumerState<_NotificationToggles> {
           inAppEnabled: inAppEnabled,
         );
   }
+}
+
+class _NotificationToggles extends ConsumerWidget {
+  const _NotificationToggles();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final local = ref.watch(_localPrefsProvider);
+    if (local == null) return const SizedBox.shrink();
+    final notifier = ref.read(_localPrefsProvider.notifier);
+
     return Column(
       children: [
         SwitchListTile(
           title: const Text('Push notifications'),
-          value: _local.pushEnabled,
-          onChanged: (v) => _update(pushEnabled: v),
+          value: local.pushEnabled,
+          onChanged: (v) => notifier.update(pushEnabled: v),
         ),
         SwitchListTile(
           title: const Text('Email notifications'),
-          value: _local.emailEnabled,
-          onChanged: (v) => _update(emailEnabled: v),
+          value: local.emailEnabled,
+          onChanged: (v) => notifier.update(emailEnabled: v),
         ),
         SwitchListTile(
           title: const Text('SMS notifications'),
-          value: _local.smsEnabled,
-          onChanged: (v) => _update(smsEnabled: v),
+          value: local.smsEnabled,
+          onChanged: (v) => notifier.update(smsEnabled: v),
         ),
         SwitchListTile(
           title: const Text('In-app notifications'),
-          value: _local.inAppEnabled,
-          onChanged: (v) => _update(inAppEnabled: v),
+          value: local.inAppEnabled,
+          onChanged: (v) => notifier.update(inAppEnabled: v),
         ),
       ],
     );

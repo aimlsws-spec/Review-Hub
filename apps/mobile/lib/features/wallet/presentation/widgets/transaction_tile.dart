@@ -19,7 +19,7 @@ class TransactionTile extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: isCredit ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+            color: isCredit ? AppColors.successBg : AppColors.dangerBg,
             shape: BoxShape.circle,
           ),
           child: Icon(

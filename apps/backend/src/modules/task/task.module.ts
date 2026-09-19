@@ -10,9 +10,15 @@ import {
   MerchantCampaignTaskController,
   SubmissionController,
   TaskParticipationController,
+  TaskRecommendationController,
 } from './controllers';
-import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from './repositories';
-import { CampaignTaskService, SubmissionService, TaskParticipationService } from './services';
+import {
+  CampaignParticipantRepository,
+  CampaignTaskRepository,
+  TaskRecommendationRepository,
+  TaskSubmissionRepository,
+} from './repositories';
+import { CampaignTaskService, SubmissionService, TaskParticipationService, TaskRecommendationService } from './services';
 
 @Module({
   imports: [CampaignModule, AuthModule, MerchantModule, AiAssistModule],
@@ -20,17 +26,20 @@ import { CampaignTaskService, SubmissionService, TaskParticipationService } from
     MerchantCampaignTaskController,
     CampaignTaskController,
     TaskParticipationController,
+    TaskRecommendationController,
     SubmissionController,
   ],
   providers: [
     CampaignTaskService,
     TaskParticipationService,
     SubmissionService,
+    TaskRecommendationService,
     CampaignTaskRepository,
     CampaignParticipantRepository,
     TaskSubmissionRepository,
+    TaskRecommendationRepository,
   ],
-  exports: [CampaignTaskService, TaskParticipationService, SubmissionService],
+  exports: [CampaignTaskService, TaskParticipationService, SubmissionService, TaskRecommendationService],
 })
 export class TaskModule {
   private readonly logger = new Logger(TaskModule.name);

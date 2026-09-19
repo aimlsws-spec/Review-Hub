@@ -87,5 +87,15 @@ export function useWalletMutations(merchantId: string | undefined, merchant: Mer
     onError: (err) => toast.error(getApiErrorMessage(err)),
   })
 
-  return { verifyMutation, rechargeMutation, refreshWallet }
+  const simulateMutation = useMutation({
+    mutationFn: (amount: number) => merchantApi.simulateRecharge(merchantId!, amount),
+    onSuccess: () => {
+      toast.success('Simulated funds added to your wallet')
+      refreshWallet()
+      options?.onRechargeStart?.() // closes modal
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
+  })
+
+  return { verifyMutation, rechargeMutation, simulateMutation, refreshWallet }
 }

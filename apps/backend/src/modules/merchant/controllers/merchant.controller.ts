@@ -322,6 +322,16 @@ export class MerchantController {
     return this.walletService.verifyRecharge(merchantId, dto);
   }
 
+  @Post(':merchantId/wallet/recharge/simulate')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(MerchantOwnershipGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[MOCK] Simulate a successful recharge (bypasses Razorpay)' })
+  @ApiBody({ type: CreateRechargeDto })
+  async simulateRecharge(@Param('merchantId') merchantId: string, @Body() dto: CreateRechargeDto) {
+    return this.walletService.simulateRecharge(merchantId, dto.amount);
+  }
+
   @Post(':merchantId/refunds')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(MerchantOwnershipGuard)

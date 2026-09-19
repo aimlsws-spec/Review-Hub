@@ -15,10 +15,12 @@ final campaignRepositoryProvider = Provider<CampaignRepository>((ref) {
 /// The active search term for the campaigns browse screen.
 final campaignSearchProvider = StateProvider<String>((ref) => '');
 
+/// Keyed by sort mode ('featured' | 'popular') so Home can hold a featured
+/// list and a popular row independently without one invalidating the other.
 final campaignsProvider =
-    FutureProvider.autoDispose<Result<PaginatedResponse<CampaignModel>>>((ref) async {
+    FutureProvider.autoDispose.family<Result<PaginatedResponse<CampaignModel>>, String>((ref, sort) async {
   final search = ref.watch(campaignSearchProvider);
-  return ref.watch(campaignRepositoryProvider).browsePublic(search: search.isEmpty ? null : search);
+  return ref.watch(campaignRepositoryProvider).browsePublic(search: search.isEmpty ? null : search, sort: sort);
 });
 
 final campaignTasksProvider =

@@ -2,11 +2,46 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../providers/kyc_providers.dart';
+
+final _pickedFileProvider = StateProvider.autoDispose<File?>((ref) => null);
+
+final _kycUploadSubmitProvider =
+    AsyncNotifierProvider.autoDispose<_KycUploadSubmitNotifier, void>(_KycUploadSubmitNotifier.new);
+
+class _KycUploadSubmitNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> submit({required String documentType, required String documentNumber}) async {
+    final pickedFile = ref.read(_pickedFileProvider);
+    if (pickedFile == null) {
+      state = AsyncError('Please attach a photo of your document.', StackTrace.current);
+      return false;
+    }
+
+    state = const AsyncLoading();
+    final result = await ref.read(kycRepositoryProvider).uploadDocument(
+          documentType: documentType,
+          documentNumber: documentNumber,
+          filePath: pickedFile.path,
+        );
+
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Could not upload — please try again.', StackTrace.current);
+      return false;
+    }
+
+    state = const AsyncData(null);
+    ref.read(kycRefreshProvider.notifier).state++;
+    return true;
+  }
+}
 
 /// Bottom-sheet flow for uploading (or resubmitting) one KYC document.
 /// [documentType] is fixed for the sheet's lifetime — a user picks which
@@ -23,9 +58,6 @@ class KycUploadSheet extends ConsumerStatefulWidget {
 
 class _KycUploadSheetState extends ConsumerState<KycUploadSheet> {
   final _documentNumberController = TextEditingController();
-  File? _pickedFile;
-  bool _isSubmitting = false;
-  String? _errorMessage;
 
   @override
   void dispose() {
@@ -35,42 +67,25 @@ class _KycUploadSheetState extends ConsumerState<KycUploadSheet> {
 
   Future<void> _pickImage(ImageSource source) async {
     final picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
-    if (picked != null) setState(() => _pickedFile = File(picked.path));
+    if (picked != null) ref.read(_pickedFileProvider.notifier).state = File(picked.path);
   }
 
   Future<void> _submit() async {
-    if (_pickedFile == null) {
-      setState(() => _errorMessage = 'Please attach a photo of your document.');
-      return;
-    }
-
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
-    final result = await ref.read(kycRepositoryProvider).uploadDocument(
+    final success = await ref.read(_kycUploadSubmitProvider.notifier).submit(
           documentType: widget.documentType,
           documentNumber: _documentNumberController.text.trim(),
-          filePath: _pickedFile!.path,
         );
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    if (result.isFailure) {
-      setState(() => _errorMessage = result.failureOrNull?.message ?? 'Could not upload — please try again.');
-      return;
-    }
-
-    ref.read(kycRefreshProvider.notifier).state++;
-    if (!mounted) return;
+    if (!mounted || !success) return;
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final showDocumentNumber = widget.documentType != 'SELFIE';
+    final pickedFile = ref.watch(_pickedFileProvider);
+    final submitState = ref.watch(_kycUploadSubmitProvider);
+    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -85,21 +100,21 @@ class _KycUploadSheetState extends ConsumerState<KycUploadSheet> {
         children: [
           Text(widget.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
-          if (_errorMessage != null) ...[
+          if (errorMessage != null) ...[
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
-              child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+              decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+              child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
             ),
             const SizedBox(height: 16),
           ],
-          if (_pickedFile != null)
+          if (pickedFile != null)
             Stack(
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.file(_pickedFile!, height: 180, width: double.infinity, fit: BoxFit.cover),
+                  child: Image.file(pickedFile, height: 180, width: double.infinity, fit: BoxFit.cover),
                 ),
                 Positioned(
                   top: 6,
@@ -107,7 +122,7 @@ class _KycUploadSheetState extends ConsumerState<KycUploadSheet> {
                   child: IconButton(
                     style: IconButton.styleFrom(backgroundColor: Colors.black54, foregroundColor: Colors.white),
                     icon: const Icon(Icons.close, size: 18),
-                    onPressed: () => setState(() => _pickedFile = null),
+                    onPressed: () => ref.read(_pickedFileProvider.notifier).state = null,
                   ),
                 ),
               ],
@@ -140,7 +155,7 @@ class _KycUploadSheetState extends ConsumerState<KycUploadSheet> {
             ),
           ],
           const SizedBox(height: 20),
-          LoadingButton(label: 'Upload', isLoading: _isSubmitting, onPressed: _submit),
+          LoadingButton(label: 'Upload', isLoading: submitState.isLoading, onPressed: _submit),
         ],
       ),
     );

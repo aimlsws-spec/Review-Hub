@@ -33,4 +33,27 @@ export class MerchantCampaignController {
   async list(@Param('merchantId') merchantId: string, @Query() query: CampaignQueryDto) {
     return this.campaignService.listByMerchant(merchantId, query);
   }
+
+  @Post(':campaignId/fund')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Fund and activate a campaign (deducts budget from merchant wallet)' })
+  async fund(
+    @Param('campaignId') campaignId: string,
+  ) {
+    // Calling activate will automatically reserve the campaign's totalBudget 
+    // from the merchant's wallet.
+    return this.campaignService.activate(campaignId);
+  }
+
+  @Get(':campaignId/analytics')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'View real-time analytics for a campaign' })
+  async analytics(
+    @Param('merchantId') merchantId: string,
+    @Param('campaignId') campaignId: string,
+  ) {
+    return this.campaignService.getAnalytics(campaignId, merchantId);
+  }
 }

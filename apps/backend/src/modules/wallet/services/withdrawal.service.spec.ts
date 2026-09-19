@@ -5,7 +5,7 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { DeviceRepository } from '../../auth/repositories/device.repository';
-import { RazorpayService } from '../../payment/services';
+import { PAYMENT_PROVIDER } from '../../payment/interfaces';
 import { UserKycService } from '../../user-kyc/services';
 import { UserBankAccountRepository, UserWalletRepository, WithdrawalRepository } from '../repositories';
 
@@ -51,7 +51,7 @@ describe('WithdrawalService', () => {
         { provide: UserBankAccountRepository, useValue: mockBankRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AuditLogService, useValue: mockAuditLogService },
-        { provide: RazorpayService, useValue: mockRazorpayService },
+        { provide: PAYMENT_PROVIDER, useValue: mockRazorpayService },
         { provide: UserKycService, useValue: mockUserKycService },
         { provide: DeviceRepository, useValue: mockDeviceRepository },
       ],

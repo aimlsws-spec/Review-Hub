@@ -32,3 +32,14 @@ export const SUBMISSION_STORAGE = {
  * A REJECTED submission is the only one that allows resubmission.
  */
 export const BLOCKING_SUBMISSION_STATUSES = ['PENDING', 'AI_PROCESSING', 'PENDING_MANUAL', 'APPROVED'];
+
+/**
+ * Home screen "AI Recommended Tasks" scoring — a transparent, rule-based
+ * heuristic (reward size + task speed + the user's own category history),
+ * not ML/LLM scoring. An absolute reward threshold is used here rather than
+ * a computed percentile, which would need an extra full-table scan per
+ * request for marginal benefit.
+ */
+export const HIGH_REWARD_THRESHOLD = 100;
+export const QUICK_TASK_SECONDS = 300;
+export const RECOMMENDED_TASKS_LIMIT = 10;

@@ -21,7 +21,22 @@ Future<void> main() async {
   // A container built ahead of runApp so push notifications can boot (and,
   // if a terminated-state notification tap launched the app, record where to
   // navigate) before there's a widget tree to read providers from.
-  final container = ProviderContainer();
+  //
+  // `pushTokenSyncProvider` is overridden here rather than imported directly
+  // into `core/notifications/` — that keeps core free of any dependency on
+  // the auth feature (see the Core Layer rule); this composition root is the
+  // one place allowed to wire the two together.
+  final container = ProviderContainer(
+    overrides: [
+      pushTokenSyncProvider.overrideWith((ref) {
+        return (token) async {
+          final isSignedIn = ref.read(authStateProvider).value != null;
+          if (!isSignedIn) return;
+          await ref.read(authRepositoryProvider).updatePushToken(token);
+        };
+      }),
+    ],
+  );
   await container.read(pushNotificationControllerProvider).start();
 
   runApp(UncontrolledProviderScope(container: container, child: const ViralKarApp()));

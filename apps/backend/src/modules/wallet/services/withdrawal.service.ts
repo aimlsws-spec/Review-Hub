@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
@@ -6,7 +6,7 @@ import { describeError } from '@common/utils';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { DeviceRepository } from '../../auth/repositories/device.repository';
-import { RazorpayService } from '../../payment/services';
+import { PAYMENT_PROVIDER, PaymentProvider } from '../../payment/interfaces';
 import { UserKycService } from '../../user-kyc/services';
 import { DEVICE_RISK_HOLD_THRESHOLD, REVIEWABLE_WITHDRAWAL_STATUSES, WALLET_CONSTANTS } from '../constants';
 import { CreateWithdrawalDto, RejectWithdrawalDto } from '../dto';
@@ -23,7 +23,7 @@ export class WithdrawalService {
     private readonly bankRepository: UserBankAccountRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly auditLogService: AuditLogService,
-    private readonly razorpayService: RazorpayService,
+    @Inject(PAYMENT_PROVIDER) private readonly paymentService: PaymentProvider,
     private readonly userKycService: UserKycService,
     private readonly deviceRepository: DeviceRepository,
   ) {}
@@ -259,14 +259,14 @@ export class WithdrawalService {
     }
 
     try {
-      const customer = await this.razorpayService.createCustomer({ name: withdrawal.bankAccount.accountHolderName });
-      const fundAccount = await this.razorpayService.createFundAccount({
+      const customer = await this.paymentService.createCustomer({ name: withdrawal.bankAccount.accountHolderName });
+      const fundAccount = await this.paymentService.createFundAccount({
         customerId: customer.id,
         accountHolderName: withdrawal.bankAccount.accountHolderName,
         accountNumber: withdrawal.bankAccount.accountNumber,
         ifscCode: withdrawal.bankAccount.ifscCode,
       });
-      const payout = await this.razorpayService.createPayout({
+      const payout = await this.paymentService.createPayout({
         fundAccountId: fundAccount.id,
         amountInRupees: Number(withdrawal.finalAmount),
         referenceId: withdrawal.id,

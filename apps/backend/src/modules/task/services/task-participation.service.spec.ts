@@ -1,8 +1,10 @@
+import { getQueueToken } from '@nestjs/bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { QUEUE_NAMES } from '../../../queues/queue.constants';
 import { LocalStorageService } from '../../../storage/storage.service';
 import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { CampaignRepository } from '../../campaign/repositories';
@@ -63,6 +65,7 @@ describe('TaskParticipationService', () => {
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AiAssistService, useValue: mockAiAssistService },
         { provide: MerchantRepository, useValue: mockMerchantRepository },
+        { provide: getQueueToken(QUEUE_NAMES.AI_VERIFICATION), useValue: { add: jest.fn() } },
       ],
     }).compile();
 

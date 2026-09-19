@@ -12,7 +12,9 @@ export class WalletService {
 
   /** A wallet is created lazily on first access rather than at signup, so every user has one without a migration backfill. */
   async getWallet(userId: string) {
-    return this.walletRepository.getOrCreate(userId);
+    const wallet = await this.walletRepository.getOrCreate(userId);
+    const todayEarnings = await this.walletRepository.getTodayEarnings(wallet.id);
+    return { ...wallet, todayEarnings };
   }
 
   async getTransactions(userId: string, query: WalletTransactionQueryDto) {
@@ -32,5 +34,16 @@ export class WalletService {
   /** Rewards paid out to users across all of this merchant's campaigns. */
   async getMerchantRewards(merchantId: string, page: number, limit: number) {
     return this.rewardRepository.findByMerchant({ merchantId, page, limit });
+  }
+
+  /** MOCK feature to simulate adding funds. */
+  async simulateAddFunds(userId: string, amount: number) {
+    const wallet = await this.walletRepository.getOrCreate(userId);
+    return this.walletRepository.creditAvailable({
+      walletId: wallet.id,
+      amount,
+      type: 'CREDIT',
+      remarks: 'Simulated Add Funds',
+    });
   }
 }

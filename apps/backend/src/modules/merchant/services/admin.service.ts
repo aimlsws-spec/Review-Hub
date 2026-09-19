@@ -7,13 +7,14 @@ import { NotFoundException } from '@common/exceptions/domain.exceptions';
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { ApproveMerchantDto, RejectMerchantDto, RequestDocumentsDto } from '../dto';
 import { MerchantApprovedEvent, MerchantRejectedEvent } from '../events';
-import { MerchantDocumentRepository, MerchantRepository } from '../repositories';
+import { MerchantDocumentRepository, MerchantRepository, MerchantBankRepository } from '../repositories';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly merchantRepository: MerchantRepository,
     private readonly documentRepository: MerchantDocumentRepository,
+    private readonly bankRepository: MerchantBankRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly auditLogService: AuditLogService,
   ) {}
@@ -95,7 +96,8 @@ export class AdminService {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
     const documents = await this.documentRepository.findByMerchantId(merchantId);
-    return { ...merchant, documents };
+    const bankAccounts = await this.bankRepository.findByMerchantId(merchantId);
+    return { ...merchant, documents, bankAccounts };
   }
 
   async toggleMerchantStatus(merchantId: string, status: MerchantStatus, actorId: string) {

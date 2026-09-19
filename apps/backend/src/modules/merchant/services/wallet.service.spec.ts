@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
-import { RazorpayService } from '../../payment/services';
+import { PAYMENT_PROVIDER } from '../../payment/interfaces';
 import { MerchantRepository, MerchantWalletRepository } from '../repositories';
 
 import { WalletService } from './wallet.service';
@@ -54,7 +54,7 @@ describe('WalletService', () => {
         WalletService,
         { provide: MerchantRepository, useValue: mockMerchantRepository },
         { provide: MerchantWalletRepository, useValue: mockWalletRepository },
-        { provide: RazorpayService, useValue: mockRazorpayService },
+        { provide: PAYMENT_PROVIDER, useValue: mockRazorpayService },
       ],
     }).compile();
 

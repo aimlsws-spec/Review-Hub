@@ -144,13 +144,13 @@ class _VerificationPrompt extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: const Color(0xFFFEF9C3), borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(color: AppColors.warningBg, borderRadius: BorderRadius.circular(10)),
         child: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFA16207)),
+            const Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.warningText),
             const SizedBox(width: 10),
-            Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFFA16207)))),
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xFFA16207)),
+            Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.warningText))),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.warningText),
           ],
         ),
       ),

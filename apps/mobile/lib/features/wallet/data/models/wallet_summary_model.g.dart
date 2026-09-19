@@ -13,6 +13,7 @@ _WalletSummaryModel _$WalletSummaryModelFromJson(Map<String, dynamic> json) =>
       pendingBalance: json['pendingBalance'] as String,
       lockedBalance: json['lockedBalance'] as String,
       lifetimeEarnings: json['lifetimeEarnings'] as String,
+      todayEarnings: json['todayEarnings'] as String,
     );
 
 Map<String, dynamic> _$WalletSummaryModelToJson(_WalletSummaryModel instance) =>
@@ -22,4 +23,5 @@ Map<String, dynamic> _$WalletSummaryModelToJson(_WalletSummaryModel instance) =>
       'pendingBalance': instance.pendingBalance,
       'lockedBalance': instance.lockedBalance,
       'lifetimeEarnings': instance.lifetimeEarnings,
+      'todayEarnings': instance.todayEarnings,
     };

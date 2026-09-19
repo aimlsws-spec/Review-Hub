@@ -62,6 +62,14 @@ export enum CampaignStatus {
 }
 
 // -------------------------------------------------------------
+// CAMPAIGN SORT (public browse/listing order)
+// -------------------------------------------------------------
+export enum CampaignSort {
+  Featured = 'featured',
+  Popular = 'popular',
+}
+
+// -------------------------------------------------------------
 // TASK TYPE
 // -------------------------------------------------------------
 export enum TaskType {

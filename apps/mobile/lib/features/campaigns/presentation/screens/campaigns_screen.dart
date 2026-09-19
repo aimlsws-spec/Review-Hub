@@ -29,7 +29,7 @@ class _CampaignsScreenState extends ConsumerState<CampaignsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final campaignsAsync = ref.watch(campaignsProvider);
+    final campaignsAsync = ref.watch(campaignsProvider('featured'));
 
     return Scaffold(
       appBar: AppBar(
@@ -60,7 +60,7 @@ class _CampaignsScreenState extends ConsumerState<CampaignsScreen> {
               loading: () => const PageLoader(),
               error: (error, stack) => ErrorStateView(
                 message: '$error',
-                onRetry: () => ref.invalidate(campaignsProvider),
+                onRetry: () => ref.invalidate(campaignsProvider('featured')),
               ),
               data: (result) => result.when(
                 success: (page) {
@@ -72,7 +72,7 @@ class _CampaignsScreenState extends ConsumerState<CampaignsScreen> {
                     );
                   }
                   return RefreshIndicator(
-                    onRefresh: () async => ref.invalidate(campaignsProvider),
+                    onRefresh: () async => ref.invalidate(campaignsProvider('featured')),
                     child: ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                       itemCount: page.items.length,
@@ -88,7 +88,7 @@ class _CampaignsScreenState extends ConsumerState<CampaignsScreen> {
                 },
                 failure: (failure) => ErrorStateView(
                   message: failure.message,
-                  onRetry: () => ref.invalidate(campaignsProvider),
+                  onRetry: () => ref.invalidate(campaignsProvider('featured')),
                 ),
               ),
             ),

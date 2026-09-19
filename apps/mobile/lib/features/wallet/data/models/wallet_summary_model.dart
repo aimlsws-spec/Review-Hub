@@ -14,6 +14,7 @@ abstract class WalletSummaryModel with _$WalletSummaryModel {
     required String pendingBalance,
     required String lockedBalance,
     required String lifetimeEarnings,
+    required String todayEarnings,
   }) = _WalletSummaryModel;
 
   factory WalletSummaryModel.fromJson(Map<String, dynamic> json) => _$WalletSummaryModelFromJson(json);
@@ -23,4 +24,5 @@ extension WalletSummaryModelX on WalletSummaryModel {
   double get availableBalanceValue => double.tryParse(availableBalance) ?? 0;
   double get pendingBalanceValue => double.tryParse(pendingBalance) ?? 0;
   double get lifetimeEarningsValue => double.tryParse(lifetimeEarnings) ?? 0;
+  double get todayEarningsValue => double.tryParse(todayEarnings) ?? 0;
 }

@@ -4,25 +4,15 @@ import Razorpay = require('razorpay');
 import { validatePaymentVerification } from 'razorpay/dist/utils/razorpay-utils';
 
 import { PAYMENT_EVENTS } from '../constants';
-import { PayoutStatusEventPayload, RazorpayWebhookBody, RazorpayWebhookEvent } from '../interfaces';
-
-export interface RazorpayOrder {
-  id: string;
-  amount: number;
-  currency: string;
-  receipt?: string;
-  status: string;
-}
-
-export interface RazorpayFundAccount {
-  id: string;
-}
-
-export interface RazorpayPayout {
-  id: string;
-  status: string;
-  utr: string | null;
-}
+import {
+  PaymentFundAccount,
+  PaymentOrder,
+  PaymentPayout,
+  PaymentProvider,
+  PayoutStatusEventPayload,
+  RazorpayWebhookBody,
+  RazorpayWebhookEvent,
+} from '../interfaces';
 
 /**
  * Thin wrapper around the Razorpay SDK. RazorpayX (payouts/fund accounts) isn't
@@ -30,7 +20,7 @@ export interface RazorpayPayout {
  * generic `api` HTTP client instead of a dedicated resource property.
  */
 @Injectable()
-export class RazorpayService {
+export class RazorpayService implements PaymentProvider {
   private readonly logger = new Logger(RazorpayService.name);
   private _client: Razorpay | null = null;
 
@@ -57,13 +47,13 @@ export class RazorpayService {
   }
 
   /** Creates a collection order for a wallet top-up. Amount is in rupees. */
-  async createOrder(amountInRupees: number, receipt: string): Promise<RazorpayOrder> {
+  async createOrder(amountInRupees: number, receipt: string): Promise<PaymentOrder> {
     const order = await this.client.orders.create({
       amount: Math.round(amountInRupees * 100),
       currency: 'INR',
       receipt,
     });
-    return order as unknown as RazorpayOrder;
+    return order as unknown as PaymentOrder;
   }
 
   /** Verifies the signature Razorpay Checkout returns to the client on successful payment. */
@@ -128,7 +118,7 @@ export class RazorpayService {
     accountHolderName: string;
     accountNumber: string;
     ifscCode: string;
-  }): Promise<RazorpayFundAccount> {
+  }): Promise<PaymentFundAccount> {
     return this.client.fundAccount.create({
       customer_id: params.customerId,
       account_type: 'bank_account',
@@ -141,9 +131,9 @@ export class RazorpayService {
   }
 
   /** RazorpayX: initiates the actual payout. Requires RAZORPAY_X_ACCOUNT_NUMBER (the RazorpayX virtual account funds are drawn from). */
-  async createPayout(params: { fundAccountId: string; amountInRupees: number; referenceId: string; narration?: string }): Promise<RazorpayPayout> {
+  async createPayout(params: { fundAccountId: string; amountInRupees: number; referenceId: string; narration?: string }): Promise<PaymentPayout> {
     const accountNumber = this.config.get<string>('payment.razorpayXAccountNumber');
-    return this.client.api.post<Record<string, unknown>, RazorpayPayout>({
+    return this.client.api.post<Record<string, unknown>, PaymentPayout>({
       url: '/payouts',
       data: {
         account_number: accountNumber,

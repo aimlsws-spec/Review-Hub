@@ -25,6 +25,14 @@ export function useCampaignsQuery(merchantId: string | undefined, params: Campai
   })
 }
 
+export function useCampaignAnalyticsQuery(merchantId: string | undefined, campaignId: string | undefined) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.CAMPAIGNS, campaignId, 'analytics'],
+    queryFn: () => merchantApi.getCampaignAnalytics(merchantId!, campaignId!),
+    enabled: !!merchantId && !!campaignId,
+  })
+}
+
 type CampaignAction = 'submit' | 'activate' | 'pause' | 'resume' | 'cancel'
 
 const ACTION_MESSAGES: Record<CampaignAction, string> = {
