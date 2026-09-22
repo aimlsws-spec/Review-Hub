@@ -13,6 +13,7 @@ describe('TaskSubmissionRepository', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      updateMany: jest.fn(),
     },
     submissionAttachment: {
       create: jest.fn(),
@@ -36,6 +37,25 @@ describe('TaskSubmissionRepository', () => {
 
     repository = module.get<TaskSubmissionRepository>(TaskSubmissionRepository);
     jest.clearAllMocks();
+  });
+
+  describe('updateIfStatusIn', () => {
+    it('writes only while the submission is still in one of the given statuses, and says it did', async () => {
+      mockPrisma.taskSubmission.updateMany.mockResolvedValue({ count: 1 });
+
+      await expect(repository.updateIfStatusIn('s-1', ['PENDING', 'PENDING_MANUAL'], { status: 'APPROVED' })).resolves.toBe(true);
+
+      expect(mockPrisma.taskSubmission.updateMany).toHaveBeenCalledWith({
+        where: { id: 's-1', deletedAt: null, status: { in: ['PENDING', 'PENDING_MANUAL'] } },
+        data: { status: 'APPROVED' },
+      });
+    });
+
+    it('says it did not when the submission had already moved on, so the caller can stop', async () => {
+      mockPrisma.taskSubmission.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(repository.updateIfStatusIn('s-1', ['PENDING'], { status: 'REJECTED' })).resolves.toBe(false);
+    });
   });
 
   describe('findLatestAttempt', () => {

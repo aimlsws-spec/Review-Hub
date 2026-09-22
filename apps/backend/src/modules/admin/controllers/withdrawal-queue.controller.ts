@@ -27,4 +27,11 @@ export class AdminWithdrawalQueueController {
   async listPending(@Query('page') page = '1', @Query('limit') limit = '20') {
     return this.withdrawalService.listPendingForAdmin(Number(page), Number(limit));
   }
+
+  @Get('awaiting-payout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Approved withdrawals waiting for someone to send the money and record the bank reference' })
+  async listAwaitingPayout(@Query('page') page = '1', @Query('limit') limit = '20') {
+    return this.withdrawalService.listAwaitingManualPayout(Number(page), Number(limit));
+  }
 }

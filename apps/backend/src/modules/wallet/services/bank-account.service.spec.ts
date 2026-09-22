@@ -58,6 +58,40 @@ describe('BankAccountService', () => {
     });
   });
 
+  describe('the cooling period after a change', () => {
+    const owned = { id: 'bank-1', userId: 'user-1', bankName: 'HDFC Bank', accountHolderName: 'Jane Doe', ifscCode: 'HDFC0000053' };
+
+    beforeEach(() => mockBankRepository.findById.mockResolvedValue(owned));
+
+    it.each([
+      ['the account holder name', { accountHolderName: 'Someone Else' }],
+      ['the IFSC code', { ifscCode: 'SBIN0000001' }],
+      ['the bank name', { bankName: 'State Bank' }],
+    ])('restarts the wait when %s changes', async (_label, change) => {
+      await service.updateBankAccount('user-1', 'bank-1', change as never);
+
+      expect(mockBankRepository.update).toHaveBeenCalledWith('bank-1', { ...change, detailsChangedAt: expect.any(Date) });
+    });
+
+    it('does not restart it when a field is sent unchanged', async () => {
+      await service.updateBankAccount('user-1', 'bank-1', { accountHolderName: 'Jane Doe' } as never);
+
+      expect(mockBankRepository.update).toHaveBeenCalledWith('bank-1', { accountHolderName: 'Jane Doe' });
+    });
+
+    it('does not restart it for details that do not change where money goes', async () => {
+      await service.updateBankAccount('user-1', 'bank-1', { branch: 'Andheri', upiId: 'jane@bank' } as never);
+
+      expect(mockBankRepository.update.mock.calls[0][1]).not.toHaveProperty('detailsChangedAt');
+    });
+
+    it('does not restart it when the account is only made the primary one', async () => {
+      await service.updateBankAccount('user-1', 'bank-1', { isPrimary: true } as never);
+
+      expect(mockBankRepository.update.mock.calls[0][1]).not.toHaveProperty('detailsChangedAt');
+    });
+  });
+
   describe('deleteBankAccount', () => {
     it('should soft delete an owned bank account', async () => {
       mockBankRepository.findById.mockResolvedValue({ id: 'bank-1', userId: 'user-1' });

@@ -21,6 +21,15 @@ async function bootstrap(): Promise<void> {
 
   const config = app.get(ConfigService);
 
+  // Behind a reverse proxy (nginx, Cloudflare, cPanel) the socket address is the proxy's, so every user would
+  // share one IP. TRUST_PROXY says how many proxies to believe when reading X-Forwarded-For. It stays off by
+  // default because trusting the header without a proxy lets any client claim any IP address.
+  const trustProxy = config.get<boolean | number | string>('risk.trustProxy', false);
+  if (trustProxy !== false) {
+    app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+    logger.log(`Trusting proxy headers for client IP (TRUST_PROXY=${String(trustProxy)})`, 'Bootstrap');
+  }
+
   // Security
   app.use(helmet());
   app.use(compression());
@@ -35,7 +44,7 @@ async function bootstrap(): Promise<void> {
     origin: corsOrigins === '*' ? '*' : corsOrigins.split(',').map((o) => o.trim()),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Device-ID'],
   });
 
   // Global validation pipe

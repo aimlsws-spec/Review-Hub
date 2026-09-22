@@ -30,3 +30,23 @@ export class WithdrawalReviewedEvent {
     public readonly approved: boolean,
   ) {}
 }
+
+/** The money reached the user (by the gateway, or sent by an admin who recorded the bank's reference). */
+export class WithdrawalPaidEvent {
+  constructor(
+    public readonly withdrawalId: string,
+    public readonly userId: string,
+    public readonly amount: number,
+    public readonly reference?: string,
+  ) {}
+}
+
+/** The payout did not happen and the money went back to the user's available balance. */
+export class WithdrawalFailedEvent {
+  constructor(
+    public readonly withdrawalId: string,
+    public readonly userId: string,
+    public readonly amount: number,
+    public readonly reason: string,
+  ) {}
+}

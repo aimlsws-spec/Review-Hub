@@ -135,4 +135,43 @@ describe('FraudFlagsPage', () => {
 
     expect(screen.queryByRole('button', { name: /reverse reward/i })).not.toBeInTheDocument()
   })
+  describe('the Signal column', () => {
+    const withFlags = (flags: unknown[]) =>
+      vi.mocked(useFraudFlagsQuery).mockReturnValue({
+        data: { data: { data: { data: flags, total: flags.length, page: 1, limit: 20 } } },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      } as never)
+
+    it('says what raised a duplicate-image flag and which earlier submission it matches', () => {
+      withFlags([{ ...flag, type: 'DUPLICATE_SUBMISSION', metadata: { kind: 'perceptual', matchedSubmissionId: 'abcdef12-3456', differingBits: 2 } }])
+      renderPage()
+
+      const row = within(screen.getByText('Asha Rao').closest('tr') as HTMLElement)
+      expect(row.getByText('Duplicate image')).toBeInTheDocument()
+      expect(row.getByText('Looks the same (2 of 64 bits differ) as submission abcdef12')).toBeInTheDocument()
+    })
+
+    it('shows the linked-account and VPN signals', () => {
+      withFlags([
+        { ...flag, id: 'f1', type: 'MULTIPLE_ACCOUNTS', metadata: { linkedUserIds: ['a', 'b'] } },
+        { ...flag, id: 'f2', type: 'VPN_DETECTED', metadata: { ip: '203.0.113.9', sources: ['vpn'] } },
+      ])
+      renderPage()
+
+      expect(screen.getByText('Linked accounts')).toBeInTheDocument()
+      expect(screen.getByText('2 linked accounts in the same campaign')).toBeInTheDocument()
+      expect(screen.getByText('VPN / proxy')).toBeInTheDocument()
+      expect(screen.getByText('203.0.113.9 · listed in vpn')).toBeInTheDocument()
+    })
+
+    it('shows a dash for a flag with no type, such as one raised before types were recorded', () => {
+      withFlags([{ ...flag, type: null }])
+      renderPage()
+
+      const row = within(screen.getByText('Asha Rao').closest('tr') as HTMLElement)
+      expect(row.getByText('—')).toBeInTheDocument()
+    })
+  })
 })

@@ -1,0 +1,20 @@
+{
+  "entity": "event",
+  "account_id": "acc_BFQ7uQEaa7j2z7",
+  "event": "payment.failed",
+  "contains": [
+    "payment"
+  ],
+  "payload": {
+    "payment": {
+      "entity": {
+        "id": "pay_FAILED0000001",
+        "entity": "payment",
+        "status": "failed",
+        "order_id": "order_DESlLckIVRkHWj",
+        "error_code": "BAD_REQUEST_ERROR"
+      }
+    }
+  },
+  "created_at": 1567674606
+}

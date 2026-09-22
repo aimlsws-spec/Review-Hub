@@ -1,6 +1,7 @@
 import { Logger, Module } from '@nestjs/common';
 
 import { AdminModule } from '../admin/admin.module';
+import { RiskModule } from '../risk/risk.module';
 import { TaskModule } from '../task/task.module';
 
 import { AiAssistModule } from './ai-assist.module';
@@ -16,7 +17,7 @@ import {
 import { AiProviderAdminService, AiVerificationService } from './services';
 
 @Module({
-  imports: [TaskModule, AdminModule, AiAssistModule],
+  imports: [TaskModule, AdminModule, AiAssistModule, RiskModule],
   controllers: [AiVerificationController, AdminAiProviderController, AiAssistController],
   providers: [
     AiVerificationService,

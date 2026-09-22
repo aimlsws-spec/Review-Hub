@@ -6,6 +6,8 @@ import { firstValueFrom } from 'rxjs';
 
 import { AI_ASSIST_GENEROUS_TIMEOUT_MS } from '../constants';
 
+import { buildReviewDraftTemplates, ReviewDraftAnswers } from './review-draft-templates';
+
 export interface TextSuggestionContext {
   taskType: string;
   campaignTitle: string;
@@ -19,11 +21,8 @@ export interface TextSuggestionResult {
   source: 'llm' | 'template';
 }
 
-export interface ReviewDraftContext {
-  businessName: string;
-  likedAspects?: string[];
-  notes?: string;
-}
+/** What the person said about their own visit, plus the business name. Nothing here is worked out on their behalf. */
+export type ReviewDraftContext = ReviewDraftAnswers;
 
 export interface ReviewDraftResult {
   drafts: string[];
@@ -89,8 +88,9 @@ export class AiAssistService {
 
   /**
    * The guided review assistant — drafts several editable options grounded
-   * in what the user actually said they liked. Never invents an experience;
-   * every draft is meant to be edited and posted by the user themselves.
+   * in what the user actually said: what they liked, what could be better, and how
+   * it went overall. Never invents an experience or a recommendation; every draft
+   * is meant to be edited and posted by the user themselves.
    */
   async draftReviews(context: ReviewDraftContext): Promise<ReviewDraftResult> {
     const baseUrl = this.configService.get<string>('ai.serviceUrl');
@@ -107,7 +107,7 @@ export class AiAssistService {
       return response.data;
     } catch (error) {
       this.logger.warn(`AI service unavailable for review drafts, falling back to local templates: ${(error as AxiosError).message}`);
-      return { drafts: this.buildFallbackReviewDrafts(context), source: 'template' };
+      return { drafts: buildReviewDraftTemplates(context), source: 'template' };
     }
   }
 
@@ -129,31 +129,6 @@ export class AiAssistService {
       const { captions, hashtags } = this.buildFallbackCaptions(context);
       return { captions, hashtags, source: 'template' };
     }
-  }
-
-  private buildFallbackReviewDrafts(context: ReviewDraftContext): string[] {
-    const aspectLabels: Record<string, string> = {
-      FOOD: 'the food',
-      STAFF: 'the staff',
-      PRICE: 'the price',
-      CLEANLINESS: 'cleanliness',
-      SERVICE: 'the service',
-    };
-    const labels = (context.likedAspects ?? []).map((a) => aspectLabels[a] ?? a.toLowerCase());
-    const aspects = labels.length === 0
-      ? 'the overall experience'
-      : labels.length === 1
-        ? labels[0]
-        : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
-    const note = context.notes?.trim();
-
-    const openers = [
-      `Visited ${context.businessName} recently and really liked ${aspects}.`,
-      `${context.businessName} stood out for ${aspects} — a solid experience overall.`,
-      `Had a good experience at ${context.businessName}, especially when it came to ${aspects}.`,
-      `Would recommend ${context.businessName} — ${aspects} left a good impression.`,
-    ];
-    return note ? openers.map((d) => `${d} ${note}`) : openers;
   }
 
   private buildFallbackCaptions(context: CaptionContext): { captions: CaptionStyleResult[]; hashtags: string[] } {

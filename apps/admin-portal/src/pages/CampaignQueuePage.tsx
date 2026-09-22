@@ -10,6 +10,7 @@ import {
 } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 
+import PolicyFlags, { hasBlockingFlag } from '@/components/PolicyFlags'
 import { ITEMS_PER_PAGE } from '@/constants'
 import { useCampaignQueueQuery, useCampaignReviewMutation } from '@/hooks/useCampaignQueue'
 import type { Campaign } from '@/types'
@@ -45,7 +46,7 @@ export default function CampaignQueuePage() {
   }
 
   const copy = reviewTarget ? REVIEW_COPY[reviewTarget.kind] : null
-  const canSubmit = reviewTarget ? (!copy!.required || note.trim().length >= 5) : false
+  const canSubmit = reviewTarget && copy ? !copy.required || note.trim().length >= 5 : false
 
   return (
     <div>
@@ -83,6 +84,7 @@ export default function CampaignQueuePage() {
                   <td className="table-td">
                     <p className="font-medium text-gray-900">{campaign.title}</p>
                     <p className="text-xs text-gray-400">{campaign.campaignType}</p>
+                    <PolicyFlags flags={campaign.policyFlags} />
                   </td>
                   <td className="table-td">
                     {formatCurrency(campaign.rewardAmount)} <span className="text-gray-400">({campaign.rewardType})</span>
@@ -91,7 +93,12 @@ export default function CampaignQueuePage() {
                   <td className="table-td text-gray-500">{formatDate(campaign.updatedAt)}</td>
                   <td className="table-td text-right">
                     <div className="flex justify-end gap-2">
-                      <button className="btn-ghost btn-sm text-green-700 hover:bg-green-50" onClick={() => openReview(campaign, 'approve')}>
+                      <button
+                        className="btn-ghost btn-sm text-green-700 hover:bg-green-50"
+                        disabled={hasBlockingFlag(campaign.policyFlags)}
+                        title={hasBlockingFlag(campaign.policyFlags) ? 'The wording asks for a rating. Request changes or reject instead.' : undefined}
+                        onClick={() => openReview(campaign, 'approve')}
+                      >
                         Approve
                       </button>
                       <button className="btn-ghost btn-sm" onClick={() => openReview(campaign, 'request-changes')}>

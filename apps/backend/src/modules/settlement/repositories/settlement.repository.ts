@@ -45,7 +45,7 @@ export class SettlementRepository {
       distinct: ['merchantWalletId'],
       select: { merchantWallet: { select: { merchantId: true } } },
     });
-    return rows.filter((row) => row.merchantWallet).map((row) => row.merchantWallet!.merchantId);
+    return rows.flatMap((row) => (row.merchantWallet ? [row.merchantWallet.merchantId] : []));
   }
 
   /** Idempotent — a settlement already generated for this merchant/period is returned as-is, never regenerated. */

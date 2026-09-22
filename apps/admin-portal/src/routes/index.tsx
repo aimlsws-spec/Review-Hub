@@ -16,8 +16,11 @@ const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const UsersPage = lazy(() => import('@/pages/UsersPage'))
 const MerchantsPage = lazy(() => import('@/pages/MerchantsPage'))
+const UserKycPage = lazy(() => import('@/pages/UserKycPage'))
+const NotificationCenterPage = lazy(() => import('@/pages/NotificationCenterPage'))
 const CampaignQueuePage = lazy(() => import('@/pages/CampaignQueuePage'))
 const WithdrawalQueuePage = lazy(() => import('@/pages/WithdrawalQueuePage'))
+const FinancePage = lazy(() => import('@/pages/FinancePage'))
 const RefundApprovalsPage = lazy(() => import('@/pages/RefundApprovalsPage'))
 const FraudFlagsPage = lazy(() => import('@/pages/FraudFlagsPage'))
 const SupportTicketsPage = lazy(() => import('@/pages/SupportTicketsPage'))
@@ -64,9 +67,12 @@ export const router = createBrowserRouter(
           children: [
             { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
             { path: ROUTES.USERS, element: <UsersPage /> },
+            { path: ROUTES.KYC, element: <UserKycPage /> },
+            { path: ROUTES.NOTIFICATIONS, element: <NotificationCenterPage /> },
             { path: ROUTES.MERCHANTS, element: <MerchantsPage /> },
             { path: ROUTES.CAMPAIGNS, element: <CampaignQueuePage /> },
             { path: ROUTES.WITHDRAWALS, element: <WithdrawalQueuePage /> },
+            { path: ROUTES.FINANCE, element: <FinancePage /> },
             { path: ROUTES.REFUNDS, element: <RefundApprovalsPage /> },
             { path: ROUTES.FRAUD, element: <FraudFlagsPage /> },
             { path: ROUTES.SUPPORT_TICKETS, element: <SupportTicketsPage /> },

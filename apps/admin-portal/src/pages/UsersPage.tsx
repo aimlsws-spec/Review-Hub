@@ -12,6 +12,7 @@ import {
 } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 
+import { AccountRiskPanel } from '@/components/AccountRiskPanel'
 import { ITEMS_PER_PAGE, USER_STATUS_LABELS } from '@/constants'
 import { useUserActionMutation, useUserDetailQuery, useUsersQuery } from '@/hooks/useUsers'
 import type { AdminUser, UserStatus } from '@/types'
@@ -215,6 +216,8 @@ export default function UsersPage() {
               <div><span className="text-gray-400">Last Login</span><p className="text-gray-900">{detail.lastLoginAt ? formatDate(detail.lastLoginAt) : 'Never'}</p></div>
               <div><span className="text-gray-400">Joined</span><p className="text-gray-900">{formatDate(detail.createdAt)}</p></div>
             </div>
+
+            <AccountRiskPanel userId={detail.id} />
 
             <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
               {detail.status !== 'SUSPENDED' && detail.status !== 'BANNED' && (

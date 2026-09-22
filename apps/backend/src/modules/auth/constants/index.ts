@@ -59,3 +59,14 @@ export const TOKEN_CONFIG = {
   REFRESH_TOKEN_EXPIRY_SECONDS: 7 * 24 * 60 * 60,
   RESET_TOKEN_EXPIRY: 60,
 } as const;
+
+/**
+ * What a person can say they are. The database enum also has ALL, which only makes sense when a campaign says
+ * who it is for, never for a person.
+ */
+export const USER_GENDERS = ['MALE', 'FEMALE', 'OTHER'] as const;
+export type UserGender = (typeof USER_GENDERS)[number];
+
+/** Matches the youngest age a campaign may target. */
+export const MIN_USER_AGE = 13;
+export const MAX_USER_AGE = 120;

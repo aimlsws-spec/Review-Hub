@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SWAGGER_TAGS } from '@common/constants';
@@ -18,5 +18,13 @@ export class PublicCampaignController {
   @ApiOperation({ summary: 'Browse active, public campaigns' })
   async browse(@Query() query: PublicCampaignQueryDto) {
     return this.campaignService.listPublic(query);
+  }
+
+  @Get(':campaignId/details')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'One active, public campaign' })
+  async details(@Param('campaignId', ParseUUIDPipe) campaignId: string) {
+    return this.campaignService.getPublicById(campaignId);
   }
 }

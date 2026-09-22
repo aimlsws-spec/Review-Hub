@@ -143,4 +143,33 @@ describe('UserKycService', () => {
       await expect(service.getDocumentFilePath('user-1', 'doc-1')).rejects.toThrow(NotFoundException);
     });
   });
+  describe('getDocumentFilePathForReview', () => {
+    it('resolves the file for any owner, since the caller is a verified admin', async () => {
+      mockDocumentRepository.findById.mockResolvedValue({ ...mockDocument, userId: 'someone-else' });
+      mockStorageService.fileExists.mockResolvedValue(true);
+      mockStorageService.getFilePath.mockReturnValue('uploads/user/someone-else/documents/file.jpg');
+
+      const result = await service.getDocumentFilePathForReview('doc-1');
+
+      expect(path.isAbsolute(result)).toBe(true);
+    });
+
+    it('throws NotFoundException for a missing, deleted or file-less document', async () => {
+      mockDocumentRepository.findById.mockResolvedValueOnce(null);
+      await expect(service.getDocumentFilePathForReview('missing')).rejects.toThrow(NotFoundException);
+
+      mockDocumentRepository.findById.mockResolvedValueOnce({ ...mockDocument, deletedAt: new Date() });
+      await expect(service.getDocumentFilePathForReview('doc-1')).rejects.toThrow(NotFoundException);
+
+      mockDocumentRepository.findById.mockResolvedValueOnce({ ...mockDocument, fileUploadId: null });
+      await expect(service.getDocumentFilePathForReview('doc-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when the file is missing from disk', async () => {
+      mockDocumentRepository.findById.mockResolvedValue(mockDocument);
+      mockStorageService.fileExists.mockResolvedValue(false);
+
+      await expect(service.getDocumentFilePathForReview('doc-1')).rejects.toThrow(NotFoundException);
+    });
+  });
 });

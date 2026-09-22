@@ -34,7 +34,8 @@ export class RazorpayWebhookController {
   ) {
     if (!signature || !req.rawBody) throw new BadRequestException('Missing webhook signature');
 
-    const isValid = this.paymentService.verifyWebhookSignature(req.rawBody.toString('utf8'), signature);
+    // The bytes exactly as they arrived: the signature was made over those, not over a re-written copy of them.
+    const isValid = this.paymentService.verifyWebhookSignature(req.rawBody, signature);
     if (!isValid) {
       this.logger.warn('Rejected webhook with invalid signature');
       throw new BadRequestException('Invalid webhook signature');

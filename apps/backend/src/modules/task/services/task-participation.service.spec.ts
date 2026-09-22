@@ -9,6 +9,7 @@ import { LocalStorageService } from '../../../storage/storage.service';
 import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { CampaignRepository } from '../../campaign/repositories';
 import { MerchantRepository } from '../../merchant/repositories';
+import { SubmissionRiskService } from '../../risk/services';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
 import { TaskParticipationService } from './task-participation.service';
@@ -53,6 +54,9 @@ describe('TaskParticipationService', () => {
   };
   const participant = { id: 'participant-1', campaignId: 'campaign-1', userId: 'user-1', status: 'IN_PROGRESS' };
 
+  const mockSubmissionRisk = { assess: jest.fn() };
+  const mockAiQueue = { add: jest.fn() };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -65,12 +69,14 @@ describe('TaskParticipationService', () => {
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AiAssistService, useValue: mockAiAssistService },
         { provide: MerchantRepository, useValue: mockMerchantRepository },
-        { provide: getQueueToken(QUEUE_NAMES.AI_VERIFICATION), useValue: { add: jest.fn() } },
+        { provide: SubmissionRiskService, useValue: mockSubmissionRisk },
+        { provide: getQueueToken(QUEUE_NAMES.AI_VERIFICATION), useValue: mockAiQueue },
       ],
     }).compile();
 
     service = module.get<TaskParticipationService>(TaskParticipationService);
     jest.clearAllMocks();
+    mockSubmissionRisk.assess.mockResolvedValue(undefined);
   });
 
   describe('startTask', () => {
@@ -169,6 +175,32 @@ describe('TaskParticipationService', () => {
       expect(result).toEqual({ drafts: ['Great food!'], source: 'llm' });
     });
 
+    it('passes on everything the person said about their visit, and nothing they did not', async () => {
+      mockAiAssistService.draftReviews.mockResolvedValue({ drafts: ['Mixed.'], source: 'template' });
+
+      await service.draftReviews('task-1', {
+        likedAspects: ['FOOD'],
+        improveAspects: ['SERVICE'],
+        experience: 'MIXED',
+        wouldRecommend: false,
+        notes: 'Slow.',
+      });
+
+      expect(mockAiAssistService.draftReviews).toHaveBeenCalledWith({
+        businessName: 'Cafe Aroma',
+        likedAspects: ['FOOD'],
+        improveAspects: ['SERVICE'],
+        experience: 'MIXED',
+        wouldRecommend: false,
+        notes: 'Slow.',
+      });
+
+      await service.draftReviews('task-1', {});
+      const sent = mockAiAssistService.draftReviews.mock.calls[1][0];
+      expect(sent.wouldRecommend).toBeUndefined();
+      expect(sent.experience).toBeUndefined();
+    });
+
     it('rejects a task type review drafts make no sense for', async () => {
       mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, taskType: 'INSTAGRAM_COMMENT' });
 
@@ -259,6 +291,7 @@ describe('TaskParticipationService', () => {
       const file = { originalname: 'proof.jpg', mimetype: 'image/jpeg', size: 1024, buffer: Buffer.from('abc') } as Express.Multer.File;
       mockStorageService.saveFile.mockResolvedValue({ path: '/submissions/campaign-1/task-1/file.jpg' });
       mockSubmissionRepository.findAttachmentByChecksum.mockResolvedValue({
+        submissionId: 'earlier-submission',
         submission: { userId: 'someone-else' },
       });
 
@@ -267,8 +300,74 @@ describe('TaskParticipationService', () => {
       expect(mockStorageService.saveFile).toHaveBeenCalled();
       expect(mockSubmissionRepository.createAttachment).toHaveBeenCalled();
       expect(mockSubmissionRepository.createFraudFlag).toHaveBeenCalledWith(
-        expect.objectContaining({ riskLevel: 'HIGH' }),
+        expect.objectContaining({
+          riskLevel: 'HIGH',
+          type: 'DUPLICATE_SUBMISSION',
+          // Naming the match lets the picture-similarity check see this pair is already flagged, and lets a reviewer find it.
+          metadata: { kind: 'exact', matchedSubmissionId: 'earlier-submission', matchedUserId: 'someone-else' },
+        }),
       );
+    });
+
+    it('should flag a checksum match with the same user as a LOW-risk note of the same type', async () => {
+      const file = { originalname: 'proof.jpg', mimetype: 'image/jpeg', size: 1024, buffer: Buffer.from('abc') } as Express.Multer.File;
+      mockStorageService.saveFile.mockResolvedValue({ path: '/submissions/campaign-1/task-1/file.jpg' });
+      mockSubmissionRepository.findAttachmentByChecksum.mockResolvedValue({
+        submissionId: 'my-earlier-submission',
+        submission: { userId: 'user-1' },
+      });
+
+      await service.submitTask('task-1', 'user-1', {}, file);
+
+      expect(mockSubmissionRepository.createFraudFlag).toHaveBeenCalledWith(
+        expect.objectContaining({
+          riskLevel: 'LOW',
+          type: 'DUPLICATE_SUBMISSION',
+          metadata: { kind: 'exact', matchedSubmissionId: 'my-earlier-submission', matchedUserId: 'user-1' },
+        }),
+      );
+    });
+
+    describe('checking where the submission came from', () => {
+      it('runs the risk check with the submission, user, campaign and the requester IP', async () => {
+        await service.submitTask('task-1', 'user-1', { textAnswer: 'Great service!' }, undefined, { ip: '203.0.113.9' });
+
+        expect(mockSubmissionRisk.assess).toHaveBeenCalledWith({
+          submissionId: 'submission-1',
+          userId: 'user-1',
+          campaignId: 'campaign-1',
+          ip: '203.0.113.9',
+        });
+      });
+
+      it('still runs it when no IP is known', async () => {
+        await service.submitTask('task-1', 'user-1', { textAnswer: 'Great service!' });
+
+        expect(mockSubmissionRisk.assess).toHaveBeenCalledWith(expect.objectContaining({ submissionId: 'submission-1', ip: undefined }));
+      });
+
+      it('never blocks the submission if the check fails: it still queues AI verification and returns the submission', async () => {
+        mockSubmissionRisk.assess.mockRejectedValue(new Error('database unavailable'));
+
+        const result = await service.submitTask('task-1', 'user-1', { textAnswer: 'Great service!' });
+
+        expect(result).toHaveProperty('id', 'submission-1');
+        expect(mockAiQueue.add).toHaveBeenCalledWith('verify-submission', expect.objectContaining({ submissionId: 'submission-1' }));
+      });
+
+      it('runs after the submission exists and before verification is queued, so its flags are in place when the AI decides', async () => {
+        const order: string[] = [];
+        mockSubmissionRepository.create.mockImplementation(async () => {
+          order.push('create submission');
+          return { id: 'submission-1' };
+        });
+        mockSubmissionRisk.assess.mockImplementation(async () => void order.push('risk check'));
+        mockAiQueue.add.mockImplementation(async () => void order.push('queue verification'));
+
+        await service.submitTask('task-1', 'user-1', { textAnswer: 'Great service!' });
+
+        expect(order).toEqual(['create submission', 'risk check', 'queue verification']);
+      });
     });
 
     it('should reject an oversized file', async () => {

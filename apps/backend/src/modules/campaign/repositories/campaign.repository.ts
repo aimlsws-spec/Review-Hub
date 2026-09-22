@@ -20,12 +20,6 @@ export class CampaignRepository {
     });
   }
 
-  async getAnalytics(id: string) {
-    return this.prisma.campaignAnalytics.findUnique({
-      where: { campaignId: id },
-    });
-  }
-
   async findBySlug(slug: string) {
     return this.prisma.campaign.findUnique({ where: { slug } });
   }
@@ -95,11 +89,9 @@ export class CampaignRepository {
       ];
     }
 
-    /** Ranks by `joins` — the least gameable, least lag-prone "people are choosing this now" signal, unlike `completions` which lags behind actual popularity. */
-    const orderBy: Prisma.CampaignOrderByWithRelationInput[] =
-      sort === CampaignSort.Popular
-        ? [{ analytics: { joins: 'desc' } }, { featured: 'desc' }, { createdAt: 'desc' }]
-        : [{ featured: 'desc' }, { createdAt: 'desc' }];
+    // A campaign with no end date never "ends soon", so that sort leaves those out instead of sorting nulls somewhere odd.
+    if (sort === CampaignSort.EndingSoon) where.endAt = { gte: new Date() };
+    const orderBy = this.publicOrder(sort);
 
     const [data, total] = await Promise.all([
       this.prisma.campaign.findMany({
@@ -112,6 +104,34 @@ export class CampaignRepository {
     ]);
 
     return { data, total, page, limit };
+  }
+
+  /**
+   * One active, public campaign, for the app's detail page. Anything else (a draft, a paused or ended campaign, a
+   * private one, one that does not exist) is the same "not found", so the endpoint can not be used to see what
+   * is not meant to be seen.
+   */
+  async findPublicById(id: string) {
+    return this.prisma.campaign.findFirst({
+      where: { id, deletedAt: null, status: 'ACTIVE' as never, visibility: 'PUBLIC' as never },
+    });
+  }
+
+  /** Every order ends with the newest, so equal campaigns keep a steady order from one request to the next. */
+  private publicOrder(sort?: CampaignSort): Prisma.CampaignOrderByWithRelationInput[] {
+    switch (sort) {
+      // Ranks by `joins`: the least gameable, least lag-prone "people are choosing this now" signal, unlike `completions` which lags behind actual popularity.
+      case CampaignSort.Popular:
+        return [{ analytics: { joins: 'desc' } }, { featured: 'desc' }, { createdAt: 'desc' }];
+      case CampaignSort.Newest:
+        return [{ createdAt: 'desc' }];
+      case CampaignSort.HighestReward:
+        return [{ rewardAmount: 'desc' }, { featured: 'desc' }, { createdAt: 'desc' }];
+      case CampaignSort.EndingSoon:
+        return [{ endAt: 'asc' }, { createdAt: 'desc' }];
+      default:
+        return [{ featured: 'desc' }, { createdAt: 'desc' }];
+    }
   }
 
   async findAvailableForUser(params: {

@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { adminApi } from '@/api/admin.api'
 import { QUERY_KEYS } from '@/constants'
 import type { SupportTicketStatus } from '@/types'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 /** Fetches the paginated, filterable list of support tickets. */
 export function useSupportTicketsQuery(params: { page: number; limit: number; status?: SupportTicketStatus | '' }) {
@@ -18,7 +18,7 @@ export function useSupportTicketsQuery(params: { page: number; limit: number; st
 export function useSupportTicketDetailQuery(ticketId: string | null) {
   return useQuery({
     queryKey: [...QUERY_KEYS.SUPPORT_TICKETS, ticketId],
-    queryFn: () => adminApi.getSupportTicket(ticketId!),
+    queryFn: () => adminApi.getSupportTicket(requireValue(ticketId, 'ticketId')),
     enabled: !!ticketId,
   })
 }
@@ -29,7 +29,7 @@ export function useReplySupportTicketMutation(ticketId: string | null, onSuccess
 
   return useMutation({
     mutationFn: ({ message, internalNote }: { message: string; internalNote: boolean }) =>
-      adminApi.replySupportTicket(ticketId!, message, internalNote),
+      adminApi.replySupportTicket(requireValue(ticketId, 'ticketId'), message, internalNote),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.SUPPORT_TICKETS, ticketId] })
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUPPORT_TICKETS })
@@ -44,7 +44,7 @@ export function useUpdateSupportTicketStatusMutation(ticketId: string | null) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (status: SupportTicketStatus) => adminApi.updateSupportTicketStatus(ticketId!, status),
+    mutationFn: (status: SupportTicketStatus) => adminApi.updateSupportTicketStatus(requireValue(ticketId, 'ticketId'), status),
     onSuccess: () => {
       toast.success('Status updated')
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.SUPPORT_TICKETS, ticketId] })

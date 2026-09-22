@@ -10,8 +10,10 @@ describe('MerchantWalletRepository', () => {
   let repository: MerchantWalletRepository;
 
   const mockTx = {
+    // The row locks (SELECT ... FOR UPDATE) every balance change takes first.
+    $queryRaw: jest.fn(),
     merchantWallet: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
-    walletTransaction: { create: jest.fn(), update: jest.fn(), findUniqueOrThrow: jest.fn() },
+    walletTransaction: { create: jest.fn(), update: jest.fn(), findUniqueOrThrow: jest.fn(), findFirst: jest.fn() },
     campaign: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
   };
 
@@ -315,6 +317,126 @@ describe('MerchantWalletRepository', () => {
       expect(mockTx.walletTransaction.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ type: 'RELEASE', amount: 2000, referenceType: 'MerchantRefundRequest', referenceId: 'refund-1' }),
       });
+    });
+  });
+
+  describe('row locking, so concurrent requests can not both spend the same balance', () => {
+    const lockedTables = () => mockTx.$queryRaw.mock.calls.map(([strings]: [TemplateStringsArray]) => strings.join('?'));
+    const wallet = { id: 'mw-1', merchantId: 'm-1', availableBalance: 5000, reservedBalance: 2000 };
+    const campaign = { id: 'c-1', merchantId: 'm-1', reservedBudget: 1000, spentBudget: 0, remainingBudget: 1000 };
+
+    beforeEach(() => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue(wallet);
+      mockTx.merchantWallet.update.mockResolvedValue(wallet);
+      mockTx.campaign.findUniqueOrThrow.mockResolvedValue(campaign);
+      mockTx.campaign.update.mockResolvedValue(campaign);
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'tx-1' });
+      mockTx.walletTransaction.findUniqueOrThrow.mockResolvedValue({ id: 'tx-1', status: 'PENDING', merchantWalletId: 'mw-1', amount: 100 });
+      mockTx.walletTransaction.update.mockResolvedValue({ id: 'tx-1' });
+    });
+
+    it('takes the campaign lock before the wallet lock when reserving a budget, in the agreed order', async () => {
+      await repository.reserveCampaignBudget({ merchantId: 'm-1', campaignId: 'c-1', amount: 100 });
+
+      expect(lockedTables()).toEqual([
+        'SELECT id FROM campaigns WHERE id = ? FOR UPDATE',
+        'SELECT id FROM merchant_wallets WHERE merchantId = ? FOR UPDATE',
+      ]);
+    });
+
+    it.each([
+      ['spendCampaignBudget', () => repository.spendCampaignBudget({ campaignId: 'c-1', amount: 50, rewardId: 'r-1' })],
+      ['restoreClawedBackBudget', () => repository.restoreClawedBackBudget({ campaignId: 'c-1', amount: 50, rewardId: 'r-1' })],
+      ['releaseCampaignBudget', () => repository.releaseCampaignBudget({ merchantId: 'm-1', campaignId: 'c-1' })],
+    ])('%s locks the campaign, then the wallet, before reading either', async (_name, run) => {
+      await run();
+
+      expect(lockedTables()).toEqual([
+        'SELECT id FROM campaigns WHERE id = ? FOR UPDATE',
+        'SELECT id FROM merchant_wallets WHERE merchantId = ? FOR UPDATE',
+      ]);
+      const [campaignLock, walletLock] = mockTx.$queryRaw.mock.invocationCallOrder;
+      expect(campaignLock).toBeLessThan(mockTx.campaign.findUniqueOrThrow.mock.invocationCallOrder[0]);
+      expect(walletLock).toBeLessThan(mockTx.merchantWallet.findUniqueOrThrow.mock.invocationCallOrder[0]);
+    });
+
+    it.each([
+      ['holdForRefund', () => repository.holdForRefund({ merchantWalletId: 'mw-1', amount: 100, refundId: 'rf-1' })],
+      ['releaseRefundHold', () => repository.releaseRefundHold({ merchantWalletId: 'mw-1', amount: 100, refundId: 'rf-1' })],
+      ['finalizeRefund', () => repository.finalizeRefund({ merchantWalletId: 'mw-1', amount: 100, refundId: 'rf-1' })],
+      ['reverseFinalizedRefund', () => repository.reverseFinalizedRefund({ merchantWalletId: 'mw-1', amount: 100, refundId: 'rf-1' })],
+    ])('%s locks the wallet row before reading the balance', async (_name, run) => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue({ ...wallet, reservedBalance: 5000 });
+
+      await run();
+
+      expect(lockedTables()[0]).toBe('SELECT id FROM merchant_wallets WHERE id = ? FOR UPDATE');
+      expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(mockTx.merchantWallet.findUniqueOrThrow.mock.invocationCallOrder[0]);
+    });
+
+    it('confirming a top-up locks the payment first, then the wallet, so a webhook and a verify call can not both credit it', async () => {
+      await repository.confirmTopUp('tx-1', 'pay_1');
+
+      expect(lockedTables()).toEqual([
+        'SELECT id FROM wallet_transactions WHERE id = ? FOR UPDATE',
+        'SELECT id FROM merchant_wallets WHERE id = ? FOR UPDATE',
+      ]);
+      expect(mockTx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(mockTx.walletTransaction.findUniqueOrThrow.mock.invocationCallOrder[0]);
+    });
+
+    it('does not lock the wallet for a payment that was already confirmed', async () => {
+      mockTx.walletTransaction.findUniqueOrThrow.mockResolvedValue({ id: 'tx-1', status: 'SUCCESS', merchantWalletId: 'mw-1', amount: 100 });
+
+      await repository.confirmTopUp('tx-1', 'pay_1');
+
+      expect(lockedTables()).toEqual(['SELECT id FROM wallet_transactions WHERE id = ? FOR UPDATE']);
+      expect(mockTx.merchantWallet.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('spendCampaignBudget is idempotent per reward', () => {
+    const wallet = { id: 'mw-1', merchantId: 'm-1', availableBalance: 5000, reservedBalance: 2000 };
+    const campaign = { id: 'c-1', merchantId: 'm-1', reservedBudget: 1000, spentBudget: 0, totalBudget: 1000 };
+
+    beforeEach(() => {
+      mockTx.merchantWallet.findUniqueOrThrow.mockResolvedValue(wallet);
+      mockTx.merchantWallet.update.mockResolvedValue(wallet);
+      mockTx.campaign.findUniqueOrThrow.mockResolvedValue(campaign);
+      mockTx.campaign.update.mockResolvedValue(campaign);
+      mockTx.walletTransaction.create.mockResolvedValue({ id: 'new-tx' });
+    });
+
+    it('does not charge the budget a second time for a reward already charged', async () => {
+      mockTx.walletTransaction.findFirst.mockResolvedValue({ id: 'old-tx' });
+
+      const result = await repository.spendCampaignBudget({ campaignId: 'c-1', amount: 50, rewardId: 'r-1' });
+
+      expect(result).toEqual({ id: 'old-tx' });
+      expect(mockTx.merchantWallet.update).not.toHaveBeenCalled();
+      expect(mockTx.campaign.update).not.toHaveBeenCalled();
+      expect(mockTx.walletTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it('checks for that reward under the locks, on this wallet, for a successful spend', async () => {
+      mockTx.walletTransaction.findFirst.mockResolvedValue({ id: 'old-tx' });
+
+      await repository.spendCampaignBudget({ campaignId: 'c-1', amount: 50, rewardId: 'r-1' });
+
+      expect(mockTx.walletTransaction.findFirst).toHaveBeenCalledWith({
+        where: { merchantWalletId: 'mw-1', type: 'SPEND', referenceType: 'Reward', referenceId: 'r-1', status: 'SUCCESS' },
+      });
+      const locks = mockTx.$queryRaw.mock.invocationCallOrder;
+      expect(locks[locks.length - 1]).toBeLessThan(mockTx.walletTransaction.findFirst.mock.invocationCallOrder[0]);
+    });
+
+    it('charges normally the first time', async () => {
+      mockTx.walletTransaction.findFirst.mockResolvedValue(null);
+
+      await repository.spendCampaignBudget({ campaignId: 'c-1', amount: 50, rewardId: 'r-1' });
+
+      expect(mockTx.merchantWallet.update).toHaveBeenCalledTimes(1);
+      expect(mockTx.campaign.update).toHaveBeenCalledTimes(1);
+      expect(mockTx.walletTransaction.create).toHaveBeenCalledTimes(1);
     });
   });
 });

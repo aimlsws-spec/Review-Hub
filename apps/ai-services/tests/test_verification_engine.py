@@ -97,3 +97,70 @@ async def test_falls_back_to_heuristic_explanation_when_llm_unavailable():
     outcome = await engine.verify(_submission(textAnswer="Loved it!"), evidence_bytes=None)
 
     assert "Heuristic verification" in outcome.explanation
+
+
+def _photo_bytes() -> bytes:
+    import io
+
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGB", (400, 300), "white")
+    draw = ImageDraw.Draw(image)
+    for i in range(0, 300, 15):
+        draw.rectangle([i, i // 2, i + 60, i // 2 + 40], fill=((i * 3) % 256, (i * 7) % 256, (i * 11) % 256))
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_reports_a_fingerprint_for_image_evidence_so_the_backend_can_spot_duplicates():
+    engine = VerificationEngine(Settings(), _FakeOcr(), _FakeOllama())
+
+    outcome = await engine.verify(_submission(fileUrl="/submissions/a.png"), evidence_bytes=_photo_bytes())
+
+    assert outcome.perceptual_hash is not None
+    assert len(outcome.perceptual_hash) == 16
+
+
+@pytest.mark.asyncio
+async def test_the_same_picture_always_reports_the_same_fingerprint():
+    engine = VerificationEngine(Settings(), _FakeOcr(), _FakeOllama())
+    picture = _photo_bytes()
+
+    first = await engine.verify(_submission(fileUrl="/a.png"), evidence_bytes=picture)
+    second = await engine.verify(_submission(id="sub-2", userId="user-2", fileUrl="/b.png"), evidence_bytes=picture)
+
+    assert first.perceptual_hash == second.perceptual_hash
+
+
+@pytest.mark.asyncio
+async def test_reports_no_fingerprint_without_an_image():
+    engine = VerificationEngine(Settings(), _FakeOcr(), _FakeOllama())
+
+    text_only = await engine.verify(_submission(textAnswer="Really enjoyed it, would recommend!"), evidence_bytes=None)
+    not_an_image = await engine.verify(_submission(fileUrl="/v.mp4"), evidence_bytes=b"\x00\x00\x00\x18ftypmp42")
+
+    assert text_only.perceptual_hash is None
+    assert text_only.evidence_text is None
+    assert not_an_image.perceptual_hash is None
+
+
+@pytest.mark.asyncio
+async def test_says_whether_the_screenshot_had_readable_text_since_that_decides_how_a_duplicate_is_judged():
+    picture = _photo_bytes()
+    readable = "You are following viralkar_official on Instagram today and love it"
+
+    with_text = await VerificationEngine(Settings(), _FakeOcr(available=True, text=readable), _FakeOllama()).verify(
+        _submission(fileUrl="/a.png"), evidence_bytes=picture
+    )
+    no_text = await VerificationEngine(Settings(), _FakeOcr(available=True, text="  "), _FakeOllama()).verify(
+        _submission(fileUrl="/a.png"), evidence_bytes=picture
+    )
+    ocr_off = await VerificationEngine(Settings(), _FakeOcr(available=False), _FakeOllama()).verify(
+        _submission(fileUrl="/a.png"), evidence_bytes=picture
+    )
+
+    assert with_text.evidence_text == "you are following viralkar official on instagram today and love it"
+    assert no_text.evidence_text == ""  # OCR ran and found nothing: most likely a photo
+    assert ocr_off.evidence_text is None  # OCR did not run: we cannot tell

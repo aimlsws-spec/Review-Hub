@@ -10,6 +10,8 @@ import 'core/notifications/push_notification_controller.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/data/models/user_model.dart';
+import 'features/app_lock/presentation/widgets/app_lock_gate.dart';
+import 'features/app_status/presentation/widgets/app_status_gate.dart';
 import 'features/auth/providers/auth_providers.dart';
 
 Future<void> main() async {
@@ -82,6 +84,9 @@ class _ViralKarAppState extends ConsumerState<ViralKarApp> {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         routerConfig: router,
+        // The status page (maintenance, update) goes over everything, and the lock goes over the app: a locked phone
+        // has no use for a maintenance page it can not read yet, so the lock sits inside.
+        builder: (context, child) => AppStatusGate(child: AppLockGate(child: child ?? const SizedBox.shrink())),
       ),
     );
   }

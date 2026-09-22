@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -10,7 +10,7 @@ import { useLoginMutation } from '@/hooks/useAuthMutations'
 import LoginPage from './LoginPage'
 
 vi.mock('@/hooks/useAuthMutations', () => ({ useLoginMutation: vi.fn() }))
-vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('react-hot-toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const mutateMock = vi.fn()
 

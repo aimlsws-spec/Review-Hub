@@ -8,3 +8,4 @@ export * from './review.repository';
 export * from './customer.repository';
 export * from './merchant-campaign-stats.repository';
 export * from './merchant-refund.repository';
+export * from './manual-top-up.repository';

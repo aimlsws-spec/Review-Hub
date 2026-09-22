@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Queue } from 'bullmq';
 
@@ -14,6 +14,7 @@ import { DraftReviewDto } from '../../ai/dto';
 import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { CampaignRepository } from '../../campaign/repositories';
 import { MerchantRepository } from '../../merchant/repositories';
+import { SubmissionRiskService } from '../../risk/services';
 import { BLOCKING_SUBMISSION_STATUSES, SUBMISSION_STORAGE } from '../constants';
 import { SubmitTaskDto } from '../dto';
 import { TaskStartedEvent, TaskSubmittedEvent } from '../events';
@@ -30,6 +31,8 @@ import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRe
  */
 @Injectable()
 export class TaskParticipationService {
+  private readonly logger = new Logger(TaskParticipationService.name);
+
   constructor(
     private readonly campaignTaskRepository: CampaignTaskRepository,
     private readonly campaignRepository: CampaignRepository,
@@ -39,6 +42,7 @@ export class TaskParticipationService {
     private readonly eventEmitter: EventEmitter2,
     private readonly aiAssistService: AiAssistService,
     private readonly merchantRepository: MerchantRepository,
+    private readonly submissionRisk: SubmissionRiskService,
     @InjectQueue(QUEUE_NAMES.AI_VERIFICATION) private readonly aiQueue: Queue,
   ) {}
 
@@ -99,6 +103,9 @@ export class TaskParticipationService {
     return this.aiAssistService.draftReviews({
       businessName: merchant.businessName,
       likedAspects: dto.likedAspects,
+      improveAspects: dto.improveAspects,
+      experience: dto.experience,
+      wouldRecommend: dto.wouldRecommend,
       notes: dto.notes,
     });
   }
@@ -113,7 +120,7 @@ export class TaskParticipationService {
     });
   }
 
-  async submitTask(taskId: string, userId: string, dto: SubmitTaskDto, file?: Express.Multer.File) {
+  async submitTask(taskId: string, userId: string, dto: SubmitTaskDto, file?: Express.Multer.File, context: { ip?: string } = {}) {
     const { task, campaign } = await this.getActiveTask(taskId);
 
     const participant = await this.participantRepository.findByCampaignAndUser(campaign.id, userId);
@@ -179,16 +186,28 @@ export class TaskParticipationService {
       await this.submissionRepository.createFraudFlag({
         submission: { connect: { id: submission.id } },
         user: { connect: { id: userId } },
+        type: 'DUPLICATE_SUBMISSION',
         riskLevel: 'HIGH',
         reason: 'Uploaded evidence matches a file already submitted by a different user',
+        metadata: { kind: 'exact', matchedSubmissionId: fraudMatch.submissionId, matchedUserId: fraudMatch.submission.userId },
       });
     } else if (fraudMatch) {
       await this.submissionRepository.createFraudFlag({
         submission: { connect: { id: submission.id } },
         user: { connect: { id: userId } },
+        type: 'DUPLICATE_SUBMISSION',
         riskLevel: 'LOW',
         reason: 'Uploaded evidence matches a file this user submitted before',
+        metadata: { kind: 'exact', matchedSubmissionId: fraudMatch.submissionId, matchedUserId: fraudMatch.submission.userId },
       });
+    }
+
+    // Look at where the submission came from and whether the same person is working this campaign from several
+    // accounts. Findings are only flags for reviewers, so a failure here must never stop the submission.
+    try {
+      await this.submissionRisk.assess({ submissionId: submission.id, userId, campaignId: campaign.id, ip: context.ip });
+    } catch (error) {
+      this.logger.error(`Risk check failed for submission ${submission.id}: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     // 1) Push to the background BullMQ Queue for AI Processing

@@ -1,3 +1,4 @@
+export * from './ai-assist.dto';
 export * from './complete-verification-job.dto';
 export * from './create-ai-model.dto';
 export * from './create-ai-prompt-template.dto';

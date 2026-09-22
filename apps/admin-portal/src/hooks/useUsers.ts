@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { adminApi } from '@/api/admin.api'
 import { QUERY_KEYS } from '@/constants'
 import type { AdminUser, UserStatus } from '@/types'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 export type UserActionKind = 'suspend' | 'ban' | 'reactivate'
 
@@ -20,7 +20,7 @@ export function useUsersQuery(params: { page: number; limit: number; status?: Us
 export function useUserDetailQuery(userId: string | null) {
   return useQuery({
     queryKey: [...QUERY_KEYS.USER_DETAIL, userId],
-    queryFn: () => adminApi.getUser(userId!),
+    queryFn: () => adminApi.getUser(requireValue(userId, 'userId')),
     enabled: !!userId,
   })
 }

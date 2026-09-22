@@ -2,6 +2,7 @@ import { Skeleton, StatusBadge, Badge, PageHeader } from '@reviewhub/shared-ui'
 import { formatDistanceToNow } from 'date-fns'
 import { Link } from 'react-router-dom'
 
+import { InsightsPanel } from '@/components/InsightsPanel'
 import { StarRating } from '@/components/ReviewCard'
 import { ROUTES } from '@/constants'
 import { useCampaignsQuery, useCampaignAnalyticsQuery } from '@/hooks/useCampaigns'
@@ -215,18 +216,17 @@ function CampaignAnalyticsRow({
 
   if (isLoading) return <Skeleton className="h-10 w-full mb-2" />
 
-  // Backend stores rates as 0–1 fractions (Decimal → string over JSON), the UI shows percentages.
-  const conversionRate = Number(stats?.conversionRate ?? 0) * 100
+  // Rates come as 0–1 fractions; the UI shows percentages.
   const completionRate = Number(stats?.completionRate ?? 0) * 100
-  
+
   return (
     <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-100 shadow-sm mb-3">
       <div>
         <p className="font-semibold text-slate-800 text-[14px]">{title}</p>
         <p className="text-[12px] text-slate-500 mt-1 flex gap-4">
-          <span>Views: <strong className="text-slate-700">{stats?.views ?? 0}</strong></span>
-          <span>Conversion: <strong className="text-slate-700">{conversionRate.toFixed(1)}%</strong></span>
-          <span>Task Completion: <strong className="text-slate-700">{completionRate.toFixed(1)}%</strong></span>
+          <span>Joined: <strong className="text-slate-700">{stats?.joins ?? 0}</strong></span>
+          <span>Finished: <strong className="text-slate-700">{stats?.finished ?? 0}</strong> ({completionRate.toFixed(1)}%)</span>
+          <span>Rewards paid: <strong className="text-slate-700">{formatCurrency(Number(stats?.rewardPaid ?? 0))}</strong></span>
         </p>
       </div>
       <div className="text-right">
@@ -456,6 +456,9 @@ export default function DashboardPage() {
           }
         />
       </div>
+
+      {/* What campaigns cost per completed task, and what could work better */}
+      <InsightsPanel merchantId={merchant.id} />
 
       {/* Main grid */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

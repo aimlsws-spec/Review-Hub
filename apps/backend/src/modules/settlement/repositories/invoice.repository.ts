@@ -16,6 +16,16 @@ export class InvoiceRepository {
     return this.prisma.invoice.findUnique({ where: { id } });
   }
 
+  /** Every merchant's invoices, newest first, optionally for one merchant. */
+  async findAll(page: number, limit: number, merchantId?: string) {
+    const where = merchantId ? { merchantId } : {};
+    const [data, total] = await Promise.all([
+      this.prisma.invoice.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { generatedAt: 'desc' }, include: { merchant: { select: { businessName: true } } } }),
+      this.prisma.invoice.count({ where }),
+    ]);
+    return { data, total, page, limit };
+  }
+
   async findByMerchant(merchantId: string, page: number, limit: number) {
     const where = { merchantId };
     const [data, total] = await Promise.all([

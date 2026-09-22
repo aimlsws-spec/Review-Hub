@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { ShieldCheck, Activity, Users, Lock, Mail, Eye, EyeOff, ArrowRight, Shield, Sparkles, Building2, Star, Check } from 'lucide-react'
 import React, { useState, InputHTMLAttributes, forwardRef } from 'react'
 import { useForm } from 'react-hook-form'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 
 import Viralkarlogo from '@/assets/ViralkarLogoK.svg'

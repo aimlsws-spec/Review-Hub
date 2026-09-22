@@ -20,11 +20,15 @@ import { MailModule } from './mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AiModule } from './modules/ai/ai.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { AppConfigModule } from './modules/app-config/app-config.module';
+import { MaintenanceGuard } from './modules/app-config/guards';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { CampaignModule } from './modules/campaign/campaign.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
+import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
+import { LocationModule } from './modules/location/location.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { MerchantModule } from './modules/merchant/merchant.module';
 import { NotificationModule } from './modules/notification/notification.module';
@@ -75,12 +79,15 @@ import { StorageModule } from './storage/storage.module';
     AuditModule,
     EventEmitterModule.forRoot(),
     AuthModule,
+    LocationModule,
     PaymentModule,
     MerchantModule,
     CampaignModule,
     TaskModule,
     AiModule,
     WalletModule,
+    LeaderboardModule,
+    AppConfigModule,
     ReferralModule,
     NotificationModule,
     SupportModule,
@@ -114,6 +121,8 @@ import { StorageModule } from './storage/storage.module';
     { provide: APP_INTERCEPTOR, useClass: ResponseTransformInterceptor },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // After the sign-in guard: whether the caller is an administrator is only known once the token has been read.
+    { provide: APP_GUARD, useClass: MaintenanceGuard },
   ],
 })
 export class AppModule implements NestModule {

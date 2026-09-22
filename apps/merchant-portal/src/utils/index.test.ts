@@ -6,6 +6,7 @@ import {
   getApiErrorMessage,
   getInitials,
   getStatusColor,
+  requireValue,
   truncate,
 } from './index'
 
@@ -73,5 +74,18 @@ describe('getApiErrorMessage', () => {
 
   it('falls back to a generic message for unrecognized input', () => {
     expect(getApiErrorMessage(null)).toBe('An unexpected error occurred')
+  })
+})
+
+describe('requireValue', () => {
+  it('returns the value when it is there', () => {
+    expect(requireValue('merchant-1', 'merchantId')).toBe('merchant-1')
+    expect(requireValue(0, 'count')).toBe(0)
+    expect(requireValue('', 'text')).toBe('')
+  })
+
+  it('throws a clear error when the value is missing', () => {
+    expect(() => requireValue(undefined, 'merchantId')).toThrow('merchantId is required')
+    expect(() => requireValue(null, 'ticketId')).toThrow('ticketId is required')
   })
 })

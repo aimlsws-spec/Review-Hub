@@ -19,15 +19,18 @@ export class MailService implements OnModuleInit {
   private transporter: Transporter;
 
   constructor(private readonly config: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: config.get<string>('smtp.host'),
-      port: config.get<number>('smtp.port', 587),
-      secure: config.get<boolean>('smtp.secure', false),
-      auth: {
-        user: config.get<string>('smtp.user'),
-        pass: config.get<string>('smtp.pass'),
-      },
-    });
+    this.transporter =
+      config.get<string>('smtp.transport') === 'json'
+        ? nodemailer.createTransport({ jsonTransport: true })
+        : nodemailer.createTransport({
+            host: config.get<string>('smtp.host'),
+            port: config.get<number>('smtp.port', 587),
+            secure: config.get<boolean>('smtp.secure', false),
+            auth: {
+              user: config.get<string>('smtp.user'),
+              pass: config.get<string>('smtp.pass'),
+            },
+          });
   }
 
   async onModuleInit(): Promise<void> {

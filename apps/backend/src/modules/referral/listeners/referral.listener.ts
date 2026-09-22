@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 
+import { AccountLinkageService } from '../../risk/services';
 import { RewardCreditedEvent } from '../../wallet/events';
 import { RewardRepository, UserWalletRepository } from '../../wallet/repositories';
 import { REFERRAL_CONSTANTS } from '../constants';
@@ -16,6 +17,7 @@ export class ReferralListener {
     private readonly rewardRepository: RewardRepository,
     private readonly walletRepository: UserWalletRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly accountLinkage: AccountLinkageService,
   ) {}
 
   /** Attribution only — no money moves here. The bonus waits for the referred user to actually earn something. */
@@ -45,6 +47,14 @@ export class ReferralListener {
     const creditedRewardCount = await this.rewardRepository.countCreditedByUser(event.userId);
     if (creditedRewardCount !== 1) return; // not this user's first credited reward
 
+    // Signing up your own second account with your own referral code is the classic way to farm this bonus.
+    // Accounts tied by a PAN, bank account or device are one person, so no bonus is paid. If the check itself
+    // fails we pay: the bonus is small, a person can still reverse it, and losing an honest referrer's bonus is worse.
+    if (await this.isSelfReferral(referral.referrerId, event.userId)) {
+      this.logger.warn(`Referral bonus withheld: referrer ${referral.referrerId} and referred user ${event.userId} appear to be the same person`);
+      return;
+    }
+
     const amount = REFERRAL_CONSTANTS.SIGNUP_BONUS_AMOUNT;
 
     const referralReward = await this.referralRepository.createReward({
@@ -68,5 +78,14 @@ export class ReferralListener {
 
     this.logger.log(`Referral bonus of ₹${amount} credited to ${referral.referrerId}`);
     this.eventEmitter.emit('referral.rewarded', new ReferralRewardedEvent(referral.id, referral.referrerId, amount));
+  }
+
+  private async isSelfReferral(referrerId: string, referredUserId: string): Promise<boolean> {
+    try {
+      return await this.accountLinkage.areLinked(referrerId, referredUserId);
+    } catch (error) {
+      this.logger.error(`Self-referral check failed; paying the bonus: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
   }
 }

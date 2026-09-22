@@ -35,6 +35,16 @@ export function truncate(str: string, length: number): string {
   return str.length > length ? `${str.slice(0, length)}...` : str
 }
 
+/**
+ * For an id that a query or mutation only uses once its `enabled` flag (or the button that triggers it) guarantees
+ * it exists. If that guarantee ever breaks, this fails loudly with a clear message instead of sending
+ * "undefined" in a URL, which a bare `!` would do silently.
+ */
+export function requireValue<T>(value: T | null | undefined, name: string): T {
+  if (value === null || value === undefined) throw new Error(`${name} is required`)
+  return value
+}
+
 export function getApiErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'response' in error) {
     const axiosError = error as { response?: { data?: { message?: string } } }

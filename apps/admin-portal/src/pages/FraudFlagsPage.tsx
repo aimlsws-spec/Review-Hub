@@ -17,6 +17,7 @@ import { FRAUD_RISK_LABELS, ITEMS_PER_PAGE } from '@/constants'
 import { useFraudFlagsQuery, useHighRiskDevicesQuery, useResolveFraudFlagMutation, useReverseRewardMutation } from '@/hooks/useFraudFlags'
 import type { FraudFlag, FraudRiskLevel } from '@/types'
 import { cn, formatDateTime } from '@/utils'
+import { fraudSignalDetail, fraudSignalLabel } from '@/utils/fraud'
 
 const RISK_OPTIONS = Object.entries(FRAUD_RISK_LABELS).map(([value, label]) => ({ value, label }))
 
@@ -136,6 +137,7 @@ function SubmissionFlagsTab() {
               <tr>
                 <th className="table-th">User</th>
                 <th className="table-th">Risk</th>
+                <th className="table-th">Signal</th>
                 <th className="table-th">Reason</th>
                 <th className="table-th">Flagged</th>
                 <th className="table-th text-right">Actions</th>
@@ -148,6 +150,16 @@ function SubmissionFlagsTab() {
                     {flag.user ? `${flag.user.firstName} ${flag.user.lastName}` : flag.userId.slice(0, 8)}
                   </td>
                   <td className="table-td"><StatusBadge status={flag.riskLevel} /></td>
+                  <td className="table-td">
+                    {fraudSignalLabel(flag) ? (
+                      <>
+                        <p className="text-gray-900">{fraudSignalLabel(flag)}</p>
+                        {fraudSignalDetail(flag) && <p className="max-w-[14rem] text-xs text-gray-500">{fraudSignalDetail(flag)}</p>}
+                      </>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
                   <td className="table-td max-w-xs truncate text-gray-500" title={flag.reason}>{flag.reason}</td>
                   <td className="table-td text-gray-500">{formatDateTime(flag.createdAt)}</td>
                   <td className="table-td text-right">

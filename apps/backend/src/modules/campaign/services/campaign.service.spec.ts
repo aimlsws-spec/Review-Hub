@@ -6,8 +6,10 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { MerchantWalletRepository } from '../../merchant/repositories';
+import { CampaignPolicyViolationException } from '../exceptions/policy-violation.exception';
 import { CampaignRepository } from '../repositories';
 
+import { CampaignPolicyService } from './campaign-policy.service';
 import { CampaignService } from './campaign.service';
 
 describe('CampaignService', () => {
@@ -21,6 +23,7 @@ describe('CampaignService', () => {
     softDelete: jest.fn(),
     findByMerchant: jest.fn(),
     findPublic: jest.fn(),
+    findPublicById: jest.fn(),
     createApproval: jest.fn(),
     findPendingReview: jest.fn(),
   };
@@ -38,6 +41,15 @@ describe('CampaignService', () => {
   const mockAuditLogService = {
     record: jest.fn(),
   };
+
+  const mockPolicyService = {
+    assertCampaignAllowed: jest.fn(),
+    findingsForCampaigns: jest.fn(),
+  };
+
+  const violation = new CampaignPolicyViolationException('submitted', [
+    { rule: 'REQUIRES_RATING', severity: 'BLOCK', field: 'title', excerpt: '5 stars', message: 'No rating may be asked for.' } as never,
+  ]);
 
   const draftCampaign = {
     id: 'campaign-1',
@@ -61,11 +73,14 @@ describe('CampaignService', () => {
         { provide: MerchantWalletRepository, useValue: mockMerchantWalletRepository },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: AuditLogService, useValue: mockAuditLogService },
+        { provide: CampaignPolicyService, useValue: mockPolicyService },
       ],
     }).compile();
 
     service = module.get<CampaignService>(CampaignService);
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockPolicyService.assertCampaignAllowed.mockResolvedValue(undefined);
+    mockPolicyService.findingsForCampaigns.mockResolvedValue(new Map());
   });
 
   describe('create', () => {
@@ -105,6 +120,20 @@ describe('CampaignService', () => {
     });
   });
 
+  describe('getPublicById', () => {
+    it('returns an active, public campaign', async () => {
+      mockCampaignRepository.findPublicById.mockResolvedValue({ id: 'campaign-1', title: 'Cafe' });
+
+      await expect(service.getPublicById('campaign-1')).resolves.toEqual({ id: 'campaign-1', title: 'Cafe' });
+    });
+
+    it('says not found for anything else: a draft, an ended or private campaign, or one that does not exist look the same', async () => {
+      mockCampaignRepository.findPublicById.mockResolvedValue(null);
+
+      await expect(service.getPublicById('campaign-1')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   describe('update', () => {
     it('should update a DRAFT campaign', async () => {
       mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
@@ -122,23 +151,58 @@ describe('CampaignService', () => {
   });
 
   describe('submitForApproval', () => {
-    it('should move a DRAFT campaign to PENDING_REVIEW when autoApprove is off', async () => {
+    it('should move a DRAFT campaign to PENDING_REVIEW', async () => {
       mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
       mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'PENDING_REVIEW' });
 
       const result = await service.submitForApproval('campaign-1');
       expect(result).toHaveProperty('status', 'PENDING_REVIEW');
-      expect(mockCampaignRepository.update).toHaveBeenCalledWith('campaign-1', expect.objectContaining({ status: 'PENDING_REVIEW' }));
-      expect(mockEventEmitter.emit).toHaveBeenCalledWith('campaign.submitted', expect.objectContaining({ autoApproved: false }));
+      expect(mockCampaignRepository.update).toHaveBeenCalledWith('campaign-1', { status: 'PENDING_REVIEW' });
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'campaign.submitted',
+        expect.objectContaining({ campaignId: 'campaign-1', merchantId: draftCampaign.merchantId }),
+      );
     });
 
-    it('should move straight to APPROVED when autoApprove is on', async () => {
+    it('still needs an admin when the merchant asked for auto-approval: a merchant can not approve their own campaign', async () => {
       mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, autoApprove: true });
-      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'APPROVED' });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'PENDING_REVIEW' });
 
       const result = await service.submitForApproval('campaign-1');
-      expect(result).toHaveProperty('status', 'APPROVED');
-      expect(mockCampaignRepository.update).toHaveBeenCalledWith('campaign-1', expect.objectContaining({ status: 'APPROVED' }));
+
+      expect(result).toHaveProperty('status', 'PENDING_REVIEW');
+      const written = mockCampaignRepository.update.mock.calls[0][1];
+      expect(written.status).toBe('PENDING_REVIEW');
+      expect(written).not.toHaveProperty('approvedAt');
+    });
+
+    it('never records an approval time or an approver when submitting', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, autoApprove: true });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'PENDING_REVIEW' });
+
+      await service.submitForApproval('campaign-1');
+
+      expect(mockCampaignRepository.update.mock.calls[0][1]).not.toHaveProperty('approvedBy');
+      expect(mockCampaignRepository.update.mock.calls[0][1]).not.toHaveProperty('approvedAt');
+    });
+
+    it('a campaign sent back for changes is reviewed again too', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'CHANGES_REQUESTED', autoApprove: true });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'PENDING_REVIEW' });
+
+      await service.submitForApproval('campaign-1');
+
+      expect(mockCampaignRepository.update).toHaveBeenCalledWith('campaign-1', { status: 'PENDING_REVIEW' });
+    });
+
+    it('refuses a campaign whose wording asks for a rating, and leaves it as it was', async () => {
+      mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+      mockPolicyService.assertCampaignAllowed.mockRejectedValue(violation);
+
+      await expect(service.submitForApproval('campaign-1')).rejects.toBe(violation);
+
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+      expect(mockEventEmitter.emit).not.toHaveBeenCalled();
     });
 
     it('should reject submitting a campaign that is not DRAFT/CHANGES_REQUESTED', async () => {
@@ -218,6 +282,18 @@ describe('CampaignService', () => {
     });
   });
 
+  describe('approve, wording re-check', () => {
+    it('does not approve a campaign whose wording now asks for a rating', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'PENDING_REVIEW' });
+      mockPolicyService.assertCampaignAllowed.mockRejectedValue(violation);
+
+      await expect(service.approve('campaign-1', 'admin-1', { comments: 'ok' })).rejects.toBe(violation);
+
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+      expect(mockCampaignRepository.createApproval).not.toHaveBeenCalled();
+    });
+  });
+
   describe('reject', () => {
     it('should move a PENDING_REVIEW campaign to REJECTED, log the rejection, and audit it', async () => {
       mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'PENDING_REVIEW' });
@@ -255,6 +331,23 @@ describe('CampaignService', () => {
 
       await service.listPendingReview(1, 20);
       expect(mockCampaignRepository.findPendingReview).toHaveBeenCalledWith({ page: 1, limit: 20 });
+    });
+
+    it('attaches wording flags to each campaign in the queue', async () => {
+      const flag = { rule: 'POSITIVE_WORDING', severity: 'REVIEW', field: 'title', excerpt: 'great', message: 'm' };
+      mockCampaignRepository.findPendingReview.mockResolvedValue({
+        data: [{ ...draftCampaign, id: 'c-1' }, { ...draftCampaign, id: 'c-2' }],
+        total: 2,
+        page: 1,
+        limit: 20,
+      });
+      mockPolicyService.findingsForCampaigns.mockResolvedValue(new Map([['c-1', [flag]]]));
+
+      const result = await service.listPendingReview(1, 20);
+
+      expect(result.total).toBe(2);
+      expect(result.data[0].policyFlags).toEqual([flag]);
+      expect(result.data[1].policyFlags).toEqual([]);
     });
   });
 

@@ -318,6 +318,30 @@ enum WithdrawalStatus {
   CANCELLED
 }
 
+/// How approved withdrawals are paid out: through the payment gateway, or by an admin sending the money and recording the bank's reference.
+enum PayoutMode {
+  GATEWAY
+  MANUAL
+}
+
+/// Where a bank-transfer top-up stands. A large one waits for a second admin before any money moves.
+enum ManualTopUpStatus {
+  PENDING_APPROVAL
+  COMPLETED
+  REJECTED
+  REVERSED
+}
+
+enum InvoiceNoteType {
+  CREDIT
+  DEBIT
+}
+
+enum TdsStatus {
+  DEDUCTED
+  REVERSED
+}
+
 enum RefundStatus {
   PENDING
   UNDER_REVIEW
@@ -347,6 +371,14 @@ enum NotificationChannel {
   EMAIL
   SMS
   IN_APP
+}
+
+enum BroadcastStatus {
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+  FAILED
 }
 
 enum NotificationStatus {
@@ -448,23 +480,23 @@ enum AuditAction {
 // ============================================================
 
 model User {
-  id                  String     @id @default(uuid())
+  id                  String        @id @default(uuid())
   firstName           String
   lastName            String
-  email               String?    @unique
-  phone               String?    @unique
+  email               String?       @unique
+  phone               String?       @unique
   passwordHash        String?
-  googleId            String?    @unique
-  appleId             String?    @unique
+  googleId            String?       @unique
+  appleId             String?       @unique
   avatarUrl           String?
-  status              UserStatus @default(PENDING_VERIFICATION)
+  status              UserStatus    @default(PENDING_VERIFICATION)
   emailVerifiedAt     DateTime?
   phoneVerifiedAt     DateTime?
   lastLoginAt         DateTime?
   lastLoginIp         String?
-  timezone            String?    @default("UTC")
-  language            String?    @default("en")
-  referralCode        String     @unique @default(uuid())
+  timezone            String?       @default("UTC")
+  language            String?       @default("en")
+  referralCode        String        @unique @default(uuid())
   referredById        String?
   isTwoFactorEnabled  Boolean       @default(false)
   failedLoginAttempts Int           @default(0)
@@ -475,8 +507,10 @@ model User {
   stateId             String?
   cityId              String?
   socialFollowers     Int           @default(0)
+  /// Set when the person asks to stay off the public leaderboard. They are then left out of the ranking and never shown on it.
+  hideFromLeaderboard Boolean       @default(false)
   createdAt           DateTime      @default(now())
-  updatedAt           DateTime   @updatedAt
+  updatedAt           DateTime      @updatedAt
   deletedAt           DateTime?
 
   referredBy             User?                    @relation("UserReferrals", fields: [referredById], references: [id])
@@ -495,6 +529,7 @@ model User {
   rewards                Reward[]                 @relation("RewardUser")
   submissionFraudFlags   SubmissionFraudFlag[]    @relation("SubmissionFraudFlagUser")
   notifications          Notification[]
+  broadcastsCreated      NotificationBroadcast[]  @relation("BroadcastCreator")
   notificationPreference NotificationPreference?
   referralsMade          Referral[]               @relation("ReferralReferrer")
   referralReceived       Referral?                @relation("ReferralReferredUser")
@@ -638,6 +673,8 @@ model Device {
   appVersion   String?
   pushToken    String?        @unique
   fingerprint  String?
+  /// SHA-256 of the stable install id the app sends in X-Device-ID. null until the app sends one.
+  installId    String?
   isActive     Boolean        @default(true)
   lastSeenAt   DateTime?
   // Basic fraud-risk signals — isRooted/isEmulator are self-reported by the
@@ -658,6 +695,7 @@ model Device {
   @@unique([userId, fingerprint])
   @@index([userId])
   @@index([fingerprint])
+  @@index([installId])
   @@index([riskScore])
   @@map("devices")
 }
@@ -679,6 +717,7 @@ model LoginHistory {
 
   @@index([userId])
   @@index([loginAt])
+  @@index([ipAddress, loginAt])
   @@index([isSuccess])
   @@map("login_history")
 }
@@ -833,6 +872,7 @@ model UserKycDocument {
 
   @@index([userId])
   @@index([documentType])
+  @@index([documentType, documentNumber])
   @@index([verificationStatus])
   @@index([deletedAt])
   @@map("user_kyc_documents")
@@ -1314,19 +1354,25 @@ model TaskSubmission {
 }
 
 model SubmissionAttachment {
-  id           String   @id @default(uuid())
-  submissionId String
-  fileName     String
-  mimeType     String
-  fileSize     Int
-  storagePath  String
-  checksum     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(uuid())
+  submissionId   String
+  fileName       String
+  mimeType       String
+  fileSize       Int
+  storagePath    String
+  checksum       String?
+  /// 64-bit perceptual hash (dHash) stored as a signed BIGINT, so MySQL can count differing bits with
+  /// BIT_COUNT(a ^ b). Two pictures a few bits apart are the same picture, even re-saved or resized.
+  perceptualHash BigInt?
+  /// Normalised OCR words. null: OCR did not run. empty: OCR found no meaningful text (likely a photo).
+  evidenceText   String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   submission TaskSubmission @relation(fields: [submissionId], references: [id])
 
   @@index([submissionId])
+  @@index([createdAt])
   @@map("submission_attachments")
 }
 
@@ -1374,6 +1420,8 @@ model SubmissionFraudFlag {
   submissionId String
   userId       String
   riskLevel    FraudRiskLevel
+  /// What raised it (duplicate image, VPN, several accounts...). null on flags raised before this existed.
+  type         FraudFlagType?
   reason       String         @db.Text
   resolved     Boolean        @default(false)
   resolvedBy   String?
@@ -1389,6 +1437,7 @@ model SubmissionFraudFlag {
   @@index([userId])
   @@index([riskLevel])
   @@index([resolved])
+  @@index([type])
   @@map("submission_fraud_flags")
 }
 
@@ -1425,6 +1474,7 @@ model MerchantWallet {
   merchant       Merchant                @relation(fields: [merchantId], references: [id], map: "merchant_wallet_merchant_fk")
   transactions   WalletTransaction[]
   refundRequests MerchantRefundRequest[]
+  manualTopUps   MerchantManualTopUp[]
 
   @@map("merchant_wallets")
 }
@@ -1445,9 +1495,11 @@ model WalletTransaction {
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
 
-  wallet         UserWallet?     @relation(fields: [walletId], references: [id])
-  merchantWallet MerchantWallet? @relation(fields: [merchantWalletId], references: [id])
-  referralReward ReferralReward?
+  wallet              UserWallet?          @relation(fields: [walletId], references: [id])
+  merchantWallet      MerchantWallet?      @relation(fields: [merchantWalletId], references: [id])
+  referralReward      ReferralReward?
+  manualTopUp         MerchantManualTopUp? @relation("ManualTopUpCredit")
+  manualTopUpReversal MerchantManualTopUp? @relation("ManualTopUpReversal")
 
   @@index([walletId])
   @@index([merchantWalletId])
@@ -1456,6 +1508,43 @@ model WalletTransaction {
   @@index([referenceType, referenceId])
   @@index([createdAt])
   @@map("wallet_transactions")
+}
+
+/// Money a merchant paid the platform outside the payment gateway (bank transfer or UPI), credited to their wallet by an admin. Never edited or deleted: a mistake is corrected with a new, opposite entry (a reversal), so the trail stays complete. A large one is recorded first and only credited once a different admin approves it. bankReference (the bank's UTR) is unique across all merchants, so one transfer can only ever be credited once; a rejected top-up gives its reference back, in rejectedReference, so the real transfer can be recorded properly.
+model MerchantManualTopUp {
+  id                    String            @id @default(uuid())
+  merchantWalletId      String
+  status                ManualTopUpStatus @default(COMPLETED)
+  /// Empty until the money is credited, or when it was never credited.
+  walletTransactionId   String?           @unique
+  amount                Decimal           @db.Decimal(12, 2)
+  /// Upper-cased, no spaces. Empty once the top-up is rejected (see rejectedReference).
+  bankReference         String?           @unique
+  rejectedReference     String?
+  /// The day the money reached the platform's bank account.
+  receivedOn            DateTime          @db.Date
+  note                  String?           @db.VarChar(500)
+  /// The admin who recorded it.
+  recordedBy            String
+  /// The different admin who approved (or rejected) it, for a large one.
+  decidedBy             String?
+  decidedAt             DateTime?
+  rejectionReason       String?           @db.VarChar(500)
+  reversedAt            DateTime?
+  reversedBy            String?
+  reversalReason        String?           @db.VarChar(500)
+  reversalTransactionId String?           @unique
+  createdAt             DateTime          @default(now())
+
+  merchantWallet      MerchantWallet     @relation(fields: [merchantWalletId], references: [id])
+  walletTransaction   WalletTransaction? @relation("ManualTopUpCredit", fields: [walletTransactionId], references: [id])
+  reversalTransaction WalletTransaction? @relation("ManualTopUpReversal", fields: [reversalTransactionId], references: [id])
+
+  @@index([merchantWalletId])
+  @@index([recordedBy])
+  @@index([status])
+  @@index([createdAt])
+  @@map("merchant_manual_top_ups")
 }
 
 /// One merchant's reconciliation report for a period — what they topped up, what campaigns spent, and the platform's commission on that spend. Generated nightly, read-only once created.
@@ -1494,11 +1583,65 @@ model Invoice {
   pdfPath           String?
   generatedAt       DateTime @default(now())
 
-  settlement Settlement @relation(fields: [settlementId], references: [id])
-  merchant   Merchant   @relation(fields: [merchantId], references: [id])
+  settlement Settlement    @relation(fields: [settlementId], references: [id])
+  merchant   Merchant      @relation(fields: [merchantId], references: [id])
+  notes      InvoiceNote[]
 
   @@index([merchantId])
   @@map("invoices")
+}
+
+/// A credit note (reduces what an invoice charged) or debit note (adds to it), issued by an admin against a GST invoice. Never edited or deleted: a mistake is corrected with another note. It is a tax document only and does not move money.
+model InvoiceNote {
+  id                String          @id @default(uuid())
+  noteNumber        String          @unique
+  type              InvoiceNoteType
+  invoiceId         String
+  merchantId        String
+  reason            String          @db.VarChar(500)
+  platformGstNumber String?
+  merchantGstNumber String?
+  taxableAmount     Decimal         @db.Decimal(12, 2)
+  gstRate           Decimal         @db.Decimal(5, 2)
+  gstAmount         Decimal         @db.Decimal(12, 2)
+  totalAmount       Decimal         @db.Decimal(12, 2)
+  pdfPath           String?
+  /// The admin who issued it.
+  issuedBy          String
+  createdAt         DateTime        @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@index([merchantId])
+  @@index([createdAt])
+  @@map("invoice_notes")
+}
+
+/// Tax kept back from one user payout, with what a TDS return needs. One row per withdrawal; if the payout fails and the money goes back to the user, the row is marked REVERSED, not deleted.
+model TdsDeduction {
+  id            String    @id @default(uuid())
+  withdrawalId  String    @unique
+  userId        String
+  /// The Indian financial year the payout falls in, like 2026-27.
+  financialYear String
+  /// The user's PAN when the deduction was made.
+  panNumber     String?
+  section       String
+  grossAmount   Decimal   @db.Decimal(12, 2)
+  rate          Decimal   @db.Decimal(5, 4)
+  tdsAmount     Decimal   @db.Decimal(12, 2)
+  netAmount     Decimal   @db.Decimal(12, 2)
+  status        TdsStatus @default(DEDUCTED)
+  createdAt     DateTime  @default(now())
+  reversedAt    DateTime?
+
+  withdrawal WithdrawalRequest @relation(fields: [withdrawalId], references: [id])
+
+  @@index([userId])
+  @@index([financialYear, status])
+  @@index([createdAt])
+  @@map("tds_deductions")
 }
 
 model Reward {
@@ -1675,14 +1818,22 @@ model WithdrawalRequest {
   rejectionReason String?          @db.Text
   processedBy     String?
   processedAt     DateTime?
+  /// How this one was (or is being) paid. Set when it is approved.
+  payoutMode      PayoutMode?
+  /// The bank's reference (UTR) for the payout. Unique, so one transfer can only ever settle one withdrawal.
+  payoutReference String?          @unique
+  paidAt          DateTime?
+  /// Tax the platform kept back from this payout. finalAmount is what reaches the user: amount minus this.
+  tdsAmount       Decimal          @default(0) @db.Decimal(12, 2)
   metadata        Json?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
 
-  wallet      UserWallet       @relation(fields: [walletId], references: [id])
-  bankAccount UserBankAccount? @relation(fields: [bankAccountId], references: [id])
-  logs        WithdrawalLog[]
+  wallet       UserWallet       @relation(fields: [walletId], references: [id])
+  bankAccount  UserBankAccount? @relation(fields: [bankAccountId], references: [id])
+  logs         WithdrawalLog[]
+  tdsDeduction TdsDeduction?
 
   @@index([walletId])
   @@index([status])
@@ -1767,6 +1918,8 @@ model UserBankAccount {
   isPrimary          Boolean                @default(false)
   verificationStatus BankVerificationStatus @default(PENDING)
   verifiedAt         DateTime?
+  /// When the holder name, IFSC or bank name last changed. With createdAt it starts the cooling period before a withdrawal can go to this account.
+  detailsChangedAt   DateTime?
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
   deletedAt          DateTime?
@@ -1776,6 +1929,7 @@ model UserBankAccount {
 
   @@unique([userId, accountNumber, ifscCode])
   @@index([userId])
+  @@index([accountNumber, ifscCode])
   @@index([verificationStatus])
   @@index([deletedAt])
   @@map("user_bank_accounts")
@@ -1785,6 +1939,7 @@ model Notification {
   id           String              @id @default(uuid())
   userId       String
   templateId   String?
+  broadcastId  String?
   title        String
   message      String              @db.Text
   type         NotificationType
@@ -1800,10 +1955,12 @@ model Notification {
   updatedAt    DateTime            @updatedAt
   deletedAt    DateTime?
 
-  user     User                  @relation(fields: [userId], references: [id])
-  template NotificationTemplate? @relation(fields: [templateId], references: [id])
+  user      User                   @relation(fields: [userId], references: [id])
+  template  NotificationTemplate?  @relation(fields: [templateId], references: [id])
+  broadcast NotificationBroadcast? @relation(fields: [broadcastId], references: [id])
 
   @@index([userId])
+  @@index([broadcastId])
   @@index([status])
   @@index([type])
   @@index([channel])
@@ -1811,6 +1968,40 @@ model Notification {
   @@index([createdAt])
   @@index([deletedAt])
   @@map("notifications")
+}
+
+/// One admin-authored message sent to many users. `audience` and `channels` are JSON snapshots of what the
+/// admin chose, so a broadcast stays reproducible even if targeting options change later.
+model NotificationBroadcast {
+  id             String           @id @default(uuid())
+  createdById    String
+  title          String
+  message        String           @db.Text
+  type           NotificationType @default(PROMOTIONAL)
+  channels       Json
+  audience       Json
+  status         BroadcastStatus  @default(SCHEDULED)
+  scheduledAt    DateTime
+  startedAt      DateTime?
+  completedAt    DateTime?
+  /// Users queued so far. Grows while SENDING and is final once SENT.
+  recipientCount Int              @default(0)
+  /// Last user id queued, so an interrupted send resumes instead of starting over.
+  cursorUserId   String?
+  /// When true each recipient's message is held until the hour they are usually active, within 24 hours.
+  smartTiming    Boolean          @default(false)
+  failureReason  String?          @db.Text
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  createdBy     User           @relation("BroadcastCreator", fields: [createdById], references: [id])
+  notifications Notification[]
+
+  @@index([status, scheduledAt])
+  @@index([createdById])
+  @@index([deletedAt])
+  @@map("notification_broadcasts")
 }
 
 model NotificationTemplate {
@@ -2484,19 +2675,43 @@ model FeatureFlag {
 }
 
 model PlatformConfiguration {
-  id                   String    @id @default(uuid())
-  platformName         String    @default("ReviewHub")
-  supportEmail         String?
-  supportPhone         String?
-  commissionPercentage Decimal   @default(0) @db.Decimal(5, 4)
-  minimumWithdrawal    Decimal   @default(100) @db.Decimal(12, 2)
-  maximumWithdrawal    Decimal   @default(50000) @db.Decimal(12, 2)
-  maintenanceMode      Boolean   @default(false)
-  appVersion           String    @default("1.0.0")
-  apiVersion           String    @default("v1")
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  deletedAt            DateTime?
+  id                           String     @id @default(uuid())
+  platformName                 String     @default("ReviewHub")
+  supportEmail                 String?
+  supportPhone                 String?
+  commissionPercentage         Decimal    @default(0) @db.Decimal(5, 4)
+  /// The least a user can withdraw at once.
+  minimumWithdrawal            Decimal    @default(1000) @db.Decimal(12, 2)
+  /// The most a user can withdraw in one request.
+  maximumWithdrawal            Decimal    @default(50000) @db.Decimal(12, 2)
+  /// The most one user can withdraw in a calendar day (India time), across all their requests.
+  dailyWithdrawalLimit         Decimal    @default(50000) @db.Decimal(12, 2)
+  /// The most one user can withdraw in a calendar month (India time). Empty means no monthly limit.
+  monthlyWithdrawalLimit       Decimal?   @db.Decimal(12, 2)
+  /// A bank account can not receive a withdrawal until this many hours after it was added or its payout details changed. 0 turns it off.
+  bankCoolingHours             Int        @default(24)
+  payoutMode                   PayoutMode @default(GATEWAY)
+  /// Tax deducted at source from a user's payout, as a fraction (0.1 = 10%). 0 means no TDS is deducted. Set only with the platform's tax adviser: the rate, section and threshold are a legal matter.
+  tdsRate                      Decimal    @default(0) @db.Decimal(5, 4)
+  /// TDS applies once a user's payouts in the financial year (1 April to 31 March, India) go above this amount, and then to each further payout.
+  tdsAnnualThreshold           Decimal    @default(0) @db.Decimal(12, 2)
+  /// The income tax section the deduction is made under, as told by the tax adviser (for the returns). Required before a rate can be set.
+  tdsSection                   String?
+  /// A bank-transfer top-up above this amount is not credited until a second admin approves it. 0 means every top-up is credited straight away.
+  manualTopUpApprovalThreshold Decimal    @default(100000) @db.Decimal(12, 2)
+  /// While on, everyone except administrators is turned away (payment callbacks, health checks and sign-in stay open).
+  maintenanceMode              Boolean    @default(false)
+  /// Shown to people while maintenance is on. Empty uses a default message.
+  maintenanceMessage           String?    @db.VarChar(300)
+  /// The oldest mobile app version allowed to talk to the server. An app older than this is told to update.
+  minimumAppVersion            String     @default("1.0.0") @db.VarChar(20)
+  /// Where the update prompt sends people (the store page).
+  updateUrl                    String?    @db.VarChar(500)
+  appVersion                   String     @default("1.0.0")
+  apiVersion                   String     @default("v1")
+  createdAt                    DateTime   @default(now())
+  updatedAt                    DateTime   @updatedAt
+  deletedAt                    DateTime?
 
   @@index([deletedAt])
   @@map("platform_configuration")

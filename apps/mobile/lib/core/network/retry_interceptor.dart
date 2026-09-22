@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import 'app_unavailable_interceptor.dart';
+
 /// Retries idempotent GET requests on transient failures (timeouts,
 /// connection drops, 5xx) with exponential backoff — a flaky mobile
 /// connection shouldn't surface an error to the user on the first blip.
@@ -21,6 +23,9 @@ class RetryInterceptor extends Interceptor {
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.connectionError;
     final isServerError = error.response != null && error.response!.statusCode != null && error.response!.statusCode! >= 500;
+
+    // Maintenance is a 503 on purpose: asking again a few seconds later only makes the person wait for the same answer.
+    if (AppUnavailableInterceptor.isRefusal(error.response)) return false;
 
     return isTransientError || isServerError;
   }

@@ -15,6 +15,8 @@ export interface DeviceMetadata {
   isRooted?: boolean;
   isEmulator?: boolean;
   vpnSuspected?: boolean;
+  /** SHA-256 of the app's stable install id (see hashInstallId). */
+  installId?: string;
 }
 
 /**
@@ -29,7 +31,12 @@ export interface DeviceSignalsInput {
   isEmulator?: boolean;
   xForwardedFor?: string;
   via?: string;
+  /** The raw X-Device-ID header the app sends. Validated and hashed by DeviceService.hashInstallId before storing. */
+  installId?: string;
 }
+
+/** What an install id may look like: a UUID or similar opaque token, never free text. */
+const INSTALL_ID_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
 
 @Injectable()
 export class DeviceService {
@@ -66,6 +73,7 @@ export class DeviceService {
           isRooted,
           isEmulator,
           vpnSuspected,
+          installId: metadata.installId ?? existingDevice.installId,
           riskScore: this.calculateRiskScore({ isRooted, isEmulator, vpnSuspected }),
           isActive: true,
           lastSeenAt: new Date(),
@@ -90,6 +98,7 @@ export class DeviceService {
       isRooted,
       isEmulator,
       vpnSuspected,
+      installId: metadata.installId,
       riskScore: this.calculateRiskScore({ isRooted, isEmulator, vpnSuspected }),
       isActive: true,
       lastSeenAt: new Date(),
@@ -123,6 +132,18 @@ export class DeviceService {
     if (signals.via) return true;
     if (signals.xForwardedFor && signals.xForwardedFor.split(',').length > 1) return true;
     return false;
+  }
+
+  /**
+   * Turns the X-Device-ID header into what we store: a SHA-256 hash, or undefined if it is missing or not a
+   * plausible id. The raw id is never stored, so it cannot be read back or reused, yet the same install always
+   * hashes the same, which is all that linking accounts on one device needs. (The `fingerprint` column is only a
+   * hash of user agent and IP, so it cannot tell devices apart across networks; this can.)
+   */
+  hashInstallId(raw?: string): string | undefined {
+    const value = raw?.trim();
+    if (!value || !INSTALL_ID_PATTERN.test(value)) return undefined;
+    return crypto.createHash('sha256').update(`install:${value}`).digest('hex');
   }
 
   /**

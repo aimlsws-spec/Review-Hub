@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
-export class RegisterDto {
+import { DemographicsDto } from './demographics.dto';
+
+export class RegisterDto extends DemographicsDto {
   @ApiProperty({ example: 'John' })
   @IsString()
   @MinLength(1)

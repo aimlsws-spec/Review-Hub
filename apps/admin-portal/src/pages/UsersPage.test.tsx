@@ -2,10 +2,12 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAccountRiskQuery } from '@/hooks/useAccountRisk'
 import { useUserActionMutation, useUserDetailQuery, useUsersQuery } from '@/hooks/useUsers'
 
 import UsersPage from './UsersPage'
 
+vi.mock('@/hooks/useAccountRisk', () => ({ useAccountRiskQuery: vi.fn() }))
 vi.mock('@/hooks/useUsers', () => ({
   useUsersQuery: vi.fn(),
   useUserDetailQuery: vi.fn(),
@@ -44,6 +46,7 @@ describe('UsersPage', () => {
     } as never)
     vi.mocked(useUserDetailQuery).mockReturnValue({ data: undefined, isLoading: false } as never)
     vi.mocked(useUserActionMutation).mockReturnValue({ mutate: applyActionMock, isPending: false } as never)
+    vi.mocked(useAccountRiskQuery).mockReturnValue({ data: undefined, isLoading: true, isError: false } as never)
     applyActionMock.mockReset()
   })
 
@@ -125,5 +128,21 @@ describe('UsersPage', () => {
     await user.click(dialog.getByRole('button', { name: /^reactivate$/i }))
 
     await waitFor(() => expect(applyActionMock).toHaveBeenCalledWith({ user: suspendedUser, action: 'reactivate' }))
+  })
+  it("shows the selected user's account risk in their details", async () => {
+    const user = userEvent.setup()
+    vi.mocked(useUserDetailQuery).mockReturnValue({ data: { data: { data: activeUser } }, isLoading: false } as never)
+    vi.mocked(useAccountRiskQuery).mockReturnValue({
+      data: { data: { data: { score: 10, level: 'LOW', deviceRisk: 10, linkPoints: 0, linkedAccounts: [], recentIps: [] } } },
+      isLoading: false,
+      isError: false,
+    } as never)
+    renderPage()
+
+    await user.click(screen.getByText('Sam Lee'))
+
+    const panel = within(await screen.findByRole('region', { name: 'Account risk' }))
+    expect(useAccountRiskQuery).toHaveBeenCalledWith('user-1')
+    expect(panel.getByText('LOW')).toBeInTheDocument()
   })
 })

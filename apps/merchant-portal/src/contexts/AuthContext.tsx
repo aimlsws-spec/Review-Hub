@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { authApi } from '@/api/auth.api'
 import { merchantApi } from '@/api/merchant.api'

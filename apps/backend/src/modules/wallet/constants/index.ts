@@ -33,3 +33,26 @@ export const REVIEWABLE_WITHDRAWAL_STATUSES = ['PENDING', 'UNDER_REVIEW'];
  * combinations — rather than any single weak signal alone.
  */
 export const DEVICE_RISK_HOLD_THRESHOLD = 80;
+
+/**
+ * What the withdrawal rules are when the platform configuration has nothing better to say. The admin can change all of
+ * these in the portal; the values there always win.
+ */
+export const WITHDRAWAL_DEFAULTS = {
+  MINIMUM: WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT,
+  MAXIMUM: 50_000,
+  DAILY_LIMIT: 50_000,
+  /** No monthly limit until an admin sets one. */
+  MONTHLY_LIMIT: null,
+  BANK_COOLING_HOURS: 24,
+  PAYOUT_MODE: 'GATEWAY',
+} as const;
+
+/**
+ * Withdrawals that still count against a user's daily and monthly limits. A rejected, cancelled or failed one gave
+ * the money back, so it gives the limit back too.
+ */
+export const LIMIT_COUNTED_STATUSES = ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING', 'PAID'] as const;
+
+/** Where a withdrawal can be marked paid or failed by hand: approved, and not already with the gateway. */
+export const MANUALLY_SETTLEABLE_STATUS = 'APPROVED';

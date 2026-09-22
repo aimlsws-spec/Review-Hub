@@ -1,6 +1,6 @@
 import { Spinner } from '@reviewhub/shared-ui'
 import { useState, useRef, useEffect } from 'react'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { ROUTES } from '@/constants'
@@ -14,6 +14,7 @@ const ROUTE_LABELS: Record<string, string> = {
   dashboard:  'Dashboard',
   profile:    'Profile',
   reviews:    'Reviews',
+  analytics:  'Analytics',
   customers:  'Customers',
   rewards:    'Rewards',
   coupons:    'Coupons',

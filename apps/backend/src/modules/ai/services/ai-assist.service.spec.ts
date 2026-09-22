@@ -99,8 +99,26 @@ describe('AiAssistService', () => {
       expect(result.source).toBe('template');
       expect(result.drafts.length).toBeGreaterThan(0);
       expect(result.drafts.every((d) => d.includes('Cafe Aroma'))).toBe(true);
-      expect(result.drafts.every((d) => d.includes('the food') && d.includes('the service'))).toBe(true);
+      expect(result.drafts.every((d) => d.toLowerCase().includes('the food') && d.toLowerCase().includes('the service'))).toBe(true);
       expect(result.drafts.every((d) => d.endsWith('Loved it'))).toBe(true);
+    });
+
+    it('falls back to drafts that say what could be better when the person listed problems', async () => {
+      mockHttpService.post.mockReturnValue(throwError(() => new Error('timeout')));
+
+      const result = await service.draftReviews({ businessName: 'Cafe Aroma', likedAspects: ['FOOD'], improveAspects: ['SERVICE'] });
+
+      expect(result.drafts.every((d) => d.includes('the food') && d.includes('the service'))).toBe(true);
+      expect(result.drafts.some((d) => /could be better|room for improvement/.test(d))).toBe(true);
+    });
+
+    it('sends the new answers on to the AI service', async () => {
+      mockHttpService.post.mockReturnValue(of({ data: { drafts: ['x'], source: 'llm' } }));
+      const context = { businessName: 'Cafe Aroma', improveAspects: ['PRICE'], experience: 'NEGATIVE' as const, wouldRecommend: false };
+
+      await service.draftReviews(context);
+
+      expect(mockHttpService.post.mock.calls[0][1]).toEqual(context);
     });
 
     it('falls back to a generic aspect phrase when no aspects were given', async () => {
@@ -108,7 +126,7 @@ describe('AiAssistService', () => {
 
       const result = await service.draftReviews({ businessName: 'Cafe Aroma' });
 
-      expect(result.drafts.every((d) => d.includes('the overall experience'))).toBe(true);
+      expect(result.drafts.every((d) => d.toLowerCase().includes('the overall experience'))).toBe(true);
     });
   });
 

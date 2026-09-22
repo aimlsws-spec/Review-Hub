@@ -174,6 +174,9 @@ function SortableColumnHeader({ field, label, sortState, onSort }: SortableColum
 
 const PAGE_SIZE = 20
 
+/** A stable empty list, so memoised values below do not recompute on every render while loading. */
+const NO_CUSTOMERS: Customer[] = []
+
 export default function CustomersPage() {
   const merchantId = useAuthStore((s) => s.merchant?.id)
 
@@ -199,7 +202,7 @@ export default function CustomersPage() {
 
   const { data: statsRes, isLoading: statsLoading } = useCustomerStatsQuery(merchantId)
 
-  const customers: Customer[] = customersRes?.data?.data?.data ?? []
+  const customers: Customer[] = customersRes?.data?.data?.data ?? NO_CUSTOMERS
   const total = customersRes?.data?.data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const stats = statsRes?.data?.data

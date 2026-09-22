@@ -21,6 +21,7 @@ import { Response } from 'express';
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
+import { PaymentSimulationGuard } from '../../payment/guards';
 import {
   AddBankDto,
   CreateRechargeDto,
@@ -324,7 +325,7 @@ export class MerchantController {
 
   @Post(':merchantId/wallet/recharge/simulate')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(PaymentSimulationGuard, MerchantOwnershipGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '[MOCK] Simulate a successful recharge (bypasses Razorpay)' })
   @ApiBody({ type: CreateRechargeDto })

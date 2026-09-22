@@ -49,6 +49,21 @@ export const DOCUMENT_STORAGE = {
   MAX_FILE_SIZE: 10 * 1024 * 1024,
 } as const;
 
+/**
+ * Limits on money an admin credits to a merchant wallet after a bank transfer. A cap is a safety net against a
+ * mistyped amount, not a business rule: a merchant paying more sends it in more than one transfer.
+ */
+export const MANUAL_TOP_UP = {
+  MIN_AMOUNT: 1,
+  MAX_AMOUNT: 1_000_000,
+  /** The transfer must have reached the bank within this many days, so an old reference can not be reused as cover. */
+  MAX_AGE_DAYS: 180,
+  REFERENCE_TYPE: 'ManualTopUp',
+  REVERSAL_REFERENCE_TYPE: 'ManualTopUpReversal',
+  /** Used when no platform configuration has been saved: a top-up above this waits for a second admin. */
+  DEFAULT_APPROVAL_THRESHOLD: 100_000,
+} as const;
+
 export const MERCHANT_CONSTANTS = {
   MAX_BANK_ACCOUNTS: 5,
   MAX_TEAM_MEMBERS: 20,

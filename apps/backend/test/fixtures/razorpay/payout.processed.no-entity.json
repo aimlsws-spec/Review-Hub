@@ -1,0 +1,9 @@
+{
+  "entity": "event",
+  "event": "payout.processed",
+  "contains": [
+    "payout"
+  ],
+  "payload": {},
+  "created_at": 1701234570
+}

@@ -5,6 +5,8 @@ import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
 import { FraudFlagRepository } from '../../admin/repositories';
+import { SubmissionSignalRepository } from '../../risk/repositories';
+import { DuplicateImageService } from '../../risk/services';
 import { SubmissionService } from '../../task/services';
 import { AI_VERIFICATION_THRESHOLDS } from '../constants';
 import { AiVerificationDecision, CompleteVerificationJobDto } from '../dto';
@@ -19,6 +21,8 @@ export class AiVerificationService {
     private readonly submissionService: SubmissionService,
     private readonly storageService: LocalStorageService,
     private readonly fraudFlagRepository: FraudFlagRepository,
+    private readonly duplicateImageService: DuplicateImageService,
+    private readonly signalRepository: SubmissionSignalRepository,
   ) {}
 
   /** Claims the oldest queued job, if any, for the calling worker to process. */
@@ -74,13 +78,23 @@ export class AiVerificationService {
       await this.flagFraudRisk(job.submissionId, job.submission.userId, fraudScore, dto.explanation);
     }
 
+    // The AI's own score is only one signal. Flags raised by other checks (the same picture used before,
+    // several accounts on one campaign...) must also stop a reward being paid without a person looking.
+    const riskCheckFailed = await this.checkForDuplicateImage(job.submissionId, job.submission.userId, dto);
+    const blockedByRisk = riskCheckFailed || (await this.signalRepository.hasUnresolvedBlockingFlag(job.submissionId));
+
     const clearsThreshold =
       dto.confidence >= AI_VERIFICATION_THRESHOLDS.MIN_CONFIDENCE &&
       fraudScore <= AI_VERIFICATION_THRESHOLDS.MAX_FRAUD_SCORE;
 
-    if (!clearsThreshold || dto.decision === AiVerificationDecision.MANUAL_REVIEW) {
+    // Only an approval is held back: it is the one outcome that pays money. A rejection is safe either way.
+    const heldForRisk = dto.decision === AiVerificationDecision.APPROVE && blockedByRisk;
+
+    if (!clearsThreshold || dto.decision === AiVerificationDecision.MANUAL_REVIEW || heldForRisk) {
       await this.submissionService.deferToManualReview(job.submissionId);
-      this.logger.log(`Submission ${job.submissionId} escalated to manual review (confidence=${dto.confidence}, fraud=${fraudScore})`);
+      this.logger.log(
+        `Submission ${job.submissionId} escalated to manual review (confidence=${dto.confidence}, fraud=${fraudScore}${heldForRisk ? ', held for a fraud flag' : ''})`,
+      );
       return { submissionId: job.submissionId, outcome: 'PENDING_MANUAL' as const };
     }
 
@@ -94,6 +108,22 @@ export class AiVerificationService {
       dto.explanation ?? 'Automated verification could not confirm this submission.',
     );
     return { submissionId: job.submissionId, outcome: 'REJECTED' as const };
+  }
+
+  /**
+   * Fingerprints the evidence picture and compares it with earlier ones. Returns true if the check itself
+   * failed: an approval must then wait for a person, because we cannot claim the picture is new.
+   */
+  private async checkForDuplicateImage(submissionId: string, userId: string, dto: CompleteVerificationJobDto): Promise<boolean> {
+    if (!dto.perceptualHash) return false;
+
+    try {
+      await this.duplicateImageService.check({ submissionId, userId, perceptualHash: dto.perceptualHash, evidenceText: dto.evidenceText });
+      return false;
+    } catch (error) {
+      this.logger.error(`Duplicate-image check failed for submission ${submissionId}: ${error instanceof Error ? error.message : String(error)}`);
+      return true;
+    }
   }
 
   async markFailed(jobId: string, errorMessage: string) {

@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { MerchantOwnershipGuard } from '../guards';
@@ -73,6 +74,8 @@ describe('MerchantController', () => {
         { provide: DashboardService, useValue: mockDashboardService },
         { provide: RefundService, useValue: mockRefundService },
         MerchantOwnershipGuard,
+        // PaymentSimulationGuard (on the simulate route) needs ConfigService to be constructed.
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: MerchantRepository, useValue: mockMerchantRepository },
         { provide: MerchantTeamRepository, useValue: mockTeamRepository },
       ],

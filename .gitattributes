@@ -1,0 +1,3 @@
+# A payment webhook's signature is made over its exact bytes. Git must not rewrite the line endings of these files on
+# checkout, or every stored signature stops matching and the tests fail for a reason that has nothing to do with the code.
+apps/backend/test/fixtures/razorpay/* -text

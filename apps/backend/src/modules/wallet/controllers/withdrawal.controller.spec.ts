@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { SystemRole } from '@common/enums';
+
+import { ROLES_KEY } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
 import { WithdrawalService } from '../services';
 
@@ -14,6 +17,8 @@ describe('WithdrawalController', () => {
     getMine: jest.fn(),
     approve: jest.fn(),
     reject: jest.fn(),
+    markPaid: jest.fn(),
+    markFailed: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -27,6 +32,32 @@ describe('WithdrawalController', () => {
 
     controller = module.get<WithdrawalController>(WithdrawalController);
     jest.clearAllMocks();
+  });
+
+  describe('paying by hand', () => {
+    it('marks a withdrawal paid as the signed-in admin, with the bank reference', async () => {
+      const dto = { reference: 'UTR123456789', note: 'NEFT' };
+      mockWithdrawalService.markPaid.mockResolvedValue({ id: 'withdrawal-1', status: 'PAID' });
+
+      const result = await controller.markPaid('withdrawal-1', 'admin-1', dto);
+
+      expect(mockWithdrawalService.markPaid).toHaveBeenCalledWith('withdrawal-1', 'admin-1', dto);
+      expect(result).toHaveProperty('status', 'PAID');
+    });
+
+    it('marks a withdrawal failed as the signed-in admin', async () => {
+      const dto = { reason: 'Account number rejected by the bank' };
+
+      await controller.markFailed('withdrawal-1', 'admin-1', dto);
+
+      expect(mockWithdrawalService.markFailed).toHaveBeenCalledWith('withdrawal-1', 'admin-1', dto);
+    });
+
+    it.each(['markPaid', 'markFailed'] as const)('%s is for admins only', (method) => {
+      const roles = Reflect.getMetadata(ROLES_KEY, WithdrawalController.prototype[method]) as string[] | undefined;
+      expect(roles).toBeDefined();
+      expect(roles).toContain(SystemRole.Admin);
+    });
   });
 
   it('should be defined', () => {

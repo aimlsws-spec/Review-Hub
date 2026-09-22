@@ -5,6 +5,7 @@ import '../../../core/errors/result.dart';
 import '../../../core/network/failure_mapper.dart';
 import '../../../shared/models/api_response.dart';
 import 'models/recommended_task_model.dart';
+import 'models/review_draft_models.dart';
 import 'models/task_submission_model.dart';
 import 'models/text_suggestion_model.dart';
 
@@ -49,6 +50,19 @@ class TaskRepository {
     try {
       final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.taskTextSuggestion(taskId));
       return Result.success(TextSuggestionModel.fromJson(response.data!['data'] as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  /// Editable review drafts written from what the person said about their visit. Only what they answered is sent.
+  Future<Result<ReviewDraftsModel>> getReviewDrafts(String taskId, ReviewAnswers answers, {String notes = ''}) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.taskReviewDrafts(taskId),
+        data: answers.toRequestBody(notes: notes),
+      );
+      return Result.success(ReviewDraftsModel.fromJson(response.data!['data'] as Map<String, dynamic>));
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));
     }

@@ -227,21 +227,157 @@ export type CampaignType =
   | 'SURVEY'
   | 'CUSTOM'
 
+/** What a merchant wants a campaign to achieve; the backend maps each goal to a campaign type. */
+export type CampaignGoal =
+  | 'MORE_REVIEWS'
+  | 'MORE_FOLLOWERS'
+  | 'SPREAD_THE_WORD'
+  | 'APP_INSTALLS'
+  | 'WEBSITE_TRAFFIC'
+  | 'CUSTOMER_FEEDBACK'
+  | 'VIDEO_VIEWS'
+
 export type RewardType = 'CASH' | 'POINTS' | 'COUPON' | 'GIFT_CARD' | 'PRODUCT' | 'DISCOUNT'
 export type CampaignVisibility = 'PUBLIC' | 'PRIVATE' | 'INVITE_ONLY'
 
-/** Mirrors the backend CampaignAnalytics record. Decimal columns serialize as strings; rates are 0–1 fractions. */
-export interface CampaignAnalytics {
-  views: number
-  uniqueViews: number
+export type InsightSeverity = 'WARNING' | 'OPPORTUNITY' | 'INFO'
+
+export interface InsightSuggestion {
+  code: string
+  severity: InsightSeverity
+  title: string
+  detail: string
+  campaignId?: string
+}
+
+export interface CampaignTypeResult {
+  campaignType: CampaignType
+  campaigns: number
   joins: number
   completions: number
+  rewardsPaid: number
+  /** Null until at least one task was completed. */
+  costPerCompletion: number | null
+  completionRate: number
+}
+
+/** Mirrors GET /merchants/:merchantId/campaigns/insights. */
+export interface MerchantInsights {
+  windowDays: number
+  summary: {
+    campaignsAnalysed: number
+    joins: number
+    completions: number
+    rewardsPaid: number
+    costPerCompletion: number | null
+    /** Fraction, 0.1 = 10% */
+    platformFeeRate: number
+    estimatedPlatformFee: number
+    completionRate: number
+    approvalRate: number | null
+  }
+  byType: CampaignTypeResult[]
+  suggestions: InsightSuggestion[]
+  /** What the numbers do and do not include. */
+  note: string
+}
+
+/** A phrase that asks for, or leans towards, a particular rating. Mirrors the server's honest-feedback policy. */
+export interface WordingFlag {
+  rule: string
+  /** BLOCK stops the campaign being submitted; REVIEW is only a heads-up. */
+  severity: 'BLOCK' | 'REVIEW'
+  field: string
+  excerpt: string
+  message: string
+}
+
+/** Mirrors POST /merchants/:merchantId/campaigns/check-wording. */
+export interface WordingCheck {
+  allowed: boolean
+  findings: WordingFlag[]
+}
+
+/** A draft the campaign builder suggests. Every field can be edited before the campaign is created. */
+export interface CampaignDraft {
+  title: string
+  shortDescription: string
+  description: string
+  campaignType: CampaignType
+  rewardType: RewardType
+  rewardAmount: number
+  totalBudget: number
+  maxParticipants: number
+  minimumFollowers: number
+  startAt: string
+  endAt: string
+  autoApprove: boolean
+}
+
+/** Mirrors POST /merchants/:merchantId/campaigns/recommend. */
+export interface CampaignRecommendation {
+  goal: CampaignGoal
+  draft: CampaignDraft
+  estimate: {
+    participants: number
+    rewardSpend: number
+    /** Fraction, 0.1 = 10% */
+    platformFeeRate: number
+    /** Billed separately at settlement, not part of the campaign budget. */
+    estimatedPlatformFee: number
+    totalEstimatedCost: number
+  }
+  benchmark: { source: 'platform-history' | 'defaults'; sampleSize: number }
+  rationale: string[]
+  warnings: string[]
+}
+
+/**
+ * How one campaign is doing, counted from the real joins and rewards. Rates are 0–1 fractions. Views are not tracked, so
+ * they are not reported.
+ */
+export interface CampaignAnalytics {
+  joins: number
+  /** People who completed the whole campaign. */
+  finished: number
+  /** Tasks that were approved and paid. */
+  completions: number
   rejections: number
-  completionRate: string | number
-  conversionRate: string | number
-  budgetUsed: string | number
-  rewardPaid: string | number
+  completionRate: number
+  budgetUsed: number
+  rewardPaid: number
   avgCompletionSec: number
+}
+
+/** Mirrors GET /merchants/:id/campaigns/overview. */
+export interface AnalyticsOverview {
+  period: { days: number; from: string; to: string }
+  totals: {
+    campaigns: number
+    activeCampaigns: number
+    joins: number
+    finished: number
+    completions: number
+    completionRate: number
+    rewardsPaid: number
+    budgetSpent: number
+    /** Reward money spent for each completed task; null while there are none. */
+    costPerCompletion: number | null
+  }
+  campaigns: {
+    id: string
+    title: string
+    status: string
+    joins: number
+    finished: number
+    completionRate: number
+    completions: number
+    rewardsPaid: number
+    spentBudget: number
+    totalBudget: number
+    costPerCompletion: number | null
+  }[]
+  daily: { date: string; joins: number; completions: number; rewardsPaid: number }[]
 }
 
 export interface Campaign {

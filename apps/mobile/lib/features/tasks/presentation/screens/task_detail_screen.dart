@@ -8,6 +8,7 @@ import '../../../../shared/widgets/loading_button.dart';
 import '../../../campaigns/data/models/campaign_task_model.dart';
 import '../../../campaigns/providers/campaign_providers.dart';
 import '../../providers/task_providers.dart';
+import '../widgets/honest_feedback_notice.dart';
 
 final _startTaskSubmitProvider = AsyncNotifierProvider.autoDispose<_StartTaskSubmitNotifier, void>(_StartTaskSubmitNotifier.new);
 
@@ -93,6 +94,7 @@ class TaskDetailScreen extends ConsumerWidget {
                                 child: Text(task.instructions!, style: const TextStyle(fontSize: 13.5, color: AppColors.slate600, height: 1.5)),
                               ),
                             ],
+                            if (task.isReviewTask) ...[const SizedBox(height: 16), const HonestFeedbackNotice()],
                             if (task.proofRequired) ...[
                               const SizedBox(height: 16),
                               const Row(

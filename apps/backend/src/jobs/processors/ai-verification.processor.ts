@@ -95,6 +95,9 @@ export class AiVerificationProcessor extends WorkerHost {
           fraudScore: outcome.fraudScore,
           explanation: outcome.explanation,
           rawResponse: outcome.rawResponse,
+          // null when the evidence is not an image; the DTO treats a missing value as "no fingerprint".
+          perceptualHash: outcome.perceptualHash ?? undefined,
+          evidenceText: outcome.evidenceText ?? undefined,
           processingTimeMs,
           engine: 'FastAPI Verification Engine',
         });

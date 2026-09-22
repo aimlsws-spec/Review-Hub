@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 
-import { TRANSACTION_TYPE_LABELS, ITEMS_PER_PAGE, ROUTES } from '@/constants'
+import { TRANSACTION_TYPE_LABELS, ITEMS_PER_PAGE, ROUTES, PAYMENT_SIMULATION_ENABLED } from '@/constants'
 import { useWalletQuery, useTransactionsQuery, useWalletMutations } from '@/hooks/useWallet'
 import { useAuthStore } from '@/stores/auth.store'
 import { formatCurrency, formatDateTime , cn } from '@/utils'
@@ -84,14 +84,16 @@ export default function WalletPage() {
         title="Add Funds"
         footer={
           <div className="w-full flex justify-between">
-            <button
-              className="btn-ghost text-primary-600 font-medium"
-              onClick={handleSubmit((v) => simulateMutation.mutate(Number(v.amount)))}
-              disabled={simulateMutation.isPending || rechargeMutation.isPending}
-            >
-              {simulateMutation.isPending ? 'Simulating…' : 'Simulate Payment (Dev)'}
-            </button>
-            <div className="space-x-2">
+            {PAYMENT_SIMULATION_ENABLED && (
+              <button
+                className="btn-ghost text-primary-600 font-medium"
+                onClick={handleSubmit((v) => simulateMutation.mutate(Number(v.amount)))}
+                disabled={simulateMutation.isPending || rechargeMutation.isPending}
+              >
+                {simulateMutation.isPending ? 'Simulating…' : 'Simulate Payment (Dev)'}
+              </button>
+            )}
+            <div className="ml-auto space-x-2">
               <button className="btn-secondary" onClick={() => setRechargeOpen(false)} disabled={rechargeMutation.isPending || simulateMutation.isPending}>
                 Cancel
               </button>

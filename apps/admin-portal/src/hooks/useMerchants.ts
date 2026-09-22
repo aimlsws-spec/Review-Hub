@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { adminApi } from '@/api/admin.api'
 import { QUERY_KEYS } from '@/constants'
 import type { Merchant } from '@/types'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 export type MerchantReviewKind = 'approve' | 'reject' | 'request-documents'
 
@@ -33,7 +33,7 @@ export function useAllMerchantsQuery(
 export function useMerchantDetailQuery(merchantId: string | null) {
   return useQuery({
     queryKey: [...QUERY_KEYS.MERCHANT_DETAIL, merchantId],
-    queryFn: () => adminApi.getMerchantDetail(merchantId!),
+    queryFn: () => adminApi.getMerchantDetail(requireValue(merchantId, 'merchantId')),
     enabled: !!merchantId,
   })
 }
@@ -76,6 +76,70 @@ export function useViewMerchantDocumentMutation() {
       // Revoke well after the new tab has had a chance to load the blob URL.
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
     },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
+  })
+}
+
+/** The bank transfers recorded as wallet top-ups for a merchant, newest first. */
+export function useMerchantTopUpsQuery(merchantId: string | null) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.MERCHANT_TOP_UPS, merchantId],
+    queryFn: () => adminApi.listMerchantTopUps(requireValue(merchantId, 'merchantId'), { page: 1, limit: 5 }),
+    enabled: !!merchantId,
+  })
+}
+
+/** Records a bank transfer and adds it to the merchant's wallet. */
+export function useRecordTopUpMutation(merchantId: string, onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: { amount: number; bankReference: string; receivedOn: string; note?: string }) =>
+      adminApi.recordMerchantTopUp(merchantId, data),
+    onSuccess: (res) => {
+      // A large amount is only recorded: another admin has to approve it before any money moves.
+      toast.success(res.data.data.status === 'PENDING_APPROVAL' ? 'Recorded. Another admin has to approve it before the money is added.' : 'Money added to the merchant wallet')
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MERCHANT_TOP_UPS })
+      onSuccess?.()
+    },
+    // A reference that was already used comes back as a plain message, which is exactly what the admin needs to read.
+    onError: (err) => toast.error(getApiErrorMessage(err)),
+  })
+}
+
+/** Large top-ups waiting for a second admin, across all merchants. */
+export function useTopUpApprovalsQuery(params: { page: number; limit: number }) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.MERCHANT_TOP_UPS, 'pending', params.page],
+    queryFn: () => adminApi.listPendingTopUps(params),
+  })
+}
+
+export type TopUpDecision = 'approve' | 'reject' | 'reverse'
+
+const DECISION_MESSAGES: Record<TopUpDecision, string> = {
+  approve: 'Approved. The money has been added to the wallet',
+  reject: 'Rejected. Nothing was added',
+  reverse: 'Reversed. The money was taken back out of the wallet',
+}
+
+/** Approves or rejects a large top-up, or reverses one made in error, refreshing the lists afterwards. */
+export function useTopUpDecisionMutation(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, decision, reason }: { id: string; decision: TopUpDecision; reason?: string }) => {
+      if (decision === 'approve') return adminApi.approveTopUp(id)
+      if (decision === 'reject') return adminApi.rejectTopUp(id, requireValue(reason, 'reason'))
+      return adminApi.reverseTopUp(id, requireValue(reason, 'reason'))
+    },
+    onSuccess: (_, { decision }) => {
+      toast.success(DECISION_MESSAGES[decision])
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MERCHANT_TOP_UPS })
+      onSuccess?.()
+    },
+    // "Only ₹500.00 of this is still available" and "you recorded this, so a different admin has to approve it" come back as
+    // plain messages, which is exactly what the admin needs to read.
     onError: (err) => toast.error(getApiErrorMessage(err)),
   })
 }

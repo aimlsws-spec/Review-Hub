@@ -27,6 +27,8 @@ import {
 } from '../events';
 import { CampaignRepository } from '../repositories';
 
+import { CampaignPolicyService } from './campaign-policy.service';
+
 
 @Injectable()
 export class CampaignService {
@@ -36,6 +38,7 @@ export class CampaignService {
     private readonly merchantWalletRepository: MerchantWalletRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly auditLogService: AuditLogService,
+    private readonly policyService: CampaignPolicyService,
   ) {}
 
   async create(merchantId: string, userId: string, dto: CreateCampaignDto) {
@@ -84,28 +87,11 @@ export class CampaignService {
     return campaign;
   }
 
-  async getAnalytics(campaignId: string, merchantId: string) {
-    const campaign = await this.getById(campaignId);
-    if (campaign.merchantId !== merchantId) {
-      throw new BadRequestException('Campaign does not belong to this merchant');
-    }
-    const analytics = await this.campaignRepository.getAnalytics(campaignId);
-    if (!analytics) {
-      // Return zeroes if not generated yet
-      return {
-        views: 0,
-        uniqueViews: 0,
-        joins: 0,
-        completions: 0,
-        rejections: 0,
-        completionRate: 0,
-        conversionRate: 0,
-        budgetUsed: 0,
-        rewardPaid: 0,
-        avgCompletionSec: 0,
-      };
-    }
-    return analytics;
+  /** One campaign as the app shows it: only if it is active and public. */
+  async getPublicById(campaignId: string) {
+    const campaign = await this.campaignRepository.findPublicById(campaignId);
+    if (!campaign) throw new NotFoundException('Campaign');
+    return campaign;
   }
 
   async listByMerchant(merchantId: string, query: CampaignQueryDto) {
@@ -180,9 +166,11 @@ export class CampaignService {
 
   /**
    * Moves a DRAFT/CHANGES_REQUESTED campaign into the approval workflow.
-   * autoApprove is a merchant-set request, not a bypass of review: today it
-   * skips straight to APPROVED, but Phase 8's fraud/AI service is meant to
-   * gate this decision instead of trusting the flag outright.
+   *
+   * WHY every campaign goes to an admin: `autoApprove` is set by the merchant, so honouring it would let anyone
+   * approve their own campaign and skip moderation, including the check that a reward is never tied to a rating.
+   * The flag is still stored, ready for the day an AI/risk check can decide instead of the merchant, but until
+   * then it changes nothing.
    */
   async submitForApproval(campaignId: string) {
     const campaign = await this.getById(campaignId);
@@ -190,15 +178,14 @@ export class CampaignService {
       throw new BadRequestException(`Cannot submit a campaign in ${campaign.status} status`);
     }
 
-    const autoApproved = campaign.autoApprove;
-    const toStatus: CampaignStatus = autoApproved ? 'APPROVED' : 'PENDING_REVIEW';
+    // Wording that asks for, or rewards, a particular rating is refused here, before an admin ever has to see it.
+    await this.policyService.assertCampaignAllowed(campaign, 'submitted');
 
-    const updated = await this.campaignRepository.update(campaignId, {
-      status: toStatus,
-      approvedAt: autoApproved ? new Date() : undefined,
-    });
+    const toStatus: CampaignStatus = 'PENDING_REVIEW';
 
-    this.eventEmitter.emit('campaign.submitted', new CampaignSubmittedEvent(campaignId, campaign.merchantId, autoApproved));
+    const updated = await this.campaignRepository.update(campaignId, { status: toStatus });
+
+    this.eventEmitter.emit('campaign.submitted', new CampaignSubmittedEvent(campaignId, campaign.merchantId));
     this.emitStatusChanged(campaign, toStatus);
 
     return updated;
@@ -221,12 +208,17 @@ export class CampaignService {
   }
 
   /** Admin queue: campaigns awaiting a moderation decision, oldest first. */
+  /** The admin queue. Each campaign carries any wording flags, so the reviewer sees them without opening it. */
   async listPendingReview(page: number, limit: number) {
-    return this.campaignRepository.findPendingReview({ page, limit });
+    const result = await this.campaignRepository.findPendingReview({ page, limit });
+    const flags = await this.policyService.findingsForCampaigns(result.data);
+    return { ...result, data: result.data.map((campaign) => ({ ...campaign, policyFlags: flags.get(campaign.id) ?? [] })) };
   }
 
   async approve(campaignId: string, reviewerId: string, dto: ApproveCampaignDto) {
     const before = await this.getById(campaignId);
+    // A second check: tasks can be edited after a campaign is submitted, so what was clean then may not be now.
+    await this.policyService.assertCampaignAllowed(before, 'approved');
     const updated = await this.transitionStatus(campaignId, 'APPROVED', { approvedAt: new Date() });
     await this.campaignRepository.createApproval({
       campaign: { connect: { id: campaignId } },

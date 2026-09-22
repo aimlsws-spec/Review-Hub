@@ -4,15 +4,27 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../core/errors/result.dart';
 import '../../../core/network/failure_mapper.dart';
 import '../../../core/network/token_storage.dart';
+import 'device_integrity.dart';
 import 'models/auth_tokens_model.dart';
 import 'models/user_model.dart';
 import 'otp_type.dart';
 
 class AuthRepository {
-  AuthRepository(this._dio, this._tokenStorage);
+  AuthRepository(this._dio, this._tokenStorage, [this._integrity]);
 
   final Dio _dio;
   final TokenStorage _tokenStorage;
+
+  /// What the phone says about itself, sent with sign-in and registration so the backend can score the device's risk.
+  /// Left out when there is no checker.
+  final DeviceIntegrityChecker? _integrity;
+
+  Future<Map<String, dynamic>> _deviceSignals() async {
+    final integrity = await _integrity?.check();
+    if (integrity == null) return const {};
+    // Always both, true or false: a phone that is no longer rooted must be able to clear an earlier report.
+    return {'isRooted': integrity.isRooted, 'isEmulator': integrity.isEmulator};
+  }
 
   Future<Result<AuthSessionModel>> register({
     required String firstName,
@@ -32,6 +44,7 @@ class AuthRepository {
           if (phone != null && phone.isNotEmpty) 'phone': phone,
           'password': password,
           if (referralCode != null && referralCode.isNotEmpty) 'referralCode': referralCode,
+          ...await _deviceSignals(),
         },
       );
       final session = AuthSessionModel.fromJson(response.data!['data'] as Map<String, dynamic>);
@@ -56,6 +69,7 @@ class AuthRepository {
           if (phone != null && phone.isNotEmpty) 'phone': phone,
           'password': password,
           'rememberMe': rememberMe,
+          ...await _deviceSignals(),
         },
       );
       final session = AuthSessionModel.fromJson(response.data!['data'] as Map<String, dynamic>);
@@ -90,6 +104,34 @@ class AuthRepository {
           'lastName': ?lastName,
           'timezone': ?timezone,
           'language': ?language,
+        },
+      );
+      return Result.success(UserModel.fromJson(response.data!['data'] as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  /// Saves the edit-profile form. Unlike [updateProfile], every detail is always sent, and a `null` means "remove
+  /// what was saved": the form on screen is exactly what ends up saved.
+  Future<Result<UserModel>> updateProfileDetails({
+    required String firstName,
+    required String lastName,
+    required String? dateOfBirth,
+    required String? gender,
+    required String? stateId,
+    required String? cityId,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        ApiEndpoints.profile,
+        data: {
+          'firstName': firstName,
+          'lastName': lastName,
+          'dateOfBirth': dateOfBirth,
+          'gender': gender,
+          'stateId': stateId,
+          'cityId': cityId,
         },
       );
       return Result.success(UserModel.fromJson(response.data!['data'] as Map<String, dynamic>));

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useCampaignAnalyticsQuery, useCampaignsQuery } from '@/hooks/useCampaigns'
 import { useDashboardStatsQuery } from '@/hooks/useDashboard'
+import { useMerchantInsightsQuery } from '@/hooks/useInsights'
 import { useNotificationsQuery } from '@/hooks/useNotifications'
 import { useRecentReviewsQuery } from '@/hooks/useReviews'
 import { useAuthStore } from '@/stores/auth.store'
@@ -13,6 +14,7 @@ import DashboardPage from './DashboardPage'
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
 vi.mock('@/hooks/useCampaigns', () => ({ useCampaignsQuery: vi.fn(), useCampaignAnalyticsQuery: vi.fn() }))
 vi.mock('@/hooks/useDashboard', () => ({ useDashboardStatsQuery: vi.fn() }))
+vi.mock('@/hooks/useInsights', () => ({ useMerchantInsightsQuery: vi.fn() }))
 vi.mock('@/hooks/useNotifications', () => ({ useNotificationsQuery: vi.fn() }))
 vi.mock('@/hooks/useReviews', () => ({ useRecentReviewsQuery: vi.fn() }))
 
@@ -42,6 +44,7 @@ describe('DashboardPage', () => {
     vi.mocked(useCampaignsQuery).mockReturnValue({ data: { data: { data: { data: [] } } }, isLoading: false } as never)
     vi.mocked(useCampaignAnalyticsQuery).mockReturnValue({ data: undefined, isLoading: false } as never)
     vi.mocked(useDashboardStatsQuery).mockReturnValue({ data: { data: { data: stats } }, isLoading: false } as never)
+    vi.mocked(useMerchantInsightsQuery).mockReturnValue({ data: undefined, isLoading: true, isError: false, refetch: vi.fn() } as never)
     vi.mocked(useNotificationsQuery).mockReturnValue({ data: { data: { data: { data: [] } } }, isLoading: false } as never)
     vi.mocked(useRecentReviewsQuery).mockReturnValue({ data: { data: { data: { data: [] } } }, isLoading: false } as never)
   })
@@ -86,22 +89,38 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Great service!')).toBeInTheDocument()
   })
 
-  it('shows live campaign performance using the backend analytics shape', () => {
+  it('shows live campaign performance from the real joins and rewards', () => {
     vi.mocked(useCampaignsQuery).mockReturnValue({
       data: { data: { data: { data: [{ id: 'campaign-1', title: 'Try our menu', totalBudget: '5000.00' }] } } },
       isLoading: false,
     } as never)
-    // Decimal columns arrive as strings and rates are 0–1 fractions, exactly as Prisma serializes them.
+    // The rate is a 0-1 fraction, and the money arrives as numbers, as the server sends them.
     vi.mocked(useCampaignAnalyticsQuery).mockReturnValue({
-      data: { data: { data: { views: 240, conversionRate: '0.4250', completionRate: '0.6000', budgetUsed: '1250.00' } } },
+      data: { data: { data: { joins: 40, finished: 24, completions: 30, rejections: 2, completionRate: 0.6, budgetUsed: 1250, rewardPaid: 1250, avgCompletionSec: 900 } } },
       isLoading: false,
     } as never)
     renderPage()
 
     expect(screen.getByText('Try our menu')).toBeInTheDocument()
-    expect(screen.getByText('240')).toBeInTheDocument()
-    expect(screen.getByText('42.5%')).toBeInTheDocument()
-    expect(screen.getByText('60.0%')).toBeInTheDocument()
+    expect(screen.getByText('40')).toBeInTheDocument()
+    expect(screen.getByText('24')).toBeInTheDocument()
+    expect(screen.getByText(/60\.0%/)).toBeInTheDocument()
+    expect(screen.getByText(/Rewards paid:/)).toBeInTheDocument()
     expect(screen.getByText(/₹1,250\.00 \/ ₹5,000\.00/)).toBeInTheDocument()
+  })
+
+  it('no longer shows views or a conversion rate, which nothing measures', () => {
+    vi.mocked(useCampaignsQuery).mockReturnValue({
+      data: { data: { data: { data: [{ id: 'campaign-1', title: 'Try our menu', totalBudget: '5000.00' }] } } },
+      isLoading: false,
+    } as never)
+    vi.mocked(useCampaignAnalyticsQuery).mockReturnValue({
+      data: { data: { data: { joins: 0, finished: 0, completions: 0, rejections: 0, completionRate: 0, budgetUsed: 0, rewardPaid: 0, avgCompletionSec: 0 } } },
+      isLoading: false,
+    } as never)
+    renderPage()
+
+    expect(screen.queryByText(/Views:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Conversion:/)).not.toBeInTheDocument()
   })
 })

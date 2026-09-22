@@ -4,6 +4,12 @@ import { Prisma } from '@prisma/client';
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+import {
+  lockCampaign,
+  lockMerchantWalletById,
+  lockMerchantWalletByMerchant,
+  lockWalletTransaction,
+} from '../../../database/prisma/row-lock';
 
 @Injectable()
 export class MerchantWalletRepository {
@@ -31,10 +37,20 @@ export class MerchantWalletRepository {
     return this.prisma.merchantWallet.create({ data });
   }
 
+  /** The merchant's wallet, created on first use. A request that loses the creation race returns the winner's wallet. */
   async getOrCreate(merchantId: string) {
     const existing = await this.findByMerchantId(merchantId);
     if (existing) return existing;
-    return this.createWallet({ merchant: { connect: { id: merchantId } } });
+
+    try {
+      return await this.createWallet({ merchant: { connect: { id: merchantId } } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const created = await this.findByMerchantId(merchantId);
+        if (created) return created;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -70,9 +86,11 @@ export class MerchantWalletRepository {
   /** Idempotent — a transaction that's already SUCCESS/FAILED is returned as-is rather than re-applied. */
   async confirmTopUp(transactionId: string, razorpayPaymentId: string) {
     return this.prisma.transaction(async (tx) => {
+      await lockWalletTransaction(tx, transactionId);
       const txn = await tx.walletTransaction.findUniqueOrThrow({ where: { id: transactionId } });
       if (txn.status !== 'PENDING' || !txn.merchantWalletId) return txn;
 
+      await lockMerchantWalletById(tx, txn.merchantWalletId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: txn.merchantWalletId } });
       const balanceBefore = wallet.availableBalance;
       const balanceAfter = Number(balanceBefore) + Number(txn.amount);
@@ -111,6 +129,8 @@ export class MerchantWalletRepository {
     const { merchantId, campaignId, amount } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockCampaign(tx, campaignId);
+      await lockMerchantWalletByMerchant(tx, merchantId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { merchantId } });
       if (Number(wallet.availableBalance) < amount) {
         throw new BadRequestException('Insufficient wallet balance to activate this campaign');
@@ -147,13 +167,26 @@ export class MerchantWalletRepository {
     });
   }
 
-  /** Moves one reward payout's worth of budget from reserved to spent, on both the wallet and the campaign. */
+  /**
+   * Moves one reward payout's worth of budget from reserved to spent, on both the wallet and the campaign.
+   *
+   * Idempotent per reward: a reward that has already been charged is not charged again, so a job that failed after
+   * paying the user can be retried until the merchant has been charged too.
+   */
   async spendCampaignBudget(params: { campaignId: string; amount: number; rewardId: string }) {
     const { campaignId, amount, rewardId } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockCampaign(tx, campaignId);
       const campaign = await tx.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+      await lockMerchantWalletByMerchant(tx, campaign.merchantId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { merchantId: campaign.merchantId } });
+
+      const alreadyCharged = await tx.walletTransaction.findFirst({
+        where: { merchantWalletId: wallet.id, type: 'SPEND', referenceType: 'Reward', referenceId: rewardId, status: 'SUCCESS' },
+      });
+      if (alreadyCharged) return alreadyCharged;
+
       const balanceBefore = wallet.reservedBalance;
       const reservedAfter = Number(balanceBefore) - amount;
 
@@ -201,7 +234,9 @@ export class MerchantWalletRepository {
     const { campaignId, amount, rewardId } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockCampaign(tx, campaignId);
       const campaign = await tx.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+      await lockMerchantWalletByMerchant(tx, campaign.merchantId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { merchantId: campaign.merchantId } });
       const balanceBefore = wallet.reservedBalance;
       const reservedAfter = Number(balanceBefore) + amount;
@@ -245,10 +280,12 @@ export class MerchantWalletRepository {
     const { merchantId, campaignId } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockCampaign(tx, campaignId);
       const campaign = await tx.campaign.findUniqueOrThrow({ where: { id: campaignId } });
       const amount = Number(campaign.reservedBudget);
       if (amount <= 0) return null;
 
+      await lockMerchantWalletByMerchant(tx, merchantId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { merchantId } });
       const balanceBefore = wallet.availableBalance;
       const balanceAfter = Number(balanceBefore) + amount;
@@ -291,6 +328,7 @@ export class MerchantWalletRepository {
     const { merchantWalletId, amount, refundId } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockMerchantWalletById(tx, merchantWalletId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: merchantWalletId } });
       if (Number(wallet.availableBalance) < amount) {
         throw new BadRequestException('Insufficient wallet balance');
@@ -328,6 +366,7 @@ export class MerchantWalletRepository {
     const { merchantWalletId, amount, refundId } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockMerchantWalletById(tx, merchantWalletId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: merchantWalletId } });
       const balanceBefore = wallet.availableBalance;
       const balanceAfter = Number(balanceBefore) + amount;
@@ -361,6 +400,7 @@ export class MerchantWalletRepository {
     const { merchantWalletId, amount, refundId } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockMerchantWalletById(tx, merchantWalletId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: merchantWalletId } });
       const balanceBefore = wallet.refundBalance;
       const refundBalanceAfter = Number(balanceBefore) - amount;
@@ -398,6 +438,7 @@ export class MerchantWalletRepository {
     const { merchantWalletId, amount, refundId } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockMerchantWalletById(tx, merchantWalletId);
       const wallet = await tx.merchantWallet.findUniqueOrThrow({ where: { id: merchantWalletId } });
       const balanceBefore = wallet.availableBalance;
       const balanceAfter = Number(balanceBefore) + amount;

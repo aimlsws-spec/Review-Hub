@@ -17,9 +17,14 @@ export function hashValue(value: string): string {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
+/** Hides everything but the last 4 characters, for phone numbers and ID document numbers (PAN, Aadhaar). */
+export function maskIdentifier(value: string): string {
+  if (value.length < 4) return '****';
+  return `****${value.slice(-4)}`;
+}
+
 export function maskPhone(phone: string): string {
-  if (phone.length < 4) return '****';
-  return `****${phone.slice(-4)}`;
+  return maskIdentifier(phone);
 }
 
 export function maskEmail(email: string): string {
@@ -27,6 +32,16 @@ export function maskEmail(email: string): string {
   if (!domain) return '****';
   const masked = local.length > 2 ? `${local[0]}****${local.slice(-1)}` : '****';
   return `${masked}@${domain}`;
+}
+
+/** Makes text safe to place inside HTML, e.g. a user's name in an email body. */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export function slugify(text: string): string {

@@ -1,5 +1,8 @@
 import type {
   ApiResponse,
+  CampaignGoal,
+  CampaignRecommendation,
+  MerchantInsights,
   Merchant,
   MerchantWallet,
   WalletTransaction,
@@ -12,9 +15,11 @@ import type {
   PaginatedResponse,
   Campaign,
   CampaignAnalytics,
+  AnalyticsOverview,
   CampaignType,
   CampaignVisibility,
   RewardType,
+  WordingCheck,
   MerchantReward,
   SupportTicket,
   SupportCategory,
@@ -25,7 +30,7 @@ import type {
 import type { Customer, CustomerType, CustomerStatus } from '@/types/customer'
 import type { ApiReview, ApiReviewSource, ApiReviewStatus, ReviewStats } from '@/types/review'
 
-import apiClient from './client'
+import { apiClient } from './client'
 
 export interface ReviewQueryParams {
   page?: number
@@ -47,6 +52,13 @@ export interface CreateReviewInput {
   title?: string
   body: string
   reviewedAt?: string
+}
+
+export interface RecommendCampaignInput {
+  goal: CampaignGoal
+  budget: number
+  durationDays?: number
+  highlight?: string
 }
 
 export interface CampaignFormInput {
@@ -185,6 +197,18 @@ export const merchantApi = {
   createCampaign: (merchantId: string, data: CampaignFormInput) =>
     apiClient.post<ApiResponse<Campaign>>(`/merchants/${merchantId}/campaigns`, data),
 
+  /** What campaigns cost per completed task, with suggestions for getting more from the budget. */
+  getInsights: (merchantId: string) =>
+    apiClient.get<ApiResponse<MerchantInsights>>(`/merchants/${merchantId}/campaigns/insights`),
+
+  /** Asks the campaign builder for a draft. Nothing is created until the merchant saves it. */
+  recommendCampaign: (merchantId: string, data: RecommendCampaignInput) =>
+    apiClient.post<ApiResponse<CampaignRecommendation>>(`/merchants/${merchantId}/campaigns/recommend`, data),
+
+  /** Checks campaign wording against the honest-feedback policy. Nothing is saved. */
+  checkCampaignWording: (merchantId: string, data: { title?: string; shortDescription?: string; description?: string }) =>
+    apiClient.post<ApiResponse<WordingCheck>>(`/merchants/${merchantId}/campaigns/check-wording`, data),
+
   updateCampaign: (campaignId: string, data: Partial<Omit<CampaignFormInput, 'campaignType'>>) =>
     apiClient.patch<ApiResponse<Campaign>>(`/campaigns/${campaignId}`, data),
 
@@ -197,6 +221,10 @@ export const merchantApi = {
   resumeCampaign: (campaignId: string) => apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/resume`),
 
   cancelCampaign: (campaignId: string) => apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/cancel`),
+
+  /** All campaigns together, each one, and day by day. Counted from real joins and rewards. */
+  getAnalyticsOverview: (merchantId: string, days: number) =>
+    apiClient.get<ApiResponse<AnalyticsOverview>>(`/merchants/${merchantId}/campaigns/overview`, { params: { days } }),
 
   getCampaignAnalytics: (merchantId: string, campaignId: string) =>
     apiClient.get<ApiResponse<CampaignAnalytics>>(`/merchants/${merchantId}/campaigns/${campaignId}/analytics`),

@@ -2,14 +2,14 @@ import { Logger, Module } from '@nestjs/common';
 
 import { MerchantModule } from '../merchant/merchant.module';
 
-import { MerchantSupportController, SupportController } from './controllers';
+import { ChatbotController, MerchantSupportController, SupportController } from './controllers';
 import { SupportMessageRepository, SupportTicketRepository } from './repositories';
-import { SupportService } from './services';
+import { ChatbotService, KnowledgeBaseService, SupportService } from './services';
 
 @Module({
   imports: [MerchantModule],
-  controllers: [SupportController, MerchantSupportController],
-  providers: [SupportService, SupportTicketRepository, SupportMessageRepository],
+  controllers: [SupportController, MerchantSupportController, ChatbotController],
+  providers: [SupportService, ChatbotService, KnowledgeBaseService, SupportTicketRepository, SupportMessageRepository],
   exports: [SupportService],
 })
 export class SupportModule {

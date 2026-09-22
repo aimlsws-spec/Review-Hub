@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
 import type { SupportCategory, SupportPriority } from '@/types'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 export function useSupportTicketsQuery(merchantId: string | undefined, page: number, limit: number) {
   return useQuery({
     queryKey: [...QUERY_KEYS.SUPPORT_TICKETS, page],
-    queryFn: () => merchantApi.getTickets(merchantId!, { page, limit }),
+    queryFn: () => merchantApi.getTickets(requireValue(merchantId, 'merchantId'), { page, limit }),
     enabled: !!merchantId,
   })
 }
@@ -17,7 +17,7 @@ export function useSupportTicketsQuery(merchantId: string | undefined, page: num
 export function useSupportTicketQuery(merchantId: string | undefined, ticketId: string | null) {
   return useQuery({
     queryKey: [...QUERY_KEYS.SUPPORT_TICKETS, ticketId],
-    queryFn: () => merchantApi.getTicket(merchantId!, ticketId!),
+    queryFn: () => merchantApi.getTicket(requireValue(merchantId, 'merchantId'), requireValue(ticketId, 'ticketId')),
     enabled: !!merchantId && !!ticketId,
   })
 }
@@ -32,7 +32,7 @@ interface CreateTicketInput {
 export function useCreateTicketMutation(merchantId: string | undefined, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (d: CreateTicketInput) => merchantApi.createTicket(merchantId!, d),
+    mutationFn: (d: CreateTicketInput) => merchantApi.createTicket(requireValue(merchantId, 'merchantId'), d),
     onSuccess: () => {
       toast.success('Ticket submitted')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.SUPPORT_TICKETS })
@@ -45,7 +45,7 @@ export function useCreateTicketMutation(merchantId: string | undefined, onSucces
 export function useReplyToTicketMutation(merchantId: string | undefined, ticketId: string | null, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (message: string) => merchantApi.replyToTicket(merchantId!, ticketId!, message),
+    mutationFn: (message: string) => merchantApi.replyToTicket(requireValue(merchantId, 'merchantId'), requireValue(ticketId, 'ticketId'), message),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [...QUERY_KEYS.SUPPORT_TICKETS, ticketId] })
       onSuccess?.()

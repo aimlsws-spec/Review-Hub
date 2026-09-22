@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
+import { WALLET_CONSTANTS } from '../src/modules/wallet/constants';
+
+import { HELP_FAQS, HELP_PAGES } from './seed-data/help-content';
+import { INDIA_LOCATIONS } from './seed-data/india-locations';
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -143,6 +148,21 @@ async function main() {
   ]);
   console.log('✅ Cities seeded');
 
+  // ── All Indian states and union territories, with a starter set of cities ─────
+  // Upserts and skipDuplicates make this safe to run again; it only adds what is missing.
+  for (const entry of INDIA_LOCATIONS) {
+    const state = await prisma.state.upsert({
+      where: { countryId_name: { countryId: india.id, name: entry.name } },
+      update: {},
+      create: { countryId: india.id, name: entry.name, code: entry.code },
+    });
+    await prisma.city.createMany({
+      data: entry.cities.map((name) => ({ stateId: state.id, name })),
+      skipDuplicates: true,
+    });
+  }
+  console.log(`✅ ${INDIA_LOCATIONS.length} Indian states/UTs and their cities seeded`);
+
   // ── Notification Templates ─────────────────────────────────
   const notifTemplates = [
     { name: 'Welcome Email', slug: 'welcome-email', subject: 'Welcome to ReviewHub!', title: 'Welcome, {{firstName}}!', body: 'Hi {{firstName}}, your account has been created successfully.', channel: 'EMAIL' as const },
@@ -150,6 +170,11 @@ async function main() {
     { name: 'Campaign Approved', slug: 'campaign-approved', subject: 'Campaign Approved', title: 'Your campaign is live!', body: 'Campaign "{{campaignTitle}}" has been approved and is now live.', channel: 'EMAIL' as const },
     { name: 'Reward Credited', slug: 'reward-credited', subject: 'Reward Credited', title: '₹{{amount}} credited to your wallet', body: 'You earned ₹{{amount}} for completing "{{campaignTitle}}".', channel: 'PUSH' as const },
     { name: 'Withdrawal Processed', slug: 'withdrawal-processed', subject: 'Withdrawal Processed', title: 'Withdrawal of ₹{{amount}} processed', body: 'Your withdrawal request of ₹{{amount}} has been processed.', channel: 'EMAIL' as const },
+    // Announcement templates for admin broadcasts (Notification Center). They only announce: {{firstName}} is the one placeholder a broadcast can fill in.
+    { name: 'Happy hour', slug: 'happy-hour', subject: 'Happy hour is on!', title: 'Happy hour is on!', body: 'Hi {{firstName}}, more tasks are live right now. Open the app and start earning.', channel: 'PUSH' as const },
+    { name: 'Flash reward', slug: 'flash-reward', subject: 'A flash reward is waiting', title: 'Flash reward alert', body: 'Hi {{firstName}}, a limited-time reward is live. Check the app before it ends.', channel: 'PUSH' as const },
+    { name: 'New campaigns', slug: 'new-campaigns', subject: 'New campaigns are live', title: 'New campaigns just landed', body: 'Hi {{firstName}}, fresh campaigns are waiting for you. Take a look and start earning.', channel: 'IN_APP' as const },
+    { name: 'We miss you', slug: 'we-miss-you', subject: 'We miss you, {{firstName}}', title: 'We miss you!', body: 'Hi {{firstName}}, it has been a while. New tasks and rewards are waiting for you.', channel: 'PUSH' as const },
   ];
   for (const t of notifTemplates) {
     await prisma.notificationTemplate.upsert({ where: { slug: t.slug }, update: {}, create: { ...t, variables: [] } });
@@ -212,20 +237,28 @@ async function main() {
   }
   console.log('✅ Campaign categories seeded');
 
-  // ── FAQ Categories (via FAQ records) ───────────────────────
-  const faqs = [
-    { category: 'Getting Started', question: 'How do I create an account?', answer: 'Download the app and sign up with your mobile number or email.', sortOrder: 1 },
-    { category: 'Getting Started', question: 'Is ReviewHub free to use?', answer: 'Yes, ReviewHub is completely free for users.', sortOrder: 2 },
-    { category: 'Campaigns', question: 'How do I join a campaign?', answer: 'Browse available campaigns and tap "Join" to participate.', sortOrder: 1 },
-    { category: 'Campaigns', question: 'How long does campaign approval take?', answer: 'Campaigns are typically reviewed within 24-48 hours.', sortOrder: 2 },
-    { category: 'Payments', question: 'How do I withdraw my earnings?', answer: 'Go to Wallet > Withdraw and add your bank account details.', sortOrder: 1 },
-    { category: 'Payments', question: 'What is the minimum withdrawal amount?', answer: 'The minimum withdrawal amount is ₹100.', sortOrder: 2 },
-  ];
-  for (const f of faqs) {
+  // ── Help content for the support chatbot ───────────────────
+  // Only adds what is missing, so an answer an admin has edited is never overwritten. The one exception is an answer
+  // that is still exactly a known wrong earlier text (e.g. the old minimum withdrawal), which is corrected. A FAQ an
+  // admin deleted stays deleted, because the check includes deleted rows.
+  for (const f of HELP_FAQS) {
+    const { replacesAnswers, ...data } = f;
     const existing = await prisma.fAQ.findFirst({ where: { category: f.category, question: f.question } });
-    if (!existing) await prisma.fAQ.create({ data: f });
+    if (!existing) {
+      await prisma.fAQ.create({ data });
+    } else if (replacesAnswers?.includes(existing.answer)) {
+      await prisma.fAQ.update({ where: { id: existing.id }, data: { answer: f.answer } });
+    }
   }
   console.log('✅ FAQs seeded');
+
+  for (const page of HELP_PAGES) {
+    const existing = await prisma.cMSPage.findUnique({ where: { slug: page.slug } });
+    if (!existing) {
+      await prisma.cMSPage.create({ data: { ...page, metaTitle: page.title, status: 'PUBLISHED', publishedAt: new Date() } });
+    }
+  }
+  console.log('✅ Help pages seeded');
 
   // ── Platform Configuration ─────────────────────────────────
   const existingConfig = await prisma.platformConfiguration.findFirst();
@@ -236,7 +269,7 @@ async function main() {
         supportEmail: 'support@reviewhub.com',
         supportPhone: '+91-9999999999',
         commissionPercentage: 0.10,
-        minimumWithdrawal: 100,
+        minimumWithdrawal: WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT,
         maximumWithdrawal: 50000,
         maintenanceMode: false,
         appVersion: '1.0.0',

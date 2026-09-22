@@ -39,13 +39,22 @@ class CampaignRepository {
     }
   }
 
+  /// One active, public campaign. The server answers "not found" for anything else, so a saved campaign that has
+  /// ended comes back as a [NotFoundFailure].
+  Future<Result<CampaignModel>> getPublicCampaign(String campaignId) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.campaignDetails(campaignId));
+      return Result.success(CampaignModel.fromJson(response.data!['data'] as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
   Future<Result<List<CampaignTaskModel>>> getTasks(String campaignId) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.campaignTasks(campaignId));
       final rawList = response.data!['data'] as List<dynamic>;
-      return Result.success(
-        rawList.map((json) => CampaignTaskModel.fromJson(json as Map<String, dynamic>)).toList(),
-      );
+      return Result.success(rawList.map((json) => CampaignTaskModel.fromJson(json as Map<String, dynamic>)).toList());
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));
     }

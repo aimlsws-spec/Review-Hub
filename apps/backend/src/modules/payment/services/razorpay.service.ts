@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Razorpay = require('razorpay');
-import { validatePaymentVerification } from 'razorpay/dist/utils/razorpay-utils';
 
 import { PAYMENT_EVENTS } from '../constants';
 import {
@@ -13,6 +12,7 @@ import {
   RazorpayWebhookBody,
   RazorpayWebhookEvent,
 } from '../interfaces';
+import { signatureMatches } from '../utils/hmac';
 
 /**
  * Thin wrapper around the Razorpay SDK. RazorpayX (payouts/fund accounts) isn't
@@ -56,16 +56,25 @@ export class RazorpayService implements PaymentProvider {
     return order as unknown as PaymentOrder;
   }
 
-  /** Verifies the signature Razorpay Checkout returns to the client on successful payment. */
+  /**
+   * Verifies the signature Razorpay Checkout returns to the client on successful payment: HMAC-SHA256 of
+   * `order_id|payment_id` under the key secret. Fails closed: with no key secret configured nothing verifies.
+   */
   verifyPaymentSignature(orderId: string, paymentId: string, signature: string): boolean {
     const secret = this.config.get<string>('payment.razorpayKeySecret', '');
-    return validatePaymentVerification({ order_id: orderId, payment_id: paymentId }, signature, secret);
+    if (!secret) this.logger.error('RAZORPAY_KEY_SECRET is not set, so no payment signature can be verified');
+    return signatureMatches(`${orderId}|${paymentId}`, signature, secret);
   }
 
-  /** Verifies the `X-Razorpay-Signature` header on an incoming webhook against the raw request body. */
-  verifyWebhookSignature(rawBody: string, signature: string): boolean {
+  /**
+   * Verifies the `X-Razorpay-Signature` header on an incoming webhook against the raw request body, byte for byte.
+   * Fails closed: with no webhook secret configured, every webhook is refused. (Razorpay's own helper accepts a signature
+   * made with an empty secret, which anyone can make, so this endpoint would have trusted any caller.)
+   */
+  verifyWebhookSignature(rawBody: string | Buffer, signature: string): boolean {
     const secret = this.config.get<string>('payment.razorpayWebhookSecret', '');
-    return Razorpay.validateWebhookSignature(rawBody, signature, secret);
+    if (!secret) this.logger.error('RAZORPAY_WEBHOOK_SECRET is not set, so every webhook is being refused');
+    return signatureMatches(rawBody, signature, secret);
   }
 
   /**

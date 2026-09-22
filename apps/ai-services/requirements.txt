@@ -12,7 +12,7 @@ python-dotenv==1.2.3
 pytesseract==0.3.13
 pillow==12.3.0
 
-# LLM-backed features (Review Assistant, Caption/Story Generator) — talks to
+# LLM-backed features (Review Assistant, Caption Generator) — talks to
 # a locally-run Ollama instance (free, no API key) via its OpenAI-compatible
 # endpoint. Degrades gracefully if Ollama isn't running (see README.md).
 # No paid provider is configured or required anywhere in this service.

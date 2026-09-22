@@ -22,6 +22,7 @@ class ApiEndpoints {
   // Wallet — apps/backend/src/modules/wallet/controllers/wallet.controller.ts
   static const String wallet = '/wallet';
   static const String walletTransactions = '/wallet/transactions';
+  static const String walletTransactionsExport = '/wallet/transactions/export';
   static const String walletRewards = '/wallet/rewards';
 
   // Bank accounts — wallet/controllers/bank-account.controller.ts
@@ -35,9 +36,11 @@ class ApiEndpoints {
   // task/controllers/campaign-task.controller.ts, task-participation.controller.ts
   static const String campaignsBrowse = '/campaigns';
   static String campaignTasks(String campaignId) => '/campaigns/$campaignId/tasks';
+  static String campaignDetails(String campaignId) => '/campaigns/$campaignId/details';
   static String taskStart(String taskId) => '/tasks/$taskId/start';
   static String taskSubmit(String taskId) => '/tasks/$taskId/submit';
   static String taskTextSuggestion(String taskId) => '/tasks/$taskId/text-suggestion';
+  static String taskReviewDrafts(String taskId) => '/tasks/$taskId/review-drafts';
   static const String tasksRecommended = '/tasks/recommended';
 
   // Submissions — task/controllers/submission.controller.ts
@@ -52,6 +55,13 @@ class ApiEndpoints {
   static const String gamificationProfile = '/gamification/profile';
   static const String gamificationBadges = '/gamification/badges';
   static const String dailyRewardClaim = '/gamification/daily-reward/claim';
+
+  // App settings (maintenance, minimum version) — app-config/controllers/app-config.controller.ts
+  static const String appConfig = '/app-config';
+
+  // Leaderboard — leaderboard/controllers/leaderboard.controller.ts
+  static const String leaderboard = '/leaderboard';
+  static const String leaderboardVisibility = '/leaderboard/me/visibility';
 
   // Marketplace — marketplace/controllers/marketplace.controller.ts
   static const String marketplaceItems = '/marketplace/items';
@@ -73,6 +83,12 @@ class ApiEndpoints {
   static const String supportTickets = '/support/tickets';
   static String supportTicket(String ticketId) => '/support/tickets/$ticketId';
   static String supportTicketMessages(String ticketId) => '/support/tickets/$ticketId/messages';
+  static const String supportChatbotMessage = '/support/chatbot/message';
+  static const String supportChatbotHandoff = '/support/chatbot/handoff';
+
+  // Locations — location/controllers/location.controller.ts (public)
+  static const String locationStates = '/locations/states';
+  static String locationCities(String stateId) => '/locations/states/$stateId/cities';
 
   // Health
   static const String health = '/health';

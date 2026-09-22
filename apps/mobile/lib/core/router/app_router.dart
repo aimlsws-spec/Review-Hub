@@ -17,6 +17,7 @@ import '../../features/campaigns/presentation/screens/campaigns_screen.dart';
 import '../../features/dashboard/presentation/screens/home_screen.dart';
 import '../../features/gamification/presentation/screens/gamification_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_screen.dart';
+import '../../features/leaderboard/presentation/screens/leaderboard_screen.dart';
 import '../../features/marketplace/presentation/screens/marketplace_screen.dart';
 import '../../features/marketplace/presentation/screens/my_redemptions_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
@@ -26,9 +27,11 @@ import '../../features/referral/presentation/screens/referral_screen.dart';
 import '../../features/settings/presentation/screens/change_password_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/support/presentation/screens/new_support_ticket_screen.dart';
+import '../../features/support/presentation/screens/support_chat_screen.dart';
 import '../../features/support/presentation/screens/support_ticket_detail_screen.dart';
 import '../../features/support/presentation/screens/support_tickets_screen.dart';
 import '../../features/tasks/presentation/screens/my_submissions_screen.dart';
+import '../../features/tasks/presentation/screens/review_assistant_screen.dart';
 import '../../features/tasks/presentation/screens/task_detail_screen.dart';
 import '../../features/tasks/presentation/screens/task_submission_screen.dart';
 import '../../features/wallet/presentation/screens/add_bank_account_screen.dart';
@@ -162,6 +165,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           task: state.extra as CampaignTaskModel,
         ),
       ),
+      GoRoute(
+        path: RoutePaths.reviewAssistant,
+        builder: (context, state) => ReviewAssistantScreen(taskId: state.pathParameters['taskId']!),
+      ),
       GoRoute(path: RoutePaths.mySubmissions, builder: (context, state) => const MySubmissionsScreen()),
 
       GoRoute(path: RoutePaths.walletTransactions, builder: (context, state) => const TransactionsScreen()),
@@ -172,6 +179,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: RoutePaths.withdrawalHistory, builder: (context, state) => const WithdrawalHistoryScreen()),
 
       GoRoute(path: RoutePaths.referral, builder: (context, state) => const ReferralScreen()),
+      GoRoute(path: RoutePaths.leaderboard, builder: (context, state) => const LeaderboardScreen()),
 
       GoRoute(path: RoutePaths.marketplace, builder: (context, state) => const MarketplaceScreen()),
       GoRoute(path: RoutePaths.marketplaceRedemptions, builder: (context, state) => const MyRedemptionsScreen()),
@@ -184,6 +192,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: RoutePaths.notifications, builder: (context, state) => const NotificationsScreen()),
 
       GoRoute(path: RoutePaths.support, builder: (context, state) => const SupportTicketsScreen()),
+      GoRoute(path: RoutePaths.supportChat, builder: (context, state) => const SupportChatScreen()),
       // Registered before the `:ticketId` route below so the literal "new"
       // segment isn't swallowed by the param match.
       GoRoute(path: RoutePaths.newSupportTicket, builder: (context, state) => const NewSupportTicketScreen()),

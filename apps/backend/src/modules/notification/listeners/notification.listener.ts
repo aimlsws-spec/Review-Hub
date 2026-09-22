@@ -5,10 +5,15 @@ import { CampaignStatus } from '@prisma/client';
 import { CampaignStatusChangedEvent } from '../../campaign/events';
 import { BadgeEarnedEvent, LevelUpEvent } from '../../gamification/events';
 import { MarketplaceRedeemedEvent } from '../../marketplace/events';
+import { MerchantToppedUpEvent, MerchantTopUpReversedEvent } from '../../merchant/events';
 import { MerchantRepository } from '../../merchant/repositories';
 import { SubmissionRejectedEvent } from '../../task/events';
-import { RewardCreditedEvent, RewardReversedEvent, WithdrawalReviewedEvent } from '../../wallet/events';
+import { UserKycReviewedEvent } from '../../user-kyc/events';
+import { RewardCreditedEvent, RewardReversedEvent, WithdrawalFailedEvent, WithdrawalPaidEvent, WithdrawalReviewedEvent } from '../../wallet/events';
 import { NotificationQueueService } from '../services';
+
+/** Reads naturally in a sentence: PAN -> "PAN", DRIVING_LICENCE -> "driving licence". */
+const describeDocument = (documentType: string) => (documentType === 'PAN' ? 'PAN' : documentType.replace(/_/g, ' ').toLowerCase());
 
 const MERCHANT_NOTIFIABLE_STATUSES: CampaignStatus[] = ['APPROVED', 'ACTIVE', 'REJECTED', 'CHANGES_REQUESTED'];
 
@@ -51,15 +56,81 @@ export class NotificationListener {
     });
   }
 
+  @OnEvent('user.kyc.approved')
+  async handleKycApproved(event: UserKycReviewedEvent) {
+    await this.notificationQueue.enqueue({
+      userId: event.userId,
+      type: 'SYSTEM',
+      title: 'Identity verified',
+      message: `Your ${describeDocument(event.documentType)} has been verified. You can now request withdrawals.`,
+      channels: ['IN_APP', 'EMAIL', 'PUSH'],
+      data: { documentId: event.documentId, documentType: event.documentType },
+    });
+  }
+
+  @OnEvent('user.kyc.rejected')
+  async handleKycRejected(event: UserKycReviewedEvent) {
+    await this.notificationQueue.enqueue({
+      userId: event.userId,
+      type: 'SYSTEM',
+      title: 'Document not accepted',
+      message: `Your ${describeDocument(event.documentType)} was not accepted: ${event.reason}. Please upload it again.`,
+      channels: ['IN_APP', 'EMAIL', 'PUSH'],
+      data: { documentId: event.documentId, documentType: event.documentType, reason: event.reason },
+    });
+  }
+
   @OnEvent('wallet.withdrawal.approved')
   async handleWithdrawalApproved(event: WithdrawalReviewedEvent) {
     await this.notificationQueue.enqueue({
       userId: event.userId,
       type: 'WITHDRAWAL',
       title: 'Withdrawal approved',
-      message: 'Your withdrawal request has been approved and processed.',
+      message: 'Your withdrawal request has been approved. The money is on its way to your bank account.',
       channels: ['IN_APP', 'EMAIL', 'PUSH'],
       data: { withdrawalId: event.withdrawalId },
+    });
+  }
+
+  @OnEvent('merchant.wallet.topped_up')
+  async handleMerchantToppedUp(event: MerchantToppedUpEvent) {
+    await this.notifyMerchantOwner(event.merchantId, {
+      title: 'Money added to your wallet',
+      message: `₹${event.amount} was added to your wallet after your bank transfer (reference ${event.bankReference}). Your balance is now ₹${event.balanceAfter}.`,
+      data: { amount: event.amount, bankReference: event.bankReference },
+    });
+  }
+
+  @OnEvent('merchant.wallet.top_up_reversed')
+  async handleMerchantTopUpReversed(event: MerchantTopUpReversedEvent) {
+    await this.notifyMerchantOwner(event.merchantId, {
+      title: 'A wallet top-up was reversed',
+      message: `₹${event.amount} was taken back out of your wallet: ${event.reason}. Your balance is now ₹${event.balanceAfter}. If you think this is a mistake, contact support.`,
+      data: { amount: event.amount, reason: event.reason },
+    });
+  }
+
+  @OnEvent('wallet.withdrawal.paid')
+  async handleWithdrawalPaid(event: WithdrawalPaidEvent) {
+    await this.notificationQueue.enqueue({
+      userId: event.userId,
+      type: 'WITHDRAWAL',
+      title: 'Money sent',
+      message: `₹${event.amount} has been sent to your bank account${event.reference ? ` (reference ${event.reference})` : ''}.`,
+      channels: ['IN_APP', 'EMAIL', 'PUSH'],
+      data: { withdrawalId: event.withdrawalId, reference: event.reference },
+    });
+  }
+
+  @OnEvent('wallet.withdrawal.failed')
+  async handleWithdrawalFailed(event: WithdrawalFailedEvent) {
+    await this.notificationQueue.enqueue({
+      userId: event.userId,
+      type: 'WITHDRAWAL',
+      title: 'Withdrawal could not be sent',
+      message: `We could not send ₹${event.amount} to your bank account (${event.reason}). The money is back in your wallet.`,
+      channels: ['IN_APP', 'EMAIL', 'PUSH'],
+      data: { withdrawalId: event.withdrawalId, reason: event.reason },
     });
   }
 
@@ -140,6 +211,23 @@ export class NotificationListener {
       message: `Your campaign status changed to ${event.toStatus.replace('_', ' ')}.`,
       channels: ['IN_APP', 'EMAIL'],
       data: { campaignId: event.campaignId, status: event.toStatus },
+    });
+  }
+
+  /** Tells the person who owns a merchant account about something that happened to its wallet. */
+  private async notifyMerchantOwner(merchantId: string, notice: { title: string; message: string; data: Record<string, unknown> }) {
+    const merchant = await this.merchantRepository.findById(merchantId);
+    if (!merchant) {
+      this.logger.warn(`Wallet change for unknown merchant ${merchantId}`);
+      return;
+    }
+    await this.notificationQueue.enqueue({
+      userId: merchant.userId,
+      type: 'SYSTEM',
+      title: notice.title,
+      message: notice.message,
+      channels: ['IN_APP', 'EMAIL'],
+      data: notice.data,
     });
   }
 }

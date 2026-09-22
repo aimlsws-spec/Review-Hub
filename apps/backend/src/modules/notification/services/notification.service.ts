@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
+import { escapeHtml } from '@common/utils';
 
 import { EmailQueueService } from '../../../mail/email-queue.service';
 import { DeviceRepository } from '../../auth/repositories/device.repository';
@@ -33,38 +34,32 @@ export class NotificationService {
     const preference = await this.preferenceRepository.getOrCreate(payload.userId);
     const created = [];
 
+    // Fields every channel's copy of the message shares.
+    const record = {
+      user: { connect: { id: payload.userId } },
+      title: payload.title,
+      message: payload.message,
+      type: payload.type,
+      data: payload.data as never,
+      ...(payload.broadcastId ? { broadcast: { connect: { id: payload.broadcastId } } } : {}),
+    };
+
     if (channels.includes('IN_APP') && preference.inAppEnabled) {
       created.push(
-        await this.notificationRepository.create({
-          user: { connect: { id: payload.userId } },
-          title: payload.title,
-          message: payload.message,
-          type: payload.type,
-          channel: 'IN_APP',
-          status: 'SENT',
-          sentAt: new Date(),
-          data: payload.data as never,
-        }),
+        await this.notificationRepository.create({ ...record, channel: 'IN_APP', status: 'SENT', sentAt: new Date() }),
       );
     }
 
     if (channels.includes('EMAIL') && preference.emailEnabled) {
       const user = await this.userRepository.findByIdSimple(payload.userId);
       if (user?.email) {
-        const notification = await this.notificationRepository.create({
-          user: { connect: { id: payload.userId } },
-          title: payload.title,
-          message: payload.message,
-          type: payload.type,
-          channel: 'EMAIL',
-          status: 'QUEUED',
-          data: payload.data as never,
-        });
+        const notification = await this.notificationRepository.create({ ...record, channel: 'EMAIL', status: 'QUEUED' });
 
         await this.emailQueueService.enqueue({
           to: user.email,
           subject: payload.title,
-          html: `<p>${payload.message}</p>`,
+          // Escaped because the text can carry a user's own name or an admin-typed message, and this is HTML.
+          html: `<p>${escapeHtml(payload.message)}</p>`,
           notificationId: notification.id,
         });
 
@@ -77,16 +72,7 @@ export class NotificationService {
       const tokens = devices.map((d) => d.pushToken).filter((t): t is string => !!t);
 
       if (tokens.length > 0) {
-        const notification = await this.notificationRepository.create({
-          user: { connect: { id: payload.userId } },
-          title: payload.title,
-          message: payload.message,
-          type: payload.type,
-          channel: 'PUSH',
-          status: 'SENT',
-          sentAt: new Date(),
-          data: payload.data as never,
-        });
+        const notification = await this.notificationRepository.create({ ...record, channel: 'PUSH', status: 'SENT', sentAt: new Date() });
 
         await this.pushService.sendToTokens(tokens, {
           title: payload.title,

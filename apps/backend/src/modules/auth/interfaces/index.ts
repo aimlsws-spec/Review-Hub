@@ -1,5 +1,7 @@
 import { DevicePlatform, SessionStatus, UserStatus } from '@prisma/client';
 
+import type { UserGender } from '../constants';
+
 export interface TokenPayload {
   sub: string;
   type: 'access' | 'refresh';
@@ -35,7 +37,23 @@ export interface LoginResponse {
   tokens: AuthTokens;
 }
 
-export interface RegisterInput {
+/** What a person can tell us about themselves. `null` clears a saved value; leaving a field out keeps it. */
+export interface DemographicsInput {
+  /** YYYY-MM-DD */
+  dateOfBirth?: string | null;
+  gender?: UserGender | null;
+  stateId?: string | null;
+  cityId?: string | null;
+}
+
+export interface UpdateProfileInput extends DemographicsInput {
+  firstName?: string;
+  lastName?: string;
+  timezone?: string;
+  language?: string;
+}
+
+export interface RegisterInput extends DemographicsInput {
   firstName: string;
   lastName: string;
   email?: string;
@@ -57,6 +75,8 @@ export interface SocialLoginInput {
   userAgent?: string;
   xForwardedFor?: string;
   via?: string;
+  /** Raw X-Device-ID header; hashed before it is stored. */
+  installId?: string;
 }
 
 export interface SessionInfo {
@@ -93,5 +113,11 @@ export interface UserProfile {
   referralCode: string;
   timezone: string | null;
   language: string | null;
+  /** YYYY-MM-DD */
+  dateOfBirth: string | null;
+  gender: UserGender | null;
+  countryId: string | null;
+  stateId: string | null;
+  cityId: string | null;
   createdAt: Date;
 }

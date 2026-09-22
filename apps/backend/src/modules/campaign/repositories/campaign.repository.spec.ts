@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { CampaignSort } from '@common/enums';
+
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
 import { CampaignRepository } from './campaign.repository';
@@ -144,6 +146,74 @@ describe('CampaignRepository', () => {
           where: { deletedAt: null, status: 'ACTIVE', visibility: 'PUBLIC' },
         }),
       );
+    });
+
+    describe('sorting', () => {
+      const orderFor = async (sort?: CampaignSort) => {
+        mockPrisma.campaign.findMany.mockResolvedValue([]);
+        mockPrisma.campaign.count.mockResolvedValue(0);
+        await repository.findPublic({ page: 1, limit: 20, sort });
+        return mockPrisma.campaign.findMany.mock.calls.at(-1)[0];
+      };
+
+      it('puts featured campaigns first by default, then the newest', async () => {
+        expect((await orderFor()).orderBy).toEqual([{ featured: 'desc' }, { createdAt: 'desc' }]);
+        expect((await orderFor(CampaignSort.Featured)).orderBy).toEqual([{ featured: 'desc' }, { createdAt: 'desc' }]);
+      });
+
+      it('ranks the popular by how many people joined', async () => {
+        expect((await orderFor(CampaignSort.Popular)).orderBy[0]).toEqual({ analytics: { joins: 'desc' } });
+      });
+
+      it('lists the newest first', async () => {
+        expect((await orderFor(CampaignSort.Newest)).orderBy).toEqual([{ createdAt: 'desc' }]);
+      });
+
+      it('lists the biggest reward first, and keeps equal rewards in a steady order', async () => {
+        expect((await orderFor(CampaignSort.HighestReward)).orderBy).toEqual([
+          { rewardAmount: 'desc' },
+          { featured: 'desc' },
+          { createdAt: 'desc' },
+        ]);
+      });
+
+      it('lists what ends soonest first, and only what has an end date still ahead', async () => {
+        const args = await orderFor(CampaignSort.EndingSoon);
+
+        expect(args.orderBy[0]).toEqual({ endAt: 'asc' });
+        expect(args.where.endAt.gte).toBeInstanceOf(Date);
+        expect(args.where.endAt.gte.getTime()).toBeLessThanOrEqual(Date.now());
+        expect(args.where.endAt.gte.getTime()).toBeGreaterThan(Date.now() - 5000);
+      });
+
+      it('does not filter by end date for the other sorts', async () => {
+        for (const sort of [undefined, CampaignSort.Featured, CampaignSort.Popular, CampaignSort.Newest, CampaignSort.HighestReward]) {
+          expect((await orderFor(sort)).where).not.toHaveProperty('endAt');
+        }
+      });
+
+      it('still applies the type and search filters with any sort', async () => {
+        mockPrisma.campaign.findMany.mockResolvedValue([]);
+        mockPrisma.campaign.count.mockResolvedValue(0);
+
+        await repository.findPublic({ page: 2, limit: 10, campaignType: 'REVIEW', search: 'cafe', sort: CampaignSort.Newest });
+
+        const args = mockPrisma.campaign.findMany.mock.calls.at(-1)[0];
+        expect(args.where).toMatchObject({ campaignType: 'REVIEW', OR: [{ title: { contains: 'cafe' } }, { shortDescription: { contains: 'cafe' } }] });
+        expect(args).toMatchObject({ skip: 10, take: 10 });
+      });
+    });
+  });
+
+  describe('findPublicById', () => {
+    it('only finds an active, public, non-deleted campaign', async () => {
+      mockPrisma.campaign.findFirst.mockResolvedValue({ id: 'campaign-1' });
+
+      await expect(repository.findPublicById('campaign-1')).resolves.toEqual({ id: 'campaign-1' });
+
+      expect(mockPrisma.campaign.findFirst).toHaveBeenCalledWith({
+        where: { id: 'campaign-1', deletedAt: null, status: 'ACTIVE', visibility: 'PUBLIC' },
+      });
     });
   });
 });

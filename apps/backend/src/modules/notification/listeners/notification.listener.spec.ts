@@ -5,6 +5,7 @@ import { BadgeEarnedEvent, LevelUpEvent } from '../../gamification/events';
 import { MarketplaceRedeemedEvent } from '../../marketplace/events';
 import { MerchantRepository } from '../../merchant/repositories';
 import { SubmissionRejectedEvent } from '../../task/events';
+import { UserKycReviewedEvent } from '../../user-kyc/events';
 import { RewardCreditedEvent, RewardReversedEvent, WithdrawalReviewedEvent } from '../../wallet/events';
 import { NotificationQueueService } from '../services';
 
@@ -100,6 +101,39 @@ describe('NotificationListener', () => {
     );
   });
 
+  describe('merchant wallet top-ups', () => {
+    beforeEach(() => mockMerchantRepository.findById.mockResolvedValue({ id: 'merchant-1', userId: 'user-9' }));
+
+    it('tells the owner when money was added by bank transfer, with the reference and the new balance', async () => {
+      await listener.handleMerchantToppedUp({ merchantId: 'merchant-1', amount: 25000, bankReference: 'UTR123456789', balanceAfter: 26000 });
+
+      expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-9',
+          type: 'SYSTEM',
+          title: 'Money added to your wallet',
+          message: expect.stringMatching(/₹25000.*UTR123456789.*₹26000/),
+          channels: ['IN_APP', 'EMAIL'],
+        }),
+      );
+    });
+
+    it('tells the owner when a top-up was reversed, why, and what is left', async () => {
+      await listener.handleMerchantTopUpReversed({ merchantId: 'merchant-1', amount: 5000, reason: 'The amount was typed wrongly', balanceAfter: 1000 });
+
+      expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-9', title: 'A wallet top-up was reversed', message: expect.stringMatching(/₹5000.*typed wrongly.*₹1000/) }),
+      );
+    });
+
+    it('does nothing, and does not fail, for a merchant that no longer exists', async () => {
+      mockMerchantRepository.findById.mockResolvedValue(null);
+
+      await expect(listener.handleMerchantToppedUp({ merchantId: 'gone', amount: 1, bankReference: 'UTR000001', balanceAfter: 1 })).resolves.toBeUndefined();
+      expect(mockNotificationQueue.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
   describe('handleCampaignStatusChanged', () => {
     it('should resolve the merchant and notify on a notifiable status', async () => {
       mockMerchantRepository.findById.mockResolvedValue({ id: 'merchant-1', userId: 'user-9' });
@@ -131,5 +165,28 @@ describe('NotificationListener', () => {
 
       expect(mockNotificationQueue.enqueue).not.toHaveBeenCalled();
     });
+  });
+  it('should tell the user their document was verified and that withdrawals are unlocked', async () => {
+    await listener.handleKycApproved(new UserKycReviewedEvent('user-1', 'doc-1', 'PAN'));
+
+    expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'SYSTEM',
+        title: 'Identity verified',
+        message: expect.stringContaining('PAN'),
+        channels: ['IN_APP', 'EMAIL', 'PUSH'],
+      }),
+    );
+  });
+
+  it('should include the rejection reason and ask for a new upload on rejection', async () => {
+    await listener.handleKycRejected(new UserKycReviewedEvent('user-1', 'doc-1', 'DRIVING_LICENCE', 'Image is too blurry'));
+
+    const payload = mockNotificationQueue.enqueue.mock.calls[0][0];
+    expect(payload).toEqual(expect.objectContaining({ userId: 'user-1', type: 'SYSTEM', title: 'Document not accepted' }));
+    expect(payload.message).toContain('driving licence');
+    expect(payload.message).toContain('Image is too blurry');
+    expect(payload.message).toContain('upload it again');
   });
 });

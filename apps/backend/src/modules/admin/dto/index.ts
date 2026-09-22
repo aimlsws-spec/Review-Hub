@@ -9,3 +9,6 @@ export * from './system-setting.dto';
 export * from './feature-flag.dto';
 export * from './audit-log-query.dto';
 export * from './update-platform-configuration.dto';
+export * from './kyc-review-query.dto';
+export * from './reject-kyc.dto';
+export * from './kyc-review-response.dto';

@@ -76,6 +76,45 @@ describe('CampaignQueuePage', () => {
     expect(screen.getByText(/10,000/)).toBeInTheDocument()
   })
 
+  describe('wording flags', () => {
+    const blockFlag = { rule: 'REQUIRES_RATING', severity: 'BLOCK', field: 'description', excerpt: '5 star review', message: 'A reward must never depend on the rating.' }
+    const softFlag = { rule: 'POSITIVE_WORDING', severity: 'REVIEW', field: 'title', excerpt: 'great reviews', message: 'Check this wording.' }
+
+    const queueWith = (policyFlags: unknown[]) =>
+      vi.mocked(useCampaignQueueQuery).mockReturnValue({
+        data: { data: { data: { data: [{ ...campaign, policyFlags }], total: 1, page: 1, limit: 20 } } },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      } as never)
+
+    it('shows nothing extra for a clean campaign', () => {
+      queueWith([])
+      renderPage()
+      expect(screen.queryByLabelText(/wording flags/i)).not.toBeInTheDocument()
+    })
+
+    it('shows the words and where they were written, and stops approval when one blocks', () => {
+      queueWith([blockFlag])
+      renderPage()
+
+      const flags = within(screen.getByLabelText(/wording flags/i))
+      expect(flags.getByText(/5 star review/)).toBeInTheDocument()
+      expect(flags.getByText(/blocks approval/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^approve$/i })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /request changes/i })).toBeEnabled()
+      expect(screen.getByRole('button', { name: /^reject$/i })).toBeEnabled()
+    })
+
+    it('leaves approval to the moderator when the flag is only a warning', () => {
+      queueWith([softFlag])
+      renderPage()
+
+      expect(screen.getByText(/check wording/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^approve$/i })).toBeEnabled()
+    })
+  })
+
   it('approves a campaign with an optional comment', async () => {
     const user = userEvent.setup()
     renderPage()

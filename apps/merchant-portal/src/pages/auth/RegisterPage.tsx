@@ -1,6 +1,6 @@
 import { Input, Spinner } from '@reviewhub/shared-ui'
 import { useForm } from 'react-hook-form'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ROUTES } from '@/constants'

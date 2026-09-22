@@ -69,9 +69,24 @@ export class UserKycService {
     const document = await this.documentRepository.findById(documentId);
     // A document belonging to a different user is reported as not found, not
     // forbidden, so ids can't be used to probe for other users' documents.
-    if (!document || document.userId !== userId || document.deletedAt || !document.fileUploadId) {
-      throw new NotFoundException('Document');
-    }
+    if (!document || document.userId !== userId) throw new NotFoundException('Document');
+
+    return this.resolveFilePath(document);
+  }
+
+  /**
+   * Same as {@link getDocumentFilePath} but without the ownership check, for an admin reviewing
+   * someone else's document. Callers must already have verified the caller is an admin.
+   */
+  async getDocumentFilePathForReview(documentId: string): Promise<string> {
+    const document = await this.documentRepository.findById(documentId);
+    if (!document) throw new NotFoundException('Document');
+
+    return this.resolveFilePath(document);
+  }
+
+  private async resolveFilePath(document: { deletedAt: Date | null; fileUploadId: string | null }): Promise<string> {
+    if (document.deletedAt || !document.fileUploadId) throw new NotFoundException('Document');
 
     const exists = await this.storageService.fileExists(document.fileUploadId);
     if (!exists) throw new NotFoundException('Document file');

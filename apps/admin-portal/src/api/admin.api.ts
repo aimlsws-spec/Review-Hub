@@ -25,6 +25,10 @@ import type {
   Merchant,
   MerchantAnalytics,
   MerchantDetail,
+  MerchantManualTopUp,
+  TdsReport,
+  AdminInvoice,
+  InvoiceNote,
   MerchantRefund,
   PaginatedResult,
   PlatformConfiguration,
@@ -37,13 +41,26 @@ import type {
   UserAnalytics,
   UserStatus,
   WithdrawalRequest,
+  KycDocument,
+  AccountRisk,
+  AudienceFilter,
+  AudienceLocation,
+  AudienceReach,
+  Broadcast,
+  BroadcastDetail,
+  BroadcastStatus,
+  CreateBroadcastPayload,
+  NotificationTemplate,
+  NotificationTemplatePayload,
+  KycDocumentType,
+  KycStatus,
   SupportTicket,
   SupportTicketStatus,
   SupportCategory,
   SupportPriority,
 } from '@/types'
 
-import apiClient from './client'
+import { apiClient } from './client'
 
 export const adminApi = {
   // ── Users ──────────────────────────────────────────────────────────────
@@ -69,6 +86,25 @@ export const adminApi = {
 
   getMerchantDetail: (merchantId: string) =>
     apiClient.get<ApiResponse<MerchantDetail>>(`/admin/merchants/${merchantId}`),
+
+  recordMerchantTopUp: (
+    merchantId: string,
+    data: { amount: number; bankReference: string; receivedOn: string; note?: string },
+  ) => apiClient.post<ApiResponse<MerchantManualTopUp>>(`/admin/merchants/${merchantId}/wallet/top-ups`, data),
+
+  listPendingTopUps: (params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<MerchantManualTopUp>>>('/admin/merchants/top-ups/pending', { params }),
+
+  approveTopUp: (topUpId: string) => apiClient.post<ApiResponse<MerchantManualTopUp>>(`/admin/merchants/top-ups/${topUpId}/approve`),
+
+  rejectTopUp: (topUpId: string, reason: string) =>
+    apiClient.post<ApiResponse<MerchantManualTopUp>>(`/admin/merchants/top-ups/${topUpId}/reject`, { reason }),
+
+  reverseTopUp: (topUpId: string, reason: string) =>
+    apiClient.post<ApiResponse<MerchantManualTopUp>>(`/admin/merchants/top-ups/${topUpId}/reverse`, { reason }),
+
+  listMerchantTopUps: (merchantId: string, params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<MerchantManualTopUp>>>(`/admin/merchants/${merchantId}/wallet/top-ups`, { params }),
 
   approveMerchant: (merchantId: string) =>
     apiClient.post<ApiResponse<Merchant>>('/admin/merchants/approve', { merchantId }),
@@ -99,9 +135,80 @@ export const adminApi = {
   requestCampaignChanges: (campaignId: string, comments: string) =>
     apiClient.post<ApiResponse<Campaign>>(`/admin/campaigns/${campaignId}/request-changes`, { comments }),
 
+  // ── Notification center ────────────────────────────────────────────────
+  previewAudience: (audience: AudienceFilter) =>
+    apiClient.post<ApiResponse<AudienceReach>>('/admin/notifications/broadcasts/preview', { audience }),
+
+  listAudienceLocations: () => apiClient.get<ApiResponse<AudienceLocation[]>>('/admin/notifications/audience/locations'),
+
+  createBroadcast: (payload: CreateBroadcastPayload) =>
+    apiClient.post<ApiResponse<Broadcast>>('/admin/notifications/broadcasts', payload),
+
+  listBroadcasts: (params: { page: number; limit: number; status?: BroadcastStatus }) =>
+    apiClient.get<ApiResponse<PaginatedResult<Broadcast>>>('/admin/notifications/broadcasts', { params }),
+
+  getBroadcast: (broadcastId: string) =>
+    apiClient.get<ApiResponse<BroadcastDetail>>(`/admin/notifications/broadcasts/${broadcastId}`),
+
+  cancelBroadcast: (broadcastId: string) =>
+    apiClient.post<ApiResponse<Broadcast>>(`/admin/notifications/broadcasts/${broadcastId}/cancel`),
+
+  listNotificationTemplates: () => apiClient.get<ApiResponse<NotificationTemplate[]>>('/admin/notifications/templates'),
+
+  createNotificationTemplate: (payload: NotificationTemplatePayload) =>
+    apiClient.post<ApiResponse<NotificationTemplate>>('/admin/notifications/templates', payload),
+
+  updateNotificationTemplate: (templateId: string, payload: Partial<NotificationTemplatePayload>) =>
+    apiClient.patch<ApiResponse<NotificationTemplate>>(`/admin/notifications/templates/${templateId}`, payload),
+
+  deleteNotificationTemplate: (templateId: string) =>
+    apiClient.delete<ApiResponse<{ id: string }>>(`/admin/notifications/templates/${templateId}`),
+
+  // ── Account risk ───────────────────────────────────────────────────────
+  getAccountRisk: (userId: string) => apiClient.get<ApiResponse<AccountRisk>>(`/admin/risk/users/${userId}`),
+
+  // ── User KYC review ────────────────────────────────────────────────────
+  listKycDocuments: (params: { page: number; limit: number; status?: KycStatus; documentType?: KycDocumentType; search?: string }) =>
+    apiClient.get<ApiResponse<PaginatedResult<KycDocument>>>('/admin/kyc', { params }),
+
+  getKycDocument: (documentId: string) => apiClient.get<ApiResponse<KycDocument>>(`/admin/kyc/${documentId}`),
+
+  /** The file needs the auth header, so it is fetched as a blob rather than used as an <img src>. */
+  getKycDocumentFile: (documentId: string) =>
+    apiClient.get<Blob>(`/admin/kyc/${documentId}/file`, { responseType: 'blob' }),
+
+  approveKycDocument: (documentId: string) => apiClient.post<ApiResponse<KycDocument>>(`/admin/kyc/${documentId}/approve`),
+
+  rejectKycDocument: (documentId: string, reason: string) =>
+    apiClient.post<ApiResponse<KycDocument>>(`/admin/kyc/${documentId}/reject`, { reason }),
+
   // ── Withdrawal queue ───────────────────────────────────────────────────
   listPendingWithdrawals: (params: { page: number; limit: number }) =>
     apiClient.get<ApiResponse<PaginatedResult<WithdrawalRequest>>>('/admin/withdrawals/pending', { params }),
+
+  // ── Finance ────────────────────────────────────────────────────────────
+  listTds: (params: { financialYear?: string; status?: string; page: number; limit: number }) =>
+    apiClient.get<ApiResponse<TdsReport>>('/admin/tds', { params }),
+
+  /** The file needs the auth header, so it is fetched as a blob and saved from there. */
+  exportTds: (financialYear?: string) => apiClient.get<Blob>('/admin/tds/export', { params: { financialYear }, responseType: 'blob' }),
+
+  listInvoices: (params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<AdminInvoice>>>('/admin/invoices', { params }),
+
+  listInvoiceNotes: (invoiceId: string) => apiClient.get<ApiResponse<InvoiceNote[]>>(`/admin/invoices/${invoiceId}/notes`),
+
+  issueInvoiceNote: (invoiceId: string, data: { type: 'CREDIT' | 'DEBIT'; taxableAmount: number; reason: string }) =>
+    apiClient.post<ApiResponse<InvoiceNote>>(`/admin/invoices/${invoiceId}/notes`, data),
+
+  listAwaitingPayout: (params: { page: number; limit: number }) =>
+    apiClient.get<ApiResponse<PaginatedResult<WithdrawalRequest>>>('/admin/withdrawals/awaiting-payout', { params }),
+
+  markWithdrawalPaid: (withdrawalId: string, data: { reference: string; note?: string }) =>
+    apiClient.post<ApiResponse<WithdrawalRequest>>(`/withdrawals/${withdrawalId}/mark-paid`, data),
+
+  markWithdrawalFailed: (withdrawalId: string, reason: string) =>
+    apiClient.post<ApiResponse<WithdrawalRequest>>(`/withdrawals/${withdrawalId}/mark-failed`, { reason }),
 
   approveWithdrawal: (withdrawalId: string) =>
     apiClient.post<ApiResponse<WithdrawalRequest>>(`/withdrawals/${withdrawalId}/approve`),

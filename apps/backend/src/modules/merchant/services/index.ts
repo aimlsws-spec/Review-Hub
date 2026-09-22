@@ -3,6 +3,7 @@ export * from './kyc.service';
 export * from './team.service';
 export * from './bank.service';
 export * from './wallet.service';
+export * from './manual-top-up.service';
 export * from './dashboard.service';
 export * from './admin.service';
 export * from './review.service';

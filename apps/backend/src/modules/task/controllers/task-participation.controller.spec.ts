@@ -63,15 +63,28 @@ describe('TaskParticipationController', () => {
       const dto = { textAnswer: 'done' };
       const file = { originalname: 'proof.jpg' } as Express.Multer.File;
 
-      await controller.submit('task-1', 'user-1', dto as never, file);
-      expect(mockParticipationService.submitTask).toHaveBeenCalledWith('task-1', 'user-1', dto, file);
+      await controller.submit('task-1', 'user-1', dto as never, file, { ip: '203.0.113.9' } as never);
+      expect(mockParticipationService.submitTask).toHaveBeenCalledWith('task-1', 'user-1', dto, file, { ip: '203.0.113.9' });
     });
 
     it('should call participationService.submitTask without a file', async () => {
       const dto = { textAnswer: 'done' };
 
-      await controller.submit('task-1', 'user-1', dto as never, undefined);
-      expect(mockParticipationService.submitTask).toHaveBeenCalledWith('task-1', 'user-1', dto, undefined);
+      await controller.submit('task-1', 'user-1', dto as never, undefined, { ip: '203.0.113.9' } as never);
+      expect(mockParticipationService.submitTask).toHaveBeenCalledWith('task-1', 'user-1', dto, undefined, { ip: '203.0.113.9' });
+    });
+  });
+  describe('submit and the client address', () => {
+    it('passes the requester IP so the submission can be checked against VPN and proxy lists', async () => {
+      await controller.submit('task-1', 'user-1', { textAnswer: 'x' } as never, undefined, { ip: '198.51.100.20' } as never);
+
+      expect(mockParticipationService.submitTask.mock.calls[0][4]).toEqual({ ip: '198.51.100.20' });
+    });
+
+    it('still works if the request object is unavailable', async () => {
+      await controller.submit('task-1', 'user-1', { textAnswer: 'x' } as never, undefined);
+
+      expect(mockParticipationService.submitTask.mock.calls[0][4]).toEqual({ ip: undefined });
     });
   });
 });

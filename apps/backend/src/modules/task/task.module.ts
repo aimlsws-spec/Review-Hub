@@ -4,6 +4,7 @@ import { AiAssistModule } from '../ai/ai-assist.module';
 import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
 import { MerchantModule } from '../merchant/merchant.module';
+import { RiskModule } from '../risk/risk.module';
 
 import {
   CampaignTaskController,
@@ -21,7 +22,7 @@ import {
 import { CampaignTaskService, SubmissionService, TaskParticipationService, TaskRecommendationService } from './services';
 
 @Module({
-  imports: [CampaignModule, AuthModule, MerchantModule, AiAssistModule],
+  imports: [CampaignModule, AuthModule, MerchantModule, AiAssistModule, RiskModule],
   controllers: [
     MerchantCampaignTaskController,
     CampaignTaskController,
@@ -39,7 +40,9 @@ import { CampaignTaskService, SubmissionService, TaskParticipationService, TaskR
     TaskSubmissionRepository,
     TaskRecommendationRepository,
   ],
-  exports: [CampaignTaskService, TaskParticipationService, SubmissionService, TaskRecommendationService],
+  // TaskSubmissionRepository is exported for the AI verification worker in JobsModule, which reads and updates
+  // submissions directly. Without it the app fails to start with a dependency-injection error.
+  exports: [CampaignTaskService, TaskParticipationService, SubmissionService, TaskRecommendationService, TaskSubmissionRepository],
 })
 export class TaskModule {
   private readonly logger = new Logger(TaskModule.name);

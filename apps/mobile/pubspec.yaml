@@ -53,6 +53,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_core: ^4.14.0
   firebase_messaging: ^16.6.0
+  local_auth: ^3.0.2
+  package_info_plus: ^10.2.1
+  url_launcher: ^6.3.2
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:

@@ -3,7 +3,14 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useApproveWithdrawalMutation, useRejectWithdrawalMutation, useWithdrawalQueueQuery } from '@/hooks/useWithdrawalQueue'
+import {
+  useApproveWithdrawalMutation,
+  useAwaitingPayoutQuery,
+  useMarkWithdrawalFailedMutation,
+  useMarkWithdrawalPaidMutation,
+  useRejectWithdrawalMutation,
+  useWithdrawalQueueQuery,
+} from '@/hooks/useWithdrawalQueue'
 
 import WithdrawalQueuePage from './WithdrawalQueuePage'
 
@@ -11,6 +18,9 @@ vi.mock('@/hooks/useWithdrawalQueue', () => ({
   useWithdrawalQueueQuery: vi.fn(),
   useApproveWithdrawalMutation: vi.fn(),
   useRejectWithdrawalMutation: vi.fn(),
+  useAwaitingPayoutQuery: vi.fn(),
+  useMarkWithdrawalPaidMutation: vi.fn(),
+  useMarkWithdrawalFailedMutation: vi.fn(),
 }))
 
 const withdrawal = {
@@ -51,6 +61,24 @@ describe('WithdrawalQueuePage', () => {
     vi.mocked(useRejectWithdrawalMutation).mockReturnValue({ mutate: rejectMock, isPending: false } as never)
     approveMock.mockReset()
     rejectMock.mockReset()
+    vi.mocked(useAwaitingPayoutQuery).mockReturnValue({
+      data: { data: { data: { data: [], total: 0, page: 1, limit: 20 } } },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never)
+    vi.mocked(useMarkWithdrawalPaidMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    vi.mocked(useMarkWithdrawalFailedMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+  })
+
+  it('has a second tab for approved withdrawals waiting for the money to be sent', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /awaiting payout/i }))
+
+    expect(screen.getByText(/nothing waiting to be paid/i)).toBeInTheDocument()
+    expect(screen.queryByText('ICICI Bank')).not.toBeInTheDocument()
   })
 
   it('shows an empty state when there are no pending withdrawals', () => {

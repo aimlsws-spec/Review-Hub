@@ -8,7 +8,10 @@ export const ROUTES = {
   USERS: '/users',
   MERCHANTS: '/merchants',
   CAMPAIGNS: '/campaigns',
+  KYC: '/kyc',
+  NOTIFICATIONS: '/notifications',
   WITHDRAWALS: '/withdrawals',
+  FINANCE: '/finance',
   REFUNDS: '/refunds',
   FRAUD: '/fraud',
   CMS_PAGES: '/cms/pages',
@@ -34,10 +37,18 @@ export const QUERY_KEYS = {
   USER_DETAIL: ['users', 'detail'],
   MERCHANTS: ['merchants'],
   MERCHANT_DETAIL: ['merchants', 'detail'],
+  MERCHANT_TOP_UPS: ['merchants', 'top-ups'],
+  TDS: ['tds'],
+  INVOICES: ['invoices'],
   CAMPAIGN_QUEUE: ['campaign-queue'],
+  KYC: ['kyc'],
+  BROADCASTS: ['broadcasts'],
+  NOTIFICATION_TEMPLATES: ['notification-templates'],
+  AUDIENCE: ['audience'],
   WITHDRAWAL_QUEUE: ['withdrawal-queue'],
   REFUND_QUEUE: ['refund-queue'],
   FRAUD_FLAGS: ['fraud-flags'],
+  ACCOUNT_RISK: ['account-risk'],
   HIGH_RISK_DEVICES: ['high-risk-devices'],
   CMS_PAGES: ['cms-pages'],
   FAQS: ['faqs'],
@@ -62,6 +73,69 @@ export const QUERY_KEYS = {
 } as const
 
 export const ITEMS_PER_PAGE = 20
+
+export const BROADCAST_STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: 'Scheduled',
+  SENDING: 'Sending',
+  SENT: 'Sent',
+  CANCELLED: 'Cancelled',
+  FAILED: 'Failed',
+}
+
+export const BROADCAST_CHANNEL_LABELS: Record<string, string> = {
+  IN_APP: 'In-app',
+  PUSH: 'Push',
+  EMAIL: 'Email',
+  SMS: 'SMS',
+}
+
+export const BROADCAST_TYPE_LABELS: Record<string, string> = {
+  PROMOTIONAL: 'Promotion',
+  SYSTEM: 'Announcement',
+  CAMPAIGN: 'Campaign',
+}
+
+export const FRAUD_SIGNAL_LABELS: Record<string, string> = {
+  DUPLICATE_SUBMISSION: 'Duplicate image',
+  MANIPULATED_IMAGE: 'Edited image',
+  VPN_DETECTED: 'VPN / proxy',
+  MULTIPLE_ACCOUNTS: 'Linked accounts',
+  REFERRAL_ABUSE: 'Referral abuse',
+  RAPID_SUBMISSIONS: 'Rapid submissions',
+  SUSPICIOUS_DEVICE: 'Suspicious device',
+  BLACKLISTED_IP: 'Blocked IP',
+  AI_GENERATED: 'AI-generated',
+}
+
+export const ACCOUNT_LINK_LABELS: Record<string, string> = {
+  PAN: 'Same PAN',
+  BANK_ACCOUNT: 'Same bank account',
+  DEVICE: 'Same device',
+  IP: 'Same network',
+}
+
+export const IP_VERDICT_LABELS: Record<string, string> = {
+  ANONYMIZER: 'VPN / proxy',
+  CLEAN: 'Not listed',
+  PRIVATE: 'Local address',
+  UNKNOWN: 'Not checked',
+}
+
+export const KYC_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending',
+  UNDER_REVIEW: 'Under review',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  EXPIRED: 'Expired',
+}
+
+export const KYC_DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  PAN: 'PAN',
+  AADHAAR: 'Aadhaar',
+  PASSPORT: 'Passport',
+  DRIVING_LICENCE: 'Driving licence',
+  SELFIE: 'Selfie',
+}
 
 export const USER_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Active',

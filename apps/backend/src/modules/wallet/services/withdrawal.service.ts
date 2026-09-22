@@ -2,16 +2,19 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
-import { describeError } from '@common/utils';
+import { describeError, normalizeBankReference } from '@common/utils';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { DeviceRepository } from '../../auth/repositories/device.repository';
 import { PAYMENT_PROVIDER, PaymentProvider } from '../../payment/interfaces';
+import { AccountLinkageService } from '../../risk/services';
 import { UserKycService } from '../../user-kyc/services';
-import { DEVICE_RISK_HOLD_THRESHOLD, REVIEWABLE_WITHDRAWAL_STATUSES, WALLET_CONSTANTS } from '../constants';
-import { CreateWithdrawalDto, RejectWithdrawalDto } from '../dto';
-import { WithdrawalRequestedEvent, WithdrawalReviewedEvent } from '../events';
-import { UserBankAccountRepository, UserWalletRepository, WithdrawalRepository } from '../repositories';
+import { DEVICE_RISK_HOLD_THRESHOLD } from '../constants';
+import { CreateWithdrawalDto, MarkWithdrawalFailedDto, MarkWithdrawalPaidDto, RejectWithdrawalDto } from '../dto';
+import { WithdrawalFailedEvent, WithdrawalPaidEvent, WithdrawalRequestedEvent, WithdrawalReviewedEvent } from '../events';
+import { UserBankAccountRepository, UserWalletRepository, WithdrawalRepository, WithdrawalSettlementRepository } from '../repositories';
+
+import { WithdrawalPolicyService } from './withdrawal-policy.service';
 
 @Injectable()
 export class WithdrawalService {
@@ -26,12 +29,14 @@ export class WithdrawalService {
     @Inject(PAYMENT_PROVIDER) private readonly paymentService: PaymentProvider,
     private readonly userKycService: UserKycService,
     private readonly deviceRepository: DeviceRepository,
+    private readonly accountLinkage: AccountLinkageService,
+    private readonly settlementRepository: WithdrawalSettlementRepository,
+    private readonly policyService: WithdrawalPolicyService,
   ) {}
 
   async request(userId: string, dto: CreateWithdrawalDto, deviceId?: string) {
-    if (dto.amount < WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT) {
-      throw new BadRequestException(`Minimum withdrawal amount is ₹${WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT}`);
-    }
+    const settings = await this.policyService.getSettings();
+    this.policyService.assertAmountAllowed(settings, dto.amount);
 
     // PAN verification before withdrawals — a product requirement, not just a
     // nice-to-have (see the original spec's "PAN verification (before
@@ -52,51 +57,31 @@ export class WithdrawalService {
     if (bankAccount.verificationStatus === 'FAILED') {
       throw new BadRequestException('This bank account failed verification and cannot receive payouts');
     }
+    this.policyService.assertBankReady(bankAccount, settings);
 
     const wallet = await this.walletRepository.getOrCreate(userId);
-    if (Number(wallet.availableBalance) < dto.amount) {
-      throw new BadRequestException('Insufficient wallet balance');
-    }
+    const { status: initialStatus, reason: holdReason } = await this.resolveInitialStatus(userId, deviceId);
 
-    const initialStatus = await this.resolveInitialStatus(userId, deviceId);
-
-    const withdrawal = await this.withdrawalRepository.create({
-      wallet: { connect: { id: wallet.id } },
-      bankAccount: { connect: { id: bankAccount.id } },
+    // The request, the daily and monthly limits, the balance check and the hold on the money all happen in one
+    // transaction, so two requests made at the same moment can not both get through.
+    const withdrawal = await this.settlementRepository.request({
+      walletId: wallet.id,
+      bankAccountId: bankAccount.id,
       amount: dto.amount,
-      finalAmount: dto.amount,
       status: initialStatus,
+      limits: { daily: settings.dailyLimit, monthly: settings.monthlyLimit },
     });
 
     if (initialStatus === 'UNDER_REVIEW') {
       await this.auditLogService.record({
-        actorId: 'device-risk-check',
+        actorId: 'risk-check',
         actorType: 'SYSTEM',
         entity: 'WithdrawalRequest',
         entityId: withdrawal.id,
         action: 'STATUS_CHANGE',
         before: { status: 'PENDING' },
-        after: { status: 'UNDER_REVIEW', reason: 'high_device_risk_score' },
+        after: { status: 'UNDER_REVIEW', reason: holdReason },
       });
-    }
-
-    try {
-      await this.walletRepository.holdForWithdrawal({
-        walletId: wallet.id,
-        amount: dto.amount,
-        withdrawalId: withdrawal.id,
-      });
-    } catch (error) {
-      // The pre-check above already validated the balance; this only
-      // catches a genuine race against a concurrent request. Undo the
-      // request row we just created rather than leaving it stranded PENDING
-      // with no hold behind it.
-      await this.withdrawalRepository.update(withdrawal.id, {
-        status: 'CANCELLED',
-        rejectionReason: 'Insufficient balance at time of processing',
-        deletedAt: new Date(),
-      });
-      throw error;
     }
 
     this.eventEmitter.emit(
@@ -125,33 +110,21 @@ export class WithdrawalService {
     return withdrawal;
   }
 
-  /** Minimal reviewer action — Phase 5 builds the admin withdrawal queue around this. */
+  /**
+   * Approves a withdrawal: the money leaves the user's balance for good, in the same step as the status change.
+   * Then it is paid out the way the platform is set up to pay: through the gateway, or by an admin who sends it and
+   * records the bank's reference (see markPaid).
+   */
   async approve(withdrawalId: string, reviewerId: string) {
-    const withdrawal = await this.getReviewable(withdrawalId);
-
-    await this.walletRepository.finalizeWithdrawal({
-      walletId: withdrawal.walletId,
-      amount: Number(withdrawal.amount),
-      withdrawalId: withdrawal.id,
+    const { payoutMode, tds } = await this.policyService.getSettings();
+    const approved = await this.settlementRepository.approve({
+      withdrawalId,
+      reviewerId,
+      payoutMode,
+      tds: { rate: tds.rate, threshold: tds.annualThreshold, section: tds.section },
     });
 
-    await this.withdrawalRepository.update(withdrawalId, {
-      status: 'APPROVED',
-      processedBy: reviewerId,
-      processedAt: new Date(),
-    });
-
-    await this.withdrawalRepository.createLog({
-      withdrawal: { connect: { id: withdrawalId } },
-      oldStatus: withdrawal.status,
-      newStatus: 'APPROVED',
-      changedBy: reviewerId,
-    });
-
-    this.eventEmitter.emit(
-      'wallet.withdrawal.approved',
-      new WithdrawalReviewedEvent(withdrawalId, withdrawal.wallet.userId, true),
-    );
+    this.eventEmitter.emit('wallet.withdrawal.approved', new WithdrawalReviewedEvent(withdrawalId, approved.wallet.userId, true));
 
     await this.auditLogService.record({
       actorId: reviewerId,
@@ -159,47 +132,22 @@ export class WithdrawalService {
       entity: 'WithdrawalRequest',
       entityId: withdrawalId,
       action: 'APPROVE',
-      before: { status: withdrawal.status },
-      after: { status: 'APPROVED' },
+      before: { status: 'PENDING' },
+      after: { status: 'APPROVED', payoutMode, ...(Number(approved.tdsAmount) > 0 ? { tdsAmount: Number(approved.tdsAmount) } : {}) },
     });
 
-    // Money has already left the user's balance (finalizeWithdrawal above) —
-    // a payout failure here doesn't get reversed until Razorpay's webhook
-    // reports it definitively failed/reversed (see PayoutListener), since an
-    // API error at this exact moment could just as easily be a transient blip.
-    await this.initiatePayout(withdrawal);
+    // Money has already left the user's balance — a payout failure here doesn't get reversed until the gateway's
+    // webhook reports it definitively failed/reversed (see PayoutListener), since an API error at this exact moment
+    // could just as easily be a transient blip. In manual mode nothing is sent: it waits for an admin.
+    if (payoutMode === 'GATEWAY') await this.initiatePayout(withdrawalId);
 
     return this.withdrawalRepository.findById(withdrawalId);
   }
 
   async reject(withdrawalId: string, reviewerId: string, dto: RejectWithdrawalDto) {
-    const withdrawal = await this.getReviewable(withdrawalId);
+    const rejected = await this.settlementRepository.reject({ withdrawalId, reviewerId, reason: dto.rejectionReason });
 
-    await this.walletRepository.releaseHold({
-      walletId: withdrawal.walletId,
-      amount: Number(withdrawal.amount),
-      withdrawalId: withdrawal.id,
-    });
-
-    const updated = await this.withdrawalRepository.update(withdrawalId, {
-      status: 'REJECTED',
-      rejectionReason: dto.rejectionReason,
-      processedBy: reviewerId,
-      processedAt: new Date(),
-    });
-
-    await this.withdrawalRepository.createLog({
-      withdrawal: { connect: { id: withdrawalId } },
-      oldStatus: withdrawal.status,
-      newStatus: 'REJECTED',
-      remarks: dto.rejectionReason,
-      changedBy: reviewerId,
-    });
-
-    this.eventEmitter.emit(
-      'wallet.withdrawal.rejected',
-      new WithdrawalReviewedEvent(withdrawalId, withdrawal.wallet.userId, false),
-    );
+    this.eventEmitter.emit('wallet.withdrawal.rejected', new WithdrawalReviewedEvent(withdrawalId, rejected.wallet.userId, false));
 
     await this.auditLogService.record({
       actorId: reviewerId,
@@ -207,43 +155,105 @@ export class WithdrawalService {
       entity: 'WithdrawalRequest',
       entityId: withdrawalId,
       action: 'REJECT',
-      before: { status: withdrawal.status },
+      before: { status: 'PENDING' },
       after: { status: 'REJECTED', reason: dto.rejectionReason },
     });
 
-    return updated;
+    return rejected;
+  }
+
+  /** Approved withdrawals that are waiting for someone to send the money and record the reference. */
+  async listAwaitingManualPayout(page: number, limit: number) {
+    return this.settlementRepository.findAwaitingManualPayout(page, limit);
   }
 
   /**
-   * Holds a new withdrawal for manual review instead of PENDING when the
-   * requesting device's risk score is at or above DEVICE_RISK_HOLD_THRESHOLD.
-   * Fails open to PENDING (never blocks a legitimate withdrawal) whenever
-   * device context is missing or inconsistent — this is a fraud signal, not
-   * a security gate.
+   * An admin has sent the money by bank transfer and records the bank's reference. The reference can be used once,
+   * so the same transfer can not settle two withdrawals. Only a withdrawal waiting on a person can be settled this
+   * way: one the gateway already has is not theirs to mark, or it could be paid twice.
    */
-  private async resolveInitialStatus(userId: string, deviceId?: string): Promise<'PENDING' | 'UNDER_REVIEW'> {
-    if (!deviceId) return 'PENDING';
+  async markPaid(withdrawalId: string, adminId: string, dto: MarkWithdrawalPaidDto) {
+    const reference = normalizeBankReference(dto.reference);
+    const outcome = await this.settlementRepository.markPaid({
+      withdrawalId,
+      source: 'MANUAL',
+      reference,
+      actorId: adminId,
+      note: dto.note || undefined,
+    });
+    if (!outcome.applied) throw new BadRequestException('This withdrawal is already paid');
 
-    const device = await this.deviceRepository.findById(deviceId);
-    if (!device || device.userId !== userId) return 'PENDING';
+    const userId = outcome.withdrawal.wallet.userId;
+    this.eventEmitter.emit('wallet.withdrawal.paid', new WithdrawalPaidEvent(withdrawalId, userId, Number(outcome.withdrawal.amount), reference));
+    await this.auditLogService.record({
+      actorId: adminId,
+      actorType: 'ADMIN',
+      entity: 'WithdrawalRequest',
+      entityId: withdrawalId,
+      action: 'STATUS_CHANGE',
+      before: { status: 'APPROVED' },
+      after: { status: 'PAID', payoutMode: 'MANUAL', payoutReference: reference },
+    });
+    this.logger.log(`Admin ${adminId} marked withdrawal ${withdrawalId} paid by hand (bank ref ${reference})`);
 
-    if (device.riskScore >= DEVICE_RISK_HOLD_THRESHOLD) {
+    return this.withdrawalRepository.findById(withdrawalId);
+  }
+
+  /** An admin could not send the money. It goes back to the user's available balance, once, in the same step. */
+  async markFailed(withdrawalId: string, adminId: string, dto: MarkWithdrawalFailedDto) {
+    const outcome = await this.settlementRepository.markFailed({ withdrawalId, source: 'MANUAL', reason: dto.reason, actorId: adminId });
+    if (!outcome.applied) throw new BadRequestException(`This withdrawal is ${outcome.status.toLowerCase()}, so it can not be marked failed`);
+
+    const userId = outcome.withdrawal.wallet.userId;
+    this.eventEmitter.emit('wallet.withdrawal.failed', new WithdrawalFailedEvent(withdrawalId, userId, Number(outcome.withdrawal.amount), dto.reason));
+    await this.auditLogService.record({
+      actorId: adminId,
+      actorType: 'ADMIN',
+      entity: 'WithdrawalRequest',
+      entityId: withdrawalId,
+      action: 'STATUS_CHANGE',
+      before: { status: 'APPROVED' },
+      after: { status: 'FAILED', reason: dto.reason },
+    });
+    this.logger.warn(`Admin ${adminId} marked withdrawal ${withdrawalId} failed and returned the money: ${dto.reason}`);
+
+    return this.withdrawalRepository.findById(withdrawalId);
+  }
+
+  /**
+   * Holds a new withdrawal for manual review instead of PENDING when either
+   *  - the requesting device's risk score is at or above DEVICE_RISK_HOLD_THRESHOLD, or
+   *  - the account is tied to other accounts by a PAN, a bank account or (two or more) devices, which is what
+   *    one person cashing out several accounts looks like.
+   * Fails open to PENDING (never blocks a legitimate withdrawal) whenever
+   * the context is missing or a check cannot run — this is a fraud signal, not
+   * a security gate, and a person reviews everything it holds.
+   */
+  private async resolveInitialStatus(
+    userId: string,
+    deviceId?: string,
+  ): Promise<{ status: 'PENDING' | 'UNDER_REVIEW'; reason?: string }> {
+    const device = deviceId ? await this.deviceRepository.findById(deviceId) : null;
+    if (device && device.userId === userId && device.riskScore >= DEVICE_RISK_HOLD_THRESHOLD) {
       this.logger.warn(
         `Withdrawal from user ${userId} held for review — device ${deviceId} risk score ${device.riskScore}`,
       );
-      return 'UNDER_REVIEW';
+      return { status: 'UNDER_REVIEW', reason: 'high_device_risk_score' };
     }
 
-    return 'PENDING';
-  }
-
-  private async getReviewable(withdrawalId: string) {
-    const withdrawal = await this.withdrawalRepository.findById(withdrawalId);
-    if (!withdrawal) throw new NotFoundException('Withdrawal request');
-    if (!REVIEWABLE_WITHDRAWAL_STATUSES.includes(withdrawal.status)) {
-      throw new BadRequestException(`Withdrawal is already ${withdrawal.status.toLowerCase()}`);
+    try {
+      const linkage = await this.accountLinkage.assess(userId);
+      if (linkage.holdRecommended) {
+        this.logger.warn(
+          `Withdrawal from user ${userId} held for review — linked to ${linkage.accounts.length} other account(s) (${linkage.points} link points)`,
+        );
+        return { status: 'UNDER_REVIEW', reason: 'linked_accounts' };
+      }
+    } catch (error) {
+      this.logger.error(`Linked-account check failed for user ${userId}; not holding: ${error instanceof Error ? error.message : String(error)}`);
     }
-    return withdrawal;
+
+    return { status: 'PENDING' };
   }
 
   /**
@@ -252,7 +262,10 @@ export class WithdrawalService {
    * the bank account — Razorpay allows duplicates, and caching would need a
    * schema change this phase intentionally skips (see project notes).
    */
-  private async initiatePayout(withdrawal: NonNullable<Awaited<ReturnType<WithdrawalRepository['findById']>>>) {
+  private async initiatePayout(withdrawalId: string) {
+    const withdrawal = await this.withdrawalRepository.findById(withdrawalId);
+    if (!withdrawal) return;
+
     if (!withdrawal.bankAccount) {
       this.logger.error(`Withdrawal ${withdrawal.id} was approved with no bank account on file — payout not attempted`);
       return;
@@ -272,14 +285,19 @@ export class WithdrawalService {
         referenceId: withdrawal.id,
       });
 
-      await this.withdrawalRepository.update(withdrawal.id, {
-        status: 'PROCESSING',
+      const outcome = await this.settlementRepository.markProcessing({
+        withdrawalId: withdrawal.id,
         metadata: { razorpayPayoutId: payout.id, razorpayFundAccountId: fundAccount.id },
       });
+      if (!outcome.applied) {
+        this.logger.error(`Payout ${payout.id} was created for withdrawal ${withdrawal.id} but it is already ${outcome.status}. Check it by hand.`);
+      }
     } catch (error) {
       const message = describeError(error);
       this.logger.error(`RazorpayX payout failed to initiate for withdrawal ${withdrawal.id}: ${message}`);
-      await this.withdrawalRepository.update(withdrawal.id, { metadata: { payoutInitiationError: message } });
+      // Kept, not lost: an approved withdrawal with this note is offered to an admin to pay by hand.
+      const existing = withdrawal.metadata && typeof withdrawal.metadata === 'object' && !Array.isArray(withdrawal.metadata) ? withdrawal.metadata : {};
+      await this.withdrawalRepository.update(withdrawal.id, { metadata: { ...existing, payoutInitiationError: message } });
     }
   }
 }

@@ -1,15 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OtpType } from '@prisma/client';
 
 import { NotFoundException, BadRequestException, ConflictException, UnauthorizedException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
+import { IpReputationService } from '../../risk/services';
 import { AUTH_EVENTS, ACCOUNT_LOCK } from '../constants';
-import type { LoginResponse, AuthTokens, RegisterInput, SocialLoginInput, UserProfile } from '../interfaces';
+import type { LoginResponse, AuthTokens, RegisterInput, SocialLoginInput, UpdateProfileInput, UserProfile } from '../interfaces';
 import { LoginHistoryRepository } from '../repositories/login-history.repository';
 import { UserRepository } from '../repositories/user.repository';
 
+import { DemographicsService } from './demographics.service';
 import { DeviceMetadata, DeviceService, DeviceSignalsInput } from './device.service';
 import { OtpService } from './otp.service';
 import { PasswordService } from './password.service';
@@ -26,13 +29,30 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly otpService: OtpService,
     private readonly loginHistoryRepository: LoginHistoryRepository,
+    private readonly demographicsService: DemographicsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly storageService: LocalStorageService,
+    private readonly ipReputation: IpReputationService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * A VPN or proxy is suspected when the address is on a reputation list. The header heuristic (a Via header, or
+   * several X-Forwarded-For hops) is only used when we are NOT behind a trusted proxy: behind one, several hops
+   * are normal for every request and would flag everybody.
+   */
+  private detectVpn(ipAddress: string | undefined, signals: Pick<DeviceSignalsInput, 'xForwardedFor' | 'via'>): boolean {
+    if (this.ipReputation.isAnonymizer(ipAddress)) return true;
+    const behindTrustedProxy = this.config.get('risk.trustProxy', false) !== false;
+    return !behindTrustedProxy && this.deviceService.detectVpnSuspicion(signals);
+  }
 
   async register(input: RegisterInput, ipAddress?: string, userAgent?: string, deviceSignals?: DeviceSignalsInput): Promise<LoginResponse> {
     const existing = await this.userRepository.findByEmailOrPhone(input.email, input.phone);
     if (existing) throw new ConflictException('User', 'email or phone');
+
+    // Checked before the account exists, so a bad city never leaves a half-finished sign-up behind.
+    const { data: demographics } = await this.demographicsService.resolve(input);
 
     const passwordHash = await this.passwordService.hash(input.password);
 
@@ -48,19 +68,21 @@ export class AuthService {
       phone: input.phone,
       passwordHash,
       referredBy: referrer ? { connect: { id: referrer.id } } : undefined,
+      ...demographics,
     });
 
 
     // Register device and create session
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
-    const vpnSuspected = this.deviceService.detectVpnSuspicion(deviceSignals ?? {});
+    const vpnSuspected = this.detectVpn(ipAddress, deviceSignals ?? {});
     const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
       isRooted: input.isRooted,
       isEmulator: input.isEmulator,
       vpnSuspected,
+      installId: this.deviceService.hashInstallId(deviceSignals?.installId),
     } as DeviceMetadata);
 
     const { sessionId, refreshToken } = await this.sessionService.createSession(
@@ -142,13 +164,14 @@ export class AuthService {
     // Register/update device before the session, so the session can link to it
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
-    const vpnSuspected = this.deviceService.detectVpnSuspicion(deviceSignals ?? {});
+    const vpnSuspected = this.detectVpn(ipAddress, deviceSignals ?? {});
     const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
       isRooted: deviceSignals?.isRooted,
       isEmulator: deviceSignals?.isEmulator,
       vpnSuspected,
+      installId: this.deviceService.hashInstallId(deviceSignals?.installId),
     } as DeviceMetadata);
     const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId, rememberMe);
     const roles = await this.userRepository.getRoleNames(user.id);
@@ -178,7 +201,7 @@ export class AuthService {
    * done the identity verification we'd normally do via OTP.
    */
   async socialLogin(input: SocialLoginInput): Promise<LoginResponse> {
-    const { provider, providerId, email, firstName, lastName, avatarUrl, ipAddress, userAgent, xForwardedFor, via } = input;
+    const { provider, providerId, email, firstName, lastName, avatarUrl, ipAddress, userAgent, xForwardedFor, via, installId } = input;
 
     let user =
       provider === 'google'
@@ -223,11 +246,12 @@ export class AuthService {
 
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
-    const vpnSuspected = this.deviceService.detectVpnSuspicion({ xForwardedFor, via });
+    const vpnSuspected = this.detectVpn(ipAddress, { xForwardedFor, via });
     const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
       vpnSuspected,
+      installId: this.deviceService.hashInstallId(installId),
     } as DeviceMetadata);
     const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId);
     const roles = await this.userRepository.getRoleNames(user.id);
@@ -336,16 +360,26 @@ export class AuthService {
       referralCode: user.referralCode,
       timezone: user.timezone,
       language: user.language,
+      dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString().slice(0, 10) : null,
+      // ALL is a campaign-targeting value, not something a person is.
+      gender: user.gender === 'ALL' ? null : user.gender,
+      countryId: user.countryId,
+      stateId: user.stateId,
+      cityId: user.cityId,
       createdAt: user.createdAt,
     };
   }
 
-  async updateProfile(userId: string, data: { firstName?: string; lastName?: string; timezone?: string; language?: string }): Promise<UserProfile> {
+  async updateProfile(userId: string, data: UpdateProfileInput): Promise<UserProfile> {
     const user = await this.userRepository.findByIdSimple(userId);
     if (!user) throw new NotFoundException('User');
 
-    await this.userRepository.update(userId, data);
-    this.eventEmitter.emit(AUTH_EVENTS.PROFILE_UPDATED, { userId, changes: data as Record<string, unknown> });
+    const { dateOfBirth, gender, stateId, cityId, ...basic } = data;
+    const { data: demographics, changed } = await this.demographicsService.resolve({ dateOfBirth, gender, stateId, cityId }, { stateId: user.stateId });
+
+    await this.userRepository.update(userId, { ...basic, ...demographics });
+    // Personal details are logged as "changed", never with their values.
+    this.eventEmitter.emit(AUTH_EVENTS.PROFILE_UPDATED, { userId, changes: { ...basic, ...changed } as Record<string, unknown> });
 
     return this.getProfile(userId);
   }

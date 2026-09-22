@@ -3,10 +3,13 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 
 import type { CampaignFormInput } from '@/api/merchant.api'
+import { CampaignBuilderModal } from '@/components/CampaignBuilderModal'
+import { WordingNotice } from '@/components/WordingNotice'
 import { ITEMS_PER_PAGE, CAMPAIGN_TYPE_LABELS, CAMPAIGN_STATUS_LABELS, REWARD_TYPE_LABELS } from '@/constants'
 import { useCampaignsQuery, useCampaignMutations } from '@/hooks/useCampaigns'
+import { useWordingCheck } from '@/hooks/useWordingCheck'
 import { useAuthStore } from '@/stores/auth.store'
-import type { Campaign, CampaignStatus } from '@/types'
+import type { Campaign, CampaignDraft, CampaignStatus } from '@/types'
 import { formatCurrency } from '@/utils'
 
 const campaignTypeOptions = Object.entries(CAMPAIGN_TYPE_LABELS).map(([value, label]) => ({ value, label }))
@@ -34,6 +37,7 @@ export default function CampaignsPage() {
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
+  const [builderOpen, setBuilderOpen] = useState(false)
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [cancelTarget, setCancelTarget] = useState<Campaign | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null)
@@ -48,11 +52,34 @@ export default function CampaignsPage() {
   const total = data?.data?.data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CampaignFormInput>({ defaultValues: emptyForm })
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<CampaignFormInput>({ defaultValues: emptyForm })
+  const [title, shortDescription, description] = watch(['title', 'shortDescription', 'description'])
+  const wordingCheck = useWordingCheck(editorOpen ? merchantId : undefined, { title, shortDescription, description })
 
   const openCreate = () => {
     setEditing(null)
     reset(emptyForm)
+    setEditorOpen(true)
+  }
+
+  /** The builder only suggests; the merchant reviews and saves the draft in the normal form. */
+  const useBuilderDraft = (draft: CampaignDraft) => {
+    setBuilderOpen(false)
+    setEditing(null)
+    reset({
+      ...emptyForm,
+      title: draft.title,
+      shortDescription: draft.shortDescription,
+      description: draft.description,
+      campaignType: draft.campaignType,
+      rewardType: draft.rewardType,
+      rewardAmount: draft.rewardAmount,
+      totalBudget: draft.totalBudget,
+      maxParticipants: draft.maxParticipants,
+      minimumFollowers: draft.minimumFollowers,
+      startAt: draft.startAt,
+      endAt: draft.endAt,
+    })
     setEditorOpen(true)
   }
 
@@ -90,12 +117,17 @@ export default function CampaignsPage() {
           <h1 className="page-title">Campaigns</h1>
           <p className="page-subtitle">Create and manage your reward campaigns.</p>
         </div>
-        <button className="btn-primary" onClick={openCreate}>
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          New Campaign
-        </button>
+        <div className="flex gap-2">
+          <button className="btn-secondary" onClick={() => setBuilderOpen(true)}>
+            Help me plan a campaign
+          </button>
+          <button className="btn-primary" onClick={openCreate}>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Campaign
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 w-48">
@@ -212,6 +244,10 @@ export default function CampaignsPage() {
         </div>
       )}
 
+      {builderOpen && (
+        <CampaignBuilderModal merchantId={merchantId} onClose={() => setBuilderOpen(false)} onUseDraft={useBuilderDraft} />
+      )}
+
       {editorOpen && (
         <Modal
           open
@@ -248,6 +284,7 @@ export default function CampaignsPage() {
               error={errors.description?.message}
               {...register('description', { required: 'Description is required', minLength: { value: 20, message: 'At least 20 characters' } })}
             />
+            <WordingNotice check={wordingCheck} />
             <div className="grid grid-cols-2 gap-4">
               <Select
                 label="Campaign type"

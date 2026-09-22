@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { merchantApi, type CampaignFormInput } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 interface CampaignsQueryParams {
   page?: number
@@ -20,7 +20,7 @@ interface CampaignsQueryParams {
 export function useCampaignsQuery(merchantId: string | undefined, params: CampaignsQueryParams, cacheTag?: string) {
   return useQuery({
     queryKey: cacheTag ? [...QUERY_KEYS.CAMPAIGNS, cacheTag] : [...QUERY_KEYS.CAMPAIGNS, params.page, params.status],
-    queryFn: () => merchantApi.getCampaigns(merchantId!, params),
+    queryFn: () => merchantApi.getCampaigns(requireValue(merchantId, 'merchantId'), params),
     enabled: !!merchantId,
   })
 }
@@ -28,7 +28,7 @@ export function useCampaignsQuery(merchantId: string | undefined, params: Campai
 export function useCampaignAnalyticsQuery(merchantId: string | undefined, campaignId: string | undefined) {
   return useQuery({
     queryKey: [...QUERY_KEYS.CAMPAIGNS, campaignId, 'analytics'],
-    queryFn: () => merchantApi.getCampaignAnalytics(merchantId!, campaignId!),
+    queryFn: () => merchantApi.getCampaignAnalytics(requireValue(merchantId, 'merchantId'), requireValue(campaignId, 'campaignId')),
     enabled: !!merchantId && !!campaignId,
   })
 }
@@ -65,7 +65,7 @@ export function useCampaignMutations(merchantId: string | undefined, options?: {
     mutationFn: (input: CampaignFormInput) =>
       options?.editingId
         ? merchantApi.updateCampaign(options.editingId, input)
-        : merchantApi.createCampaign(merchantId!, input),
+        : merchantApi.createCampaign(requireValue(merchantId, 'merchantId'), input),
     onSuccess: () => {
       toast.success(options?.editingId ? 'Campaign updated' : 'Campaign created as a draft')
       invalidate()

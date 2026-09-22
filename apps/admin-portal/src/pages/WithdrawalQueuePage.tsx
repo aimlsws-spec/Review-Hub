@@ -11,12 +11,16 @@ import {
 } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 
+import { AwaitingPayoutPanel } from '@/components/AwaitingPayoutPanel'
 import { ITEMS_PER_PAGE } from '@/constants'
 import { useApproveWithdrawalMutation, useRejectWithdrawalMutation, useWithdrawalQueueQuery } from '@/hooks/useWithdrawalQueue'
 import type { WithdrawalRequest } from '@/types'
-import { formatCurrency, formatDate } from '@/utils'
+import { cn, formatCurrency, formatDate } from '@/utils'
+
+type Tab = 'approval' | 'payout'
 
 export default function WithdrawalQueuePage() {
+  const [tab, setTab] = useState<Tab>('approval')
   const [page, setPage] = useState(1)
   const [approveTarget, setApproveTarget] = useState<WithdrawalRequest | null>(null)
   const [rejectTarget, setRejectTarget] = useState<WithdrawalRequest | null>(null)
@@ -37,9 +41,24 @@ export default function WithdrawalQueuePage() {
 
   return (
     <div>
-      <PageHeader title="Withdrawal Queue" subtitle="Payout requests awaiting reviewer approval." />
+      <PageHeader title="Withdrawal Queue" subtitle="Payout requests awaiting approval, and approved ones waiting for the money to be sent." />
 
-      {isLoading ? (
+      <div className="mb-4 flex gap-1 border-b border-gray-200">
+        {([['approval', 'Awaiting approval'], ['payout', 'Awaiting payout']] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+            className={cn('-mb-px border-b-2 px-4 py-2.5 text-sm font-medium', tab === value ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700')}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'payout' ? (
+        <AwaitingPayoutPanel />
+      ) : isLoading ? (
         <TableSkeleton rows={6} cols={5} />
       ) : isError ? (
         <ErrorState onRetry={() => refetch()} />
@@ -111,7 +130,7 @@ export default function WithdrawalQueuePage() {
           onClose={() => setApproveTarget(null)}
           onConfirm={() => approve(approveTarget.id)}
           title="Approve withdrawal"
-          message={`Approve a payout of ${formatCurrency(approveTarget.finalAmount)}? This finalizes the transfer and cannot be undone.`}
+          message={`Approve a payout of ${formatCurrency(approveTarget.finalAmount)}? The amount leaves the user's balance and cannot be undone. It is then sent through the payment gateway, or, when payouts are set to manual, waits under "Awaiting payout" for you to send.`}
           confirmLabel="Approve"
           variant="primary"
           loading={approving}

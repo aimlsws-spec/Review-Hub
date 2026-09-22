@@ -96,4 +96,6 @@ async def verify_submission_direct(
         "fraudScore": outcome.fraud_score,
         "explanation": outcome.explanation,
         "rawResponse": outcome.raw,
+        "perceptualHash": outcome.perceptual_hash,
+        "evidenceText": outcome.evidence_text,
     }

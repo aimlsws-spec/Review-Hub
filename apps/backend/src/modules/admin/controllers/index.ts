@@ -10,3 +10,4 @@ export * from './audit-log.controller';
 export * from './support-ticket.controller';
 export * from './platform-configuration.controller';
 export * from './kyc-management.controller';
+export * from './account-risk.controller';

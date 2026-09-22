@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../app_lock/providers/app_lock_providers.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../data/models/notification_preference_model.dart';
 import '../../providers/settings_providers.dart';
@@ -48,6 +49,8 @@ class SettingsScreen extends ConsumerWidget {
               );
             },
           ),
+          const _SectionHeader('Security'),
+          const _AppLockTile(),
           const _SectionHeader('Account'),
           ListTile(
             leading: const Icon(Icons.lock_outline_rounded, color: AppColors.primary600),
@@ -64,6 +67,38 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+}
+
+/// The optional lock over the app. Turning it on or off asks the phone to confirm it is really the owner, and if the
+/// phone can not do that (no screen lock is set) it says what to do instead of silently failing.
+class _AppLockTile extends ConsumerWidget {
+  const _AppLockTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lock = ref.watch(appLockProvider);
+
+    return SwitchListTile(
+      secondary: const Icon(Icons.fingerprint_rounded, color: AppColors.primary600),
+      title: const Text('App lock'),
+      subtitle: const Text('Ask for your fingerprint, face or screen lock when you open the app'),
+      value: lock.enabled,
+      onChanged: lock.checking
+          ? null
+          : (turnOn) async {
+              final notifier = ref.read(appLockProvider.notifier);
+              final change = turnOn ? await notifier.enable() : await notifier.disable();
+              if (!context.mounted) return;
+
+              final message = switch (change) {
+                AppLockChange.done => null,
+                AppLockChange.notSupported => 'Set a screen lock (PIN, pattern or fingerprint) in your phone settings first.',
+                AppLockChange.notConfirmed => 'App lock was not changed.',
+              };
+              if (message != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+            },
     );
   }
 }

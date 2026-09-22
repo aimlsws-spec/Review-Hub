@@ -4,10 +4,14 @@ import '../../../core/errors/failure.dart';
 import '../../../core/errors/result.dart';
 import '../../../shared/providers/core_providers.dart';
 import '../data/auth_repository.dart';
+import '../data/device_integrity.dart';
 import '../data/models/user_model.dart';
 
+/// The phone's own report on whether it looks rooted or emulated.
+final deviceIntegrityCheckerProvider = Provider<DeviceIntegrityChecker>((ref) => PlatformDeviceIntegrityChecker());
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(ref.watch(dioProvider), ref.watch(tokenStorageProvider));
+  return AuthRepository(ref.watch(dioProvider), ref.watch(tokenStorageProvider), ref.watch(deviceIntegrityCheckerProvider));
 });
 
 /// The single source of truth for "who is signed in right now" — `null`
@@ -111,6 +115,44 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
                 lastName: lastName ?? current.lastName,
                 timezone: timezone ?? current.timezone,
                 language: language ?? current.language,
+              ));
+      },
+      failure: (_) {},
+    );
+    return result;
+  }
+
+  /// Saves the edit-profile form and shows the result everywhere. The server works out the country from the chosen
+  /// state, so the details are taken from its answer, not from what was sent.
+  Future<Result<UserModel>> updateProfileDetails({
+    required String firstName,
+    required String lastName,
+    required String? dateOfBirth,
+    required String? gender,
+    required String? stateId,
+    required String? cityId,
+  }) async {
+    final result = await ref.read(authRepositoryProvider).updateProfileDetails(
+          firstName: firstName,
+          lastName: lastName,
+          dateOfBirth: dateOfBirth,
+          gender: gender,
+          stateId: stateId,
+          cityId: cityId,
+        );
+    result.when(
+      success: (user) {
+        final current = state.value;
+        state = AsyncData(current == null
+            ? user
+            : current.copyWith(
+                firstName: user.firstName,
+                lastName: user.lastName,
+                dateOfBirth: user.dateOfBirth,
+                gender: user.gender,
+                countryId: user.countryId,
+                stateId: user.stateId,
+                cityId: user.cityId,
               ));
       },
       failure: (_) {},

@@ -1,8 +1,8 @@
 import { Spinner } from '@reviewhub/shared-ui'
 import { Star, MessageSquare, TrendingUp, Mail, Lock, ChevronRight, Eye, EyeOff } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { forwardRef, useState, type InputHTMLAttributes } from 'react'
 import { useForm } from 'react-hook-form'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 
 import Viralkarlogo from '@/assets/ViralkarLogoK.svg'
@@ -180,14 +180,14 @@ function FloatingComposition() {
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string
   error?: string
   leftIcon: React.ReactNode
   rightIcon?: React.ReactNode
 }
 
-const OrangeInput = React.forwardRef<HTMLInputElement, InputProps>(function OrangeInput({ label, error, leftIcon, rightIcon, id, ...props }, ref) {
+const OrangeInput = forwardRef<HTMLInputElement, InputProps>(function OrangeInput({ label, error, leftIcon, rightIcon, id, ...props }, ref) {
   const inputId = id ?? label.toLowerCase().replace(/\s+/g, '-')
   return (
     <div className="flex flex-col gap-1.5 group">

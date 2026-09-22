@@ -24,6 +24,11 @@ _UserModel _$UserModelFromJson(Map<String, dynamic> json) => _UserModel(
   referralCode: json['referralCode'] as String?,
   timezone: json['timezone'] as String?,
   language: json['language'] as String?,
+  dateOfBirth: json['dateOfBirth'] as String?,
+  gender: json['gender'] as String?,
+  countryId: json['countryId'] as String?,
+  stateId: json['stateId'] as String?,
+  cityId: json['cityId'] as String?,
   createdAt: json['createdAt'] == null
       ? null
       : DateTime.parse(json['createdAt'] as String),
@@ -44,5 +49,10 @@ Map<String, dynamic> _$UserModelToJson(_UserModel instance) =>
       'referralCode': instance.referralCode,
       'timezone': instance.timezone,
       'language': instance.language,
+      'dateOfBirth': instance.dateOfBirth,
+      'gender': instance.gender,
+      'countryId': instance.countryId,
+      'stateId': instance.stateId,
+      'cityId': instance.cityId,
       'createdAt': instance.createdAt?.toIso8601String(),
     };

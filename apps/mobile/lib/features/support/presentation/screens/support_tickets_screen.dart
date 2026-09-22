@@ -19,7 +19,16 @@ class SupportTicketsScreen extends ConsumerWidget {
     final ticketsAsync = ref.watch(supportTicketsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Support')),
+      appBar: AppBar(
+        title: const Text('Support'),
+        actions: [
+          IconButton(
+            tooltip: 'Ask the help assistant',
+            onPressed: () => context.push(RoutePaths.supportChat),
+            icon: const Icon(Icons.chat_bubble_outline),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push(RoutePaths.newSupportTicket),
         child: const Icon(Icons.add),

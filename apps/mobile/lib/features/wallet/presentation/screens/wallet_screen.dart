@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -42,22 +43,26 @@ class WalletScreen extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _ActionButton(
-                    icon: Icons.add_circle_outline_rounded,
-                    label: 'Add Funds',
-                    onTap: () async {
-                      // Trigger mock add funds
-                      final success = await ref.read(simulateAddFundsProvider.notifier).addFunds(500);
-                      if (context.mounted && success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Simulated adding ₹500 to wallet.')),
-                        );
-                      }
-                    },
+                // Users earn and withdraw rather than top up, so this test-only action never ships.
+                // The backend also answers 404 unless its mock payment gateway is active.
+                if (kDebugMode) ...[
+                  Expanded(
+                    child: _ActionButton(
+                      icon: Icons.add_circle_outline_rounded,
+                      label: 'Add Funds',
+                      onTap: () async {
+                        // Trigger mock add funds
+                        final success = await ref.read(simulateAddFundsProvider.notifier).addFunds(500);
+                        if (context.mounted && success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Simulated adding ₹500 to wallet.')),
+                          );
+                        }
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: _ActionButton(
                     icon: Icons.arrow_upward_rounded,

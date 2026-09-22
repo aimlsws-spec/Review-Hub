@@ -1,15 +1,16 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { MerchantStatus } from '@prisma/client';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 
 import { CurrentUser } from '@common/decorators';
 import { SystemRole } from '@common/enums';
 
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
-import { ApproveMerchantDto, RejectMerchantDto, RejectRefundDto, RequestDocumentsDto } from '../dto';
-import { AdminService, KycService, RefundService } from '../services';
+import { ApproveMerchantDto, ManualTopUpDto, RejectMerchantDto, RejectRefundDto, RequestDocumentsDto, TopUpReasonDto } from '../dto';
+import { AdminService, KycService, ManualTopUpService, RefundService } from '../services';
 
 @ApiTags('Admin - Merchants')
 @Controller({ path: 'admin/merchants', version: '1' })
@@ -20,6 +21,7 @@ export class AdminMerchantController {
     private readonly adminService: AdminService,
     private readonly kycService: KycService,
     private readonly refundService: RefundService,
+    private readonly manualTopUpService: ManualTopUpService,
   ) {}
 
   @Get('pending')
@@ -124,6 +126,70 @@ export class AdminMerchantController {
     @Body() dto: RejectRefundDto,
   ) {
     return this.refundService.reject(refundId, adminId, dto);
+  }
+
+  @Post(':merchantId/wallet/top-ups')
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add money to a merchant wallet after a bank transfer, with the bank reference. Each reference works once.' })
+  @ApiBody({ type: ManualTopUpDto })
+  async recordManualTopUp(
+    @Param('merchantId') merchantId: string,
+    @CurrentUser('id') adminId: string,
+    @Body() dto: ManualTopUpDto,
+    @Req() request: Request,
+  ) {
+    return this.manualTopUpService.record(merchantId, adminId, dto, request.ip);
+  }
+
+  @Get('top-ups/pending')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Large bank-transfer top-ups waiting for a second admin, across all merchants' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async listPendingTopUps(@Query('page') page = '1', @Query('limit') limit = '20') {
+    return this.manualTopUpService.listPendingApproval(Number(page), Number(limit));
+  }
+
+  @Post('top-ups/:topUpId/approve')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Approve a large top-up recorded by another admin. The money is credited now.' })
+  async approveTopUp(@Param('topUpId') topUpId: string, @CurrentUser('id') adminId: string, @Req() request: Request) {
+    return this.manualTopUpService.approve(topUpId, adminId, request.ip);
+  }
+
+  @Post('top-ups/:topUpId/reject')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Turn down a large top-up recorded by another admin. Nothing was credited; the bank reference is given back.' })
+  @ApiBody({ type: TopUpReasonDto })
+  async rejectTopUp(@Param('topUpId') topUpId: string, @CurrentUser('id') adminId: string, @Body() dto: TopUpReasonDto, @Req() request: Request) {
+    return this.manualTopUpService.reject(topUpId, adminId, dto.reason, request.ip);
+  }
+
+  @Post('top-ups/:topUpId/reverse')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Take a top-up made in error back out of the wallet, with a new opposite entry. Only while the merchant still has the money.' })
+  @ApiBody({ type: TopUpReasonDto })
+  async reverseTopUp(@Param('topUpId') topUpId: string, @CurrentUser('id') adminId: string, @Body() dto: TopUpReasonDto, @Req() request: Request) {
+    return this.manualTopUpService.reverse(topUpId, adminId, dto.reason, request.ip);
+  }
+
+  @Get(':merchantId/wallet/top-ups')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bank-transfer top-ups recorded for a merchant, newest first' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async listManualTopUps(@Param('merchantId') merchantId: string, @Query('page') page = '1', @Query('limit') limit = '20') {
+    return this.manualTopUpService.list(merchantId, Number(page), Number(limit));
   }
 
   @Patch(':merchantId/status')

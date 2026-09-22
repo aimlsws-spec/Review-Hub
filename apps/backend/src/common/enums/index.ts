@@ -67,6 +67,11 @@ export enum CampaignStatus {
 export enum CampaignSort {
   Featured = 'featured',
   Popular = 'popular',
+  /** Most recently published first. */
+  Newest = 'newest',
+  HighestReward = 'highest_reward',
+  /** Only campaigns with an end date still ahead, soonest first. */
+  EndingSoon = 'ending_soon',
 }
 
 // -------------------------------------------------------------

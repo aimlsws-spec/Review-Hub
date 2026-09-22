@@ -71,3 +71,23 @@ export class RefundReviewedEvent {
     public readonly approved: boolean,
   ) {}
 }
+
+/** Money reached a merchant's wallet by bank transfer, recorded by an admin. */
+export class MerchantToppedUpEvent {
+  constructor(
+    public readonly merchantId: string,
+    public readonly amount: number,
+    public readonly bankReference: string,
+    public readonly balanceAfter: number,
+  ) {}
+}
+
+/** A bank-transfer top-up made in error was taken back out of a merchant's wallet. */
+export class MerchantTopUpReversedEvent {
+  constructor(
+    public readonly merchantId: string,
+    public readonly amount: number,
+    public readonly reason: string,
+    public readonly balanceAfter: number,
+  ) {}
+}

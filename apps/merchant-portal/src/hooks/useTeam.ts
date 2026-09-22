@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 export function useTeamQuery(merchantId: string | undefined) {
   return useQuery({
     queryKey: QUERY_KEYS.TEAM,
-    queryFn: () => merchantApi.getTeam(merchantId!),
+    queryFn: () => merchantApi.getTeam(requireValue(merchantId, 'merchantId')),
     enabled: !!merchantId,
   })
 }
@@ -16,7 +16,7 @@ export function useTeamQuery(merchantId: string | undefined) {
 export function useInvitationsQuery(merchantId: string | undefined) {
   return useQuery({
     queryKey: QUERY_KEYS.INVITATIONS,
-    queryFn: () => merchantApi.getInvitations(merchantId!),
+    queryFn: () => merchantApi.getInvitations(requireValue(merchantId, 'merchantId')),
     enabled: !!merchantId,
   })
 }
@@ -24,7 +24,7 @@ export function useInvitationsQuery(merchantId: string | undefined) {
 export function useInviteMemberMutation(merchantId: string | undefined, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (d: { email: string; role: string }) => merchantApi.inviteMember(merchantId!, d),
+    mutationFn: (d: { email: string; role: string }) => merchantApi.inviteMember(requireValue(merchantId, 'merchantId'), d),
     onSuccess: () => {
       toast.success('Invitation sent successfully')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.TEAM })
@@ -37,7 +37,7 @@ export function useInviteMemberMutation(merchantId: string | undefined, onSucces
 export function useRemoveMemberMutation(merchantId: string | undefined, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => merchantApi.removeMember(merchantId!, id),
+    mutationFn: (id: string) => merchantApi.removeMember(requireValue(merchantId, 'merchantId'), id),
     onSuccess: () => {
       toast.success('Member removed')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.TEAM })
@@ -51,7 +51,7 @@ export function useUpdateMemberRoleMutation(merchantId: string | undefined, onSu
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ memberId, role }: { memberId: string; role: string }) =>
-      merchantApi.updateMemberRole(merchantId!, memberId, role),
+      merchantApi.updateMemberRole(requireValue(merchantId, 'merchantId'), memberId, role),
     onSuccess: () => {
       toast.success('Role updated')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.TEAM })
@@ -64,7 +64,7 @@ export function useUpdateMemberRoleMutation(merchantId: string | undefined, onSu
 export function useCancelInvitationMutation(merchantId: string | undefined, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (invitationId: string) => merchantApi.cancelInvitation(merchantId!, invitationId),
+    mutationFn: (invitationId: string) => merchantApi.cancelInvitation(requireValue(merchantId, 'merchantId'), invitationId),
     onSuccess: () => {
       toast.success('Invitation cancelled')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.INVITATIONS })

@@ -11,14 +11,22 @@ import { oauthConfig } from './envs/oauth.config';
 import { paymentConfig } from './envs/payment.config';
 import { platformConfig } from './envs/platform.config';
 import { redisConfig } from './envs/redis.config';
+import { riskConfig } from './envs/risk.config';
 import { smtpConfig } from './envs/smtp.config';
 import { storageConfig } from './envs/storage.config';
 import { throttleConfig } from './envs/throttle.config';
 import { twilioConfig } from './envs/twilio.config';
 
-const validationSchema = Joi.object({
+export const validationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test', 'staging').required(),
   APP_PORT: Joi.number().default(3000),
+  IP_REPUTATION_REFRESH_HOURS: Joi.number().integer().min(1).default(24),
+  // The mock gateway approves every signature, so it must never be selectable in production.
+  PAYMENT_PROVIDER: Joi.alternatives().conditional('NODE_ENV', {
+    is: 'production',
+    then: Joi.string().valid('razorpay').allow(''),
+    otherwise: Joi.string().valid('mock', 'razorpay').allow(''),
+  }),
   DATABASE_URL: Joi.string().required(),
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),
@@ -50,6 +58,7 @@ const validationSchema = Joi.object({
         platformConfig,
         oauthConfig,
         twilioConfig,
+        riskConfig,
       ],
       validationSchema,
       validationOptions: { allowUnknown: true, abortEarly: false },

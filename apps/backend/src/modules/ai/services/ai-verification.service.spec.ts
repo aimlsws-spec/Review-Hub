@@ -4,6 +4,8 @@ import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
 import { FraudFlagRepository } from '../../admin/repositories';
+import { SubmissionSignalRepository } from '../../risk/repositories';
+import { DuplicateImageService } from '../../risk/services';
 import { SubmissionService } from '../../task/services';
 import { AiVerificationDecision } from '../dto';
 import { AiVerificationJobRepository } from '../repositories';
@@ -40,6 +42,9 @@ describe('AiVerificationService', () => {
     create: jest.fn(),
   };
 
+  const mockDuplicateImageService = { check: jest.fn() };
+  const mockSignalRepository = { hasUnresolvedBlockingFlag: jest.fn() };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -50,8 +55,14 @@ describe('AiVerificationService', () => {
         { provide: SubmissionService, useValue: mockSubmissionService },
         { provide: LocalStorageService, useValue: mockStorageService },
         { provide: FraudFlagRepository, useValue: mockFraudFlagRepository },
+        { provide: DuplicateImageService, useValue: mockDuplicateImageService },
+        { provide: SubmissionSignalRepository, useValue: mockSignalRepository },
       ],
     }).compile();
+
+    // Nothing is flagged unless a test says so.
+    mockDuplicateImageService.check.mockResolvedValue(null);
+    mockSignalRepository.hasUnresolvedBlockingFlag.mockResolvedValue(false);
 
     service = module.get(AiVerificationService);
     jobRepository = module.get(AiVerificationJobRepository);
@@ -195,6 +206,91 @@ describe('AiVerificationService', () => {
           riskLevel: 'MEDIUM',
         }),
       );
+    });
+
+    describe('duplicate images and other fraud flags', () => {
+      const approve = { decision: AiVerificationDecision.APPROVE, confidence: 0.95, fraudScore: 0.05 };
+      const fingerprint = { perceptualHash: '9f3a1c0e7b2d4a58', evidenceText: 'you are following viralkar official on instagram' };
+
+      it('checks the picture against earlier ones when the worker sent a fingerprint', async () => {
+        await service.completeJob('job-1', { ...approve, ...fingerprint });
+
+        expect(mockDuplicateImageService.check).toHaveBeenCalledWith({
+          submissionId: 'submission-1',
+          userId: 'user-1',
+          perceptualHash: '9f3a1c0e7b2d4a58',
+          evidenceText: 'you are following viralkar official on instagram',
+        });
+      });
+
+      it('does not check for duplicates when there is no fingerprint (text-only or video evidence)', async () => {
+        await service.completeJob('job-1', approve);
+
+        expect(mockDuplicateImageService.check).not.toHaveBeenCalled();
+      });
+
+      it('checks for duplicates before looking for blocking flags, so a flag it raises is seen', async () => {
+        const order: string[] = [];
+        mockDuplicateImageService.check.mockImplementation(async () => void order.push('check'));
+        mockSignalRepository.hasUnresolvedBlockingFlag.mockImplementation(async () => {
+          order.push('read flags');
+          return false;
+        });
+
+        await service.completeJob('job-1', { ...approve, ...fingerprint });
+
+        expect(order).toEqual(['check', 'read flags']);
+      });
+
+      it('holds an approval for a person when a serious flag is open, even with perfect scores', async () => {
+        mockSignalRepository.hasUnresolvedBlockingFlag.mockResolvedValue(true);
+
+        const result = await service.completeJob('job-1', { ...approve, confidence: 0.99, fraudScore: 0 });
+
+        expect(submissionService.aiApprove).not.toHaveBeenCalled();
+        expect(submissionService.deferToManualReview).toHaveBeenCalledWith('submission-1');
+        expect(result).toEqual({ submissionId: 'submission-1', outcome: 'PENDING_MANUAL' });
+      });
+
+      it('still auto-approves when the only flags are minor (the query only counts serious, unresolved ones)', async () => {
+        mockSignalRepository.hasUnresolvedBlockingFlag.mockResolvedValue(false);
+
+        const result = await service.completeJob('job-1', approve);
+
+        expect(result.outcome).toBe('APPROVED');
+        expect(mockSignalRepository.hasUnresolvedBlockingFlag).toHaveBeenCalledWith('submission-1');
+      });
+
+      it('does not hold a rejection: rejecting pays nothing, so a flag changes nothing there', async () => {
+        mockSignalRepository.hasUnresolvedBlockingFlag.mockResolvedValue(true);
+
+        const result = await service.completeJob('job-1', {
+          decision: AiVerificationDecision.REJECT,
+          confidence: 0.9,
+          fraudScore: 0.1,
+          explanation: 'Does not match the task',
+        });
+
+        expect(submissionService.aiReject).toHaveBeenCalled();
+        expect(result.outcome).toBe('REJECTED');
+      });
+
+      it('holds an approval when the duplicate check itself fails, since it cannot vouch that the picture is new', async () => {
+        mockDuplicateImageService.check.mockRejectedValue(new Error('database unavailable'));
+
+        const result = await service.completeJob('job-1', { ...approve, ...fingerprint });
+
+        expect(submissionService.aiApprove).not.toHaveBeenCalled();
+        expect(result.outcome).toBe('PENDING_MANUAL');
+      });
+
+      it('still completes and records the job when the duplicate check fails', async () => {
+        mockDuplicateImageService.check.mockRejectedValue(new Error('database unavailable'));
+
+        await expect(service.completeJob('job-1', { ...approve, ...fingerprint })).resolves.toBeDefined();
+
+        expect(jobRepository.markCompleted).toHaveBeenCalled();
+      });
     });
 
     it('raises a HIGH fraud flag for a score of 0.6 or above', async () => {

@@ -35,6 +35,7 @@ import {
   UpdatePushTokenDto,
 } from '../dto';
 import { AuthService } from '../services/auth.service';
+import { DeviceSignalsInput } from '../services/device.service';
 import { AppleProfile } from '../strategies/apple.strategy';
 import { GoogleProfile } from '../strategies/google.strategy';
 
@@ -43,6 +44,18 @@ import { GoogleProfile } from '../strategies/google.strategy';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  /** What the request says about the device it came from. The install id is the app's stable X-Device-ID. */
+  private deviceSignals(req: Request, reported: { isRooted?: boolean; isEmulator?: boolean } = {}): DeviceSignalsInput {
+    return {
+      // Only these two, on purpose: the caller passes the whole request body, which holds the password.
+      isRooted: reported.isRooted,
+      isEmulator: reported.isEmulator,
+      xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
+      via: req.headers['via'] as string | undefined,
+      installId: req.headers['x-device-id'] as string | undefined,
+    };
+  }
+
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -50,12 +63,7 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiBody({ type: RegisterDto })
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
-    return this.authService.register(dto, req.ip, req.headers['user-agent'], {
-      isRooted: dto.isRooted,
-      isEmulator: dto.isEmulator,
-      xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
-      via: req.headers['via'] as string | undefined,
-    });
+    return this.authService.register(dto, req.ip, req.headers['user-agent'], this.deviceSignals(req, dto));
   }
 
   @Public()
@@ -66,12 +74,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiBody({ type: LoginDto })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto.email, dto.phone, dto.password, req.ip, req.headers['user-agent'], dto.rememberMe, {
-      isRooted: dto.isRooted,
-      isEmulator: dto.isEmulator,
-      xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
-      via: req.headers['via'] as string | undefined,
-    });
+    return this.authService.login(dto.email, dto.phone, dto.password, req.ip, req.headers['user-agent'], dto.rememberMe, this.deviceSignals(req, dto));
   }
 
   @Public()
@@ -99,6 +102,7 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
       xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
       via: req.headers['via'] as string | undefined,
+      installId: req.headers['x-device-id'] as string | undefined,
     });
   }
 
@@ -127,6 +131,7 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
       xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
       via: req.headers['via'] as string | undefined,
+      installId: req.headers['x-device-id'] as string | undefined,
     });
   }
 

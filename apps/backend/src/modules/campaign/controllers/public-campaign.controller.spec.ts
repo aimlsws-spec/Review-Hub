@@ -9,6 +9,7 @@ describe('PublicCampaignController', () => {
 
   const mockCampaignService = {
     listPublic: jest.fn(),
+    getPublicById: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -30,6 +31,16 @@ describe('PublicCampaignController', () => {
       const query = { page: 1, limit: 20 };
       await controller.browse(query as never);
       expect(mockCampaignService.listPublic).toHaveBeenCalledWith(query);
+    });
+  });
+
+  describe('details', () => {
+    it('should call campaignService.getPublicById', async () => {
+      mockCampaignService.getPublicById.mockResolvedValue({ id: 'campaign-1' });
+
+      await expect(controller.details('campaign-1')).resolves.toEqual({ id: 'campaign-1' });
+
+      expect(mockCampaignService.getPublicById).toHaveBeenCalledWith('campaign-1');
     });
   });
 });

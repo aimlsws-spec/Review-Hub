@@ -1,8 +1,10 @@
 import { Logger, Module } from '@nestjs/common';
 
+import { AppConfigModule } from '../app-config/app-config.module';
 import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
 import { MerchantModule } from '../merchant/merchant.module';
+import { RiskModule } from '../risk/risk.module';
 import { SupportModule } from '../support/support.module';
 import { UserKycModule } from '../user-kyc/user-kyc.module';
 import { WalletModule } from '../wallet/wallet.module';
@@ -20,6 +22,7 @@ import {
   SettingsController,
   UserManagementController,
   KycManagementController,
+  AccountRiskController,
 } from './controllers';
 import {
   AuditLogRepository,
@@ -44,7 +47,7 @@ import {
 } from './services';
 
 @Module({
-  imports: [AuthModule, CampaignModule, MerchantModule, WalletModule, SupportModule, UserKycModule],
+  imports: [AppConfigModule, AuthModule, CampaignModule, MerchantModule, WalletModule, SupportModule, UserKycModule, RiskModule],
   controllers: [
     UserManagementController,
     AdminCampaignQueueController,
@@ -58,6 +61,7 @@ import {
     AdminSupportTicketController,
     PlatformConfigurationController,
     KycManagementController,
+    AccountRiskController,
   ],
   providers: [
     UserManagementService,

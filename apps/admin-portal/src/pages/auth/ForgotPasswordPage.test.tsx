@@ -9,7 +9,7 @@ import { useForgotPasswordMutation } from '@/hooks/useAuthMutations'
 import ForgotPasswordPage from './ForgotPasswordPage'
 
 vi.mock('@/hooks/useAuthMutations', () => ({ useForgotPasswordMutation: vi.fn() }))
-vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('react-hot-toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const mutateMock = vi.fn()
 

@@ -58,9 +58,22 @@ class AssistResponse(BaseModel):
     source: str  # "llm" | "template"
 
 
+class ReviewExperience(str, Enum):
+    """How the person says the visit went overall. Their own word, never inferred from a rating."""
+
+    POSITIVE = "POSITIVE"
+    MIXED = "MIXED"
+    NEGATIVE = "NEGATIVE"
+
+
 class ReviewDraftRequest(BaseModel):
     businessName: str
     likedAspects: list[str] = []
+    # What could have been better. Optional so older callers keep working.
+    improveAspects: list[str] = []
+    experience: Optional[ReviewExperience] = None
+    # Only what the person said. None means they did not say, and no draft may say for them.
+    wouldRecommend: Optional[bool] = None
     notes: Optional[str] = None
 
 
@@ -94,3 +107,5 @@ class CompleteJobRequest(BaseModel):
     engine: Optional[str] = None
     model: Optional[str] = None
     processingTimeMs: Optional[int] = None
+    perceptualHash: Optional[str] = None
+    evidenceText: Optional[str] = None

@@ -50,9 +50,9 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
       />
 
       {/* Panel */}
-      <div className={cn('relative w-full rounded-2xl bg-white shadow-xl', sizes[size])}>
+      <div className={cn('relative flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-2xl bg-white shadow-xl', sizes[size])}>
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
           <h2 id="modal-title" className="text-base font-semibold text-gray-900">
             {title}
           </h2>
@@ -68,11 +68,11 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5">{children}</div>
+        <div className="overflow-y-auto px-6 py-5">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
             {footer}
           </div>
         )}

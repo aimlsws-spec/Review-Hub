@@ -14,6 +14,7 @@ import {
 } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 
+import { MerchantTopUpPanel } from '@/components/MerchantTopUpPanel'
 import { ITEMS_PER_PAGE } from '@/constants'
 import {
   useAllMerchantsQuery,
@@ -112,7 +113,7 @@ export default function MerchantsPage() {
   }
 
   const copy = reviewTarget ? REVIEW_COPY[reviewTarget.kind] : null
-  const canSubmit = reviewTarget ? (!copy!.required || note.trim().length >= 5) : false
+  const canSubmit = reviewTarget && copy ? !copy.required || note.trim().length >= 5 : false
 
   return (
     <div>
@@ -322,6 +323,10 @@ export default function MerchantsPage() {
                 </div>
               )}
             </div>
+
+            {detail.verificationStatus === 'APPROVED' && detail.status === 'ACTIVE' && (
+              <MerchantTopUpPanel merchantId={detail.id} businessName={detail.businessName} />
+            )}
 
             {detail.verificationStatus !== 'APPROVED' && (
               <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">

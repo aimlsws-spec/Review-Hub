@@ -25,6 +25,9 @@ class RoutePaths {
   static const String taskSubmission = '/tasks/:taskId/submit';
   static String taskSubmissionPath(String taskId) => '/tasks/$taskId/submit';
 
+  static const String reviewAssistant = '/tasks/:taskId/review-assistant';
+  static String reviewAssistantPath(String taskId) => '/tasks/$taskId/review-assistant';
+
   static const String mySubmissions = '/tasks/my-submissions';
 
   static const String walletTransactions = '/wallet/transactions';
@@ -40,11 +43,13 @@ class RoutePaths {
   static const String kyc = '/profile/kyc';
 
   static const String gamification = '/gamification';
+  static const String leaderboard = '/leaderboard';
 
   static const String marketplace = '/marketplace';
   static const String marketplaceRedemptions = '/marketplace/redemptions';
 
   static const String support = '/support/tickets';
+  static const String supportChat = '/support/chat';
   static const String newSupportTicket = '/support/tickets/new';
   static const String supportTicketDetail = '/support/tickets/:ticketId';
   static String supportTicketDetailPath(String ticketId) => '/support/tickets/$ticketId';

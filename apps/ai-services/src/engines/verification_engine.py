@@ -13,6 +13,7 @@ from typing import Any, Optional
 from ..core.config import Settings
 from ..core.models import Submission, VerificationDecision
 from .fraud_engine import score_fraud
+from .image_fingerprint import dhash, normalize_evidence_text
 
 
 @dataclass
@@ -22,6 +23,10 @@ class VerificationOutcome:
     fraud_score: float
     explanation: str
     raw: dict[str, Any]
+    # Perceptual fingerprint of the evidence image, and its normalised OCR text, so the backend can spot the
+    # same picture submitted again. None when the evidence is not an image or could not be read.
+    perceptual_hash: Optional[str] = None
+    evidence_text: Optional[str] = None
 
 
 class VerificationEngine:
@@ -40,6 +45,8 @@ class VerificationEngine:
         decision = self._decide(confidence, fraud_score)
         explanation = await self._build_explanation(decision, confidence, fraud_score, ocr_text)
 
+        perceptual_hash = dhash(evidence_bytes) if evidence_bytes else None
+
         return VerificationOutcome(
             decision=decision,
             confidence=round(confidence, 3),
@@ -50,6 +57,9 @@ class VerificationEngine:
                 "ocrAvailable": self._ocr.available,
                 "llmAvailable": self._ollama.available,
             },
+            perceptual_hash=perceptual_hash,
+            # Only meaningful next to an image fingerprint; without one there is nothing to compare.
+            evidence_text=normalize_evidence_text(ocr_text) if perceptual_hash else None,
         )
 
     def _score_confidence(

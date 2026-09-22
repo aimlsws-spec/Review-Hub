@@ -22,6 +22,21 @@ export class TaskSubmissionRepository {
     return this.prisma.taskSubmission.update({ where: { id }, data });
   }
 
+  /**
+   * Changes a submission only if it is still in one of the given statuses, in one step, and says whether it did.
+   *
+   * WHY: a decision is read (is it still open?) and then written. Between the two, the automatic check and a reviewer
+   * can both find it open, and the one that writes last silently undoes the other: a reviewer's approval, already paid
+   * out, flipped back to "waiting for review". Putting the status in the write itself lets only one of them win.
+   */
+  async updateIfStatusIn(id: string, statuses: string[], data: Prisma.TaskSubmissionUncheckedUpdateManyInput): Promise<boolean> {
+    const result = await this.prisma.taskSubmission.updateMany({
+      where: { id, deletedAt: null, status: { in: statuses as never[] } },
+      data,
+    });
+    return result.count === 1;
+  }
+
   async findLatestAttempt(participantId: string, taskId: string) {
     return this.prisma.taskSubmission.findFirst({
       where: { participantId, taskId },

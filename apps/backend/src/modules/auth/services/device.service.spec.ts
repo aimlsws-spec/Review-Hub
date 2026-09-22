@@ -211,4 +211,59 @@ describe('DeviceService', () => {
       expect(fp1).not.toBe(fp2);
     });
   });
+  describe('hashInstallId', () => {
+    it('hashes a plausible install id to a stable 64-character SHA-256, never returning the raw value', () => {
+      const hash = service.hashInstallId('3f2504e0-4f89-41d3-9a0c-0305e82c3301');
+
+      expect(hash).toMatch(/^[0-9a-f]{64}$/);
+      expect(hash).not.toContain('3f2504e0');
+      expect(service.hashInstallId('3f2504e0-4f89-41d3-9a0c-0305e82c3301')).toBe(hash);
+    });
+
+    it('gives different installs different hashes', () => {
+      expect(service.hashInstallId('install-aaaa-1111')).not.toBe(service.hashInstallId('install-bbbb-2222'));
+    });
+
+    it('trims surrounding whitespace', () => {
+      expect(service.hashInstallId('  install-aaaa-1111  ')).toBe(service.hashInstallId('install-aaaa-1111'));
+    });
+
+    it.each([undefined, '', '   ', 'short', 'x'.repeat(129), 'has spaces in it', "quote'injection", '<script>alert(1)</script>', 'emoji-😀-install'])(
+      'ignores a missing or implausible value (%j) rather than storing it',
+      (raw) => expect(service.hashInstallId(raw as string | undefined)).toBeUndefined(),
+    );
+
+    it('accepts the usual id shapes: UUIDs, Android IDs and prefixed tokens', () => {
+      for (const id of ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', '9774d56d682e549c', 'ios:ABCD-1234-EFGH', 'a1b2c3d4.e5f6.7890']) {
+        expect(service.hashInstallId(id)).toMatch(/^[0-9a-f]{64}$/);
+      }
+    });
+  });
+
+  describe('registerDevice with an install id', () => {
+    it('stores it on a new device', async () => {
+      mockDeviceRepository.findByFingerprint.mockResolvedValue(null);
+      mockDeviceRepository.create.mockResolvedValue({ id: 'device-1' });
+
+      await service.registerDevice('user-1', { platform: DevicePlatform.ANDROID, fingerprint: 'fp-1', installId: 'hash-1' });
+
+      expect(mockDeviceRepository.create).toHaveBeenCalledWith(expect.objectContaining({ installId: 'hash-1' }));
+    });
+
+    it('records it on an existing device that did not have one yet', async () => {
+      mockDeviceRepository.findByFingerprint.mockResolvedValue({ id: 'device-1', installId: null, isRooted: false, isEmulator: false, vpnSuspected: false });
+
+      await service.registerDevice('user-1', { platform: DevicePlatform.ANDROID, fingerprint: 'fp-1', installId: 'hash-1' });
+
+      expect(mockDeviceRepository.update).toHaveBeenCalledWith('device-1', expect.objectContaining({ installId: 'hash-1' }));
+    });
+
+    it('keeps the install id an existing device already had when this login did not send one', async () => {
+      mockDeviceRepository.findByFingerprint.mockResolvedValue({ id: 'device-1', installId: 'old-hash', isRooted: false, isEmulator: false, vpnSuspected: false });
+
+      await service.registerDevice('user-1', { platform: DevicePlatform.ANDROID, fingerprint: 'fp-1' });
+
+      expect(mockDeviceRepository.update).toHaveBeenCalledWith('device-1', expect.objectContaining({ installId: 'old-hash' }));
+    });
+  });
 });

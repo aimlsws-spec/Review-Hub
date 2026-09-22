@@ -1,4 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Every API call. Flutter only adds this to debug and profile builds, so a release build needs it here. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Fingerprint / face / screen-lock check for the optional app lock. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- Lets the device check see whether a root manager is installed (Android 11+ hides other apps unless named). -->
+    <queries>
+        <package android:name="com.topjohnwu.magisk"/>
+        <package android:name="eu.chainfire.supersu"/>
+        <package android:name="com.noshufou.android.su"/>
+        <package android:name="com.koushikdutta.superuser"/>
+        <package android:name="com.thirdparty.superuser"/>
+        <package android:name="com.yellowes.su"/>
+        <package android:name="com.kingroot.kinguser"/>
+        <package android:name="com.kingo.root"/>
+    </queries>
     <application
         android:label="viral_kar"
         android:name="${applicationName}"

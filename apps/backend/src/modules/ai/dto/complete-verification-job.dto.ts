@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsNumber, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsObject, IsOptional, IsString, Matches, MaxLength, Max, Min } from 'class-validator';
 
 export enum AiVerificationDecision {
   APPROVE = 'APPROVE',
@@ -37,6 +37,20 @@ export class CompleteVerificationJobDto {
   @IsOptional()
   @IsObject()
   rawResponse?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ example: '9f3a1c0e7b2d4a58', description: '64-bit perceptual hash of the evidence image, as 16 hex characters' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9a-f]{16}$/, { message: 'perceptualHash must be 16 lowercase hex characters' })
+  perceptualHash?: string;
+
+  @ApiPropertyOptional({
+    description: 'Normalised words OCR read from the image. Empty string means OCR found no meaningful text; omitted means OCR did not run.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  evidenceText?: string;
 
   @ApiPropertyOptional({ example: 'openai', description: 'Which engine produced this decision' })
   @IsOptional()

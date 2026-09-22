@@ -1,0 +1,19 @@
+{
+  "webhookSecret": "whsec_test_fixture_secret",
+  "keySecret": "key_test_fixture_secret",
+  "webhooks": {
+    "payment.captured": "269d9b0fd1d63f3d0a93d700410ab7021e1abfb431473383d0a0cf1315cd5572",
+    "payout.processed": "7463a5b97c43ffe06ca06cf1d16c9e54cd5cfc37c50b83aabdce0ee85c67a22e",
+    "payout.failed": "0098818a4f883658a38801df9b11627eaf260263e8dfead84bbe77443c85f601",
+    "payout.reversed": "7cb327b041f933c8b24272794f5a8642866ff2128c485fd782f539e76ba8acee",
+    "order.paid": "93b690de2108c774e0c89ba17c3904e05b0b6fb33fb9c3a947ad9cc6690c1e6a",
+    "payment.failed": "594478afbaf0fa1745d97165479d705dc25e7a92a52b340cca91e051dd29bf6f",
+    "payout.processed.no-entity": "ad6cead190b3bf7d3250ee5d489bb5c2f607b67d658f4f60cdf836d4e5b6246f"
+  },
+  "payment": {
+    "orderId": "order_DESlLckIVRkHWj",
+    "paymentId": "pay_DESlfW9H8K9uqM",
+    "signature": "96a750d011eefaeba52a20a6f3127242b0b20ba871fbe09de1d4d70c330283a0"
+  },
+  "withdrawalId": "6f0d3a52-8f5e-4d27-9a55-3d3b5c0f7c11"
+}

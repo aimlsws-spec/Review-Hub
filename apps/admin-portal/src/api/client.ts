@@ -24,7 +24,10 @@ let isRefreshing = false
 let failedQueue: Array<{ resolve: (v: string) => void; reject: (e: unknown) => void }> = []
 
 const processQueue = (error: unknown, token: string | null) => {
-  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token!)))
+  failedQueue.forEach((p) => {
+    if (error || token === null) p.reject(error ?? new Error('Token refresh returned no token'))
+    else p.resolve(token)
+  })
   failedQueue = []
 }
 

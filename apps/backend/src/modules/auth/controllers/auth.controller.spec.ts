@@ -66,6 +66,7 @@ describe('AuthController', () => {
         isEmulator: undefined,
         xForwardedFor: undefined,
         via: undefined,
+        installId: undefined,
       });
     });
   });
@@ -83,6 +84,7 @@ describe('AuthController', () => {
         isEmulator: undefined,
         xForwardedFor: undefined,
         via: undefined,
+        installId: undefined,
       });
     });
   });
@@ -109,6 +111,7 @@ describe('AuthController', () => {
         userAgent: 'Mozilla/5.0',
         xForwardedFor: undefined,
         via: undefined,
+        installId: undefined,
       });
     });
   });
@@ -134,6 +137,7 @@ describe('AuthController', () => {
         userAgent: 'Mozilla/5.0',
         xForwardedFor: undefined,
         via: undefined,
+        installId: undefined,
       });
     });
   });
@@ -241,6 +245,58 @@ describe('AuthController', () => {
       await controller.enableTwoFactor('user-1', '123456');
 
       expect(mockAuthService.enableTwoFactor).toHaveBeenCalledWith('user-1', '123456');
+    });
+  });
+  describe('X-Device-ID header', () => {
+    const request = (extra: Record<string, unknown> = {}) =>
+      ({ ip: '203.0.113.9', headers: { 'user-agent': 'UA', 'x-device-id': 'install-1234-abcd', ...extra }, user: { providerId: 'p1', firstName: 'A', lastName: 'B' } }) as unknown as import('express').Request;
+
+    it('never leaks the password or other request-body fields into the device signals', async () => {
+      await controller.register({ firstName: 'A', lastName: 'B', email: 'a@b.com', password: 'Secret@123' } as never, request());
+
+      const signals = mockAuthService.register.mock.calls[0][3];
+      expect(JSON.stringify(signals)).not.toContain('Secret@123');
+      expect(Object.keys(signals).sort()).toEqual(['installId', 'isEmulator', 'isRooted', 'via', 'xForwardedFor']);
+    });
+
+    it('is passed to register as the install id, next to the other device signals', async () => {
+      await controller.register({ firstName: 'A', lastName: 'B', password: 'x', isRooted: true } as never, request());
+
+      expect(mockAuthService.register).toHaveBeenCalledWith(expect.anything(), '203.0.113.9', 'UA', {
+        isRooted: true,
+        isEmulator: undefined,
+        xForwardedFor: undefined,
+        via: undefined,
+        installId: 'install-1234-abcd',
+      });
+    });
+
+    it('is passed to login', async () => {
+      await controller.login({ email: 'a@b.com', password: 'x' } as never, request());
+
+      expect(mockAuthService.login.mock.calls[0][6]).toEqual(expect.objectContaining({ installId: 'install-1234-abcd' }));
+    });
+
+    it('is passed to Google and Apple sign-in', async () => {
+      await controller.googleAuthCallback(request());
+      await controller.appleAuthCallback(request());
+
+      expect(mockAuthService.socialLogin).toHaveBeenNthCalledWith(1, expect.objectContaining({ provider: 'google', installId: 'install-1234-abcd' }));
+      expect(mockAuthService.socialLogin).toHaveBeenNthCalledWith(2, expect.objectContaining({ provider: 'apple', installId: 'install-1234-abcd' }));
+    });
+
+    it('is optional: an app that does not send it still works', async () => {
+      await controller.login({ email: 'a@b.com', password: 'x' } as never, { ip: '1.1.1.1', headers: {} } as never);
+
+      expect(mockAuthService.login.mock.calls[0][6].installId).toBeUndefined();
+    });
+
+    it('carries the forwarded-for and via headers alongside it', async () => {
+      await controller.login({ email: 'a@b.com', password: 'x' } as never, request({ 'x-forwarded-for': '1.1.1.1, 2.2.2.2', via: '1.1 proxy' }));
+
+      expect(mockAuthService.login.mock.calls[0][6]).toEqual(
+        expect.objectContaining({ xForwardedFor: '1.1.1.1, 2.2.2.2', via: '1.1 proxy', installId: 'install-1234-abcd' }),
+      );
     });
   });
 });

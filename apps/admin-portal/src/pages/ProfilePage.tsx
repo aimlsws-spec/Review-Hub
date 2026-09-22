@@ -1,6 +1,6 @@
 import { PageHeader } from '@reviewhub/shared-ui'
 import { useState } from 'react'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { useChangePasswordMutation } from '@/hooks/useChangePassword'
 import { useAuthStore } from '@/stores/auth.store'

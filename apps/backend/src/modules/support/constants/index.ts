@@ -1,5 +1,7 @@
 import { SupportTicketStatus } from '@prisma/client';
 
+export * from './chatbot.constants';
+
 export const SUPPORT_EVENTS = {
   TICKET_CREATED: 'support.ticket.created',
   MESSAGE_ADDED: 'support.message.added',

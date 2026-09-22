@@ -437,6 +437,9 @@ function LogReviewModal({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+/** A stable empty list, so memoised values below do not recompute on every render while loading. */
+const NO_REVIEWS: ApiReview[] = []
+
 export default function ReviewsPage() {
   const merchantId = useAuthStore((s) => s.merchant?.id)
 
@@ -463,7 +466,7 @@ export default function ReviewsPage() {
   const { data: reviewsRes, isLoading, isFetching } = useReviewsQuery(merchantId, queryParams)
   const { data: statsRes } = useReviewStatsQuery(merchantId)
 
-  const reviews: ApiReview[] = reviewsRes?.data?.data?.data ?? []
+  const reviews: ApiReview[] = reviewsRes?.data?.data?.data ?? NO_REVIEWS
   const total = reviewsRes?.data?.data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const displayReviews = useMemo(() => reviews.map(toDisplayReview), [reviews])

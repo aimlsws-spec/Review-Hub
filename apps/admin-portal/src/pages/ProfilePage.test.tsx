@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useChangePasswordMutation } from '@/hooks/useChangePassword'
@@ -11,7 +11,7 @@ import ProfilePage from './ProfilePage'
 
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
 vi.mock('@/hooks/useChangePassword', () => ({ useChangePasswordMutation: vi.fn() }))
-vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('react-hot-toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const user = {
   firstName: 'Ava',

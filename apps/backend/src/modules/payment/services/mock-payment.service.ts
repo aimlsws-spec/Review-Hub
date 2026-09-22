@@ -102,7 +102,7 @@ export class MockPaymentService implements PaymentProvider {
     setTimeout(() => {
       this.logger.log(`Mock: Simulating Webhook payout.processed for ${payoutId}`);
       try {
-        fetch('http://localhost:3000/api/v1/payments/webhooks/razorpay', {
+        fetch(`http://localhost:${process.env.APP_PORT ?? 3000}/api/v1/payments/webhooks/razorpay`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

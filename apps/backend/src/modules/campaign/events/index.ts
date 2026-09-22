@@ -28,6 +28,5 @@ export class CampaignSubmittedEvent {
   constructor(
     public readonly campaignId: string,
     public readonly merchantId: string,
-    public readonly autoApproved: boolean,
   ) {}
 }

@@ -49,7 +49,12 @@ export class BankAccountService {
       await this.bankRepository.unsetPrimaryForUser(userId, bankId);
     }
 
-    return this.bankRepository.update(bank.id, dto);
+    // Changing who or where the money goes restarts the cooling period before a withdrawal can go to this account.
+    // Making it the primary account does not: that changes nothing about where money would land.
+    const changesDestination = (['accountHolderName', 'ifscCode', 'bankName'] as const).some(
+      (field) => dto[field] !== undefined && dto[field] !== bank[field],
+    );
+    return this.bankRepository.update(bank.id, changesDestination ? { ...dto, detailsChangedAt: new Date() } : dto);
   }
 
   async deleteBankAccount(userId: string, bankId: string) {

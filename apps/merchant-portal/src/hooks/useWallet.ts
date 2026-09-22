@@ -1,16 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
 import type { Merchant } from '@/types'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 import { loadRazorpayCheckout, openRazorpayCheckout } from '@/utils/razorpay'
 
 export function useWalletQuery(merchantId: string | undefined) {
   return useQuery({
     queryKey: QUERY_KEYS.WALLET,
-    queryFn: () => merchantApi.getWallet(merchantId!),
+    queryFn: () => merchantApi.getWallet(requireValue(merchantId, 'merchantId')),
     enabled: !!merchantId,
   })
 }
@@ -18,7 +18,7 @@ export function useWalletQuery(merchantId: string | undefined) {
 export function useTransactionsQuery(merchantId: string | undefined, page: number, limit: number) {
   return useQuery({
     queryKey: [...QUERY_KEYS.TRANSACTIONS, page],
-    queryFn: () => merchantApi.getTransactions(merchantId!, { page, limit }),
+    queryFn: () => merchantApi.getTransactions(requireValue(merchantId, 'merchantId'), { page, limit }),
     enabled: !!merchantId,
   })
 }
@@ -46,7 +46,7 @@ export function useWalletMutations(merchantId: string | undefined, merchant: Mer
   }
 
   const verifyMutation = useMutation({
-    mutationFn: (data: RechargeVerifyInput) => merchantApi.verifyRecharge(merchantId!, data),
+    mutationFn: (data: RechargeVerifyInput) => merchantApi.verifyRecharge(requireValue(merchantId, 'merchantId'), data),
     onSuccess: () => {
       toast.success('Funds added to your wallet')
       refreshWallet()
@@ -55,7 +55,7 @@ export function useWalletMutations(merchantId: string | undefined, merchant: Mer
   })
 
   const rechargeMutation = useMutation({
-    mutationFn: (amount: number) => merchantApi.createRecharge(merchantId!, amount),
+    mutationFn: (amount: number) => merchantApi.createRecharge(requireValue(merchantId, 'merchantId'), amount),
     onSuccess: async (res) => {
       const order = res.data.data
       try {
@@ -88,7 +88,7 @@ export function useWalletMutations(merchantId: string | undefined, merchant: Mer
   })
 
   const simulateMutation = useMutation({
-    mutationFn: (amount: number) => merchantApi.simulateRecharge(merchantId!, amount),
+    mutationFn: (amount: number) => merchantApi.simulateRecharge(requireValue(merchantId, 'merchantId'), amount),
     onSuccess: () => {
       toast.success('Simulated funds added to your wallet')
       refreshWallet()

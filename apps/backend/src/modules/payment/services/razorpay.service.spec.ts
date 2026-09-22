@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { PAYMENT_EVENTS } from '../constants';
+import { hmacSha256Hex } from '../utils/hmac';
 
 import { RazorpayService } from './razorpay.service';
 
@@ -19,14 +20,6 @@ jest.mock('razorpay', () => {
   }));
 });
 
-jest.mock('razorpay/dist/utils/razorpay-utils', () => ({
-  validatePaymentVerification: jest.fn(),
-}));
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const RazorpayMock = require('razorpay');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const razorpayUtils = require('razorpay/dist/utils/razorpay-utils');
 
 describe('RazorpayService', () => {
   let service: RazorpayService;
@@ -66,29 +59,21 @@ describe('RazorpayService', () => {
     });
   });
 
-  describe('verifyPaymentSignature', () => {
-    it('should delegate to validatePaymentVerification with the configured secret', () => {
-      razorpayUtils.validatePaymentVerification.mockReturnValue(true);
+  describe('signatures', () => {
+    // The real checks, against fixtures and Razorpay's own SDK, are in razorpay-signature.spec.ts. These two only pin
+    // down which secret each check uses.
+    it('checks a payment signature with the key secret', () => {
+      const signature = hmacSha256Hex('order_1|pay_1', 'test_secret');
 
-      const result = service.verifyPaymentSignature('order_1', 'pay_1', 'sig_1');
-
-      expect(result).toBe(true);
-      expect(razorpayUtils.validatePaymentVerification).toHaveBeenCalledWith(
-        { order_id: 'order_1', payment_id: 'pay_1' },
-        'sig_1',
-        'test_secret',
-      );
+      expect(service.verifyPaymentSignature('order_1', 'pay_1', signature)).toBe(true);
+      expect(service.verifyPaymentSignature('order_1', 'pay_1', hmacSha256Hex('order_1|pay_1', 'webhook_secret'))).toBe(false);
     });
-  });
 
-  describe('verifyWebhookSignature', () => {
-    it('should delegate to the static validateWebhookSignature with the webhook secret', () => {
-      RazorpayMock.validateWebhookSignature = jest.fn().mockReturnValue(true);
+    it('checks a webhook signature with the webhook secret', () => {
+      const body = '{"event":"payment.captured"}';
 
-      const result = service.verifyWebhookSignature('{"event":"payment.captured"}', 'sig_1');
-
-      expect(result).toBe(true);
-      expect(RazorpayMock.validateWebhookSignature).toHaveBeenCalledWith('{"event":"payment.captured"}', 'sig_1', 'webhook_secret');
+      expect(service.verifyWebhookSignature(body, hmacSha256Hex(body, 'webhook_secret'))).toBe(true);
+      expect(service.verifyWebhookSignature(body, hmacSha256Hex(body, 'test_secret'))).toBe(false);
     });
   });
 

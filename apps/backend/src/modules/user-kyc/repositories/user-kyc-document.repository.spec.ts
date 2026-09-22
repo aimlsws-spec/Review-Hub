@@ -14,6 +14,8 @@ describe('UserKycDocumentRepository', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
+      count: jest.fn(),
     },
   };
 
@@ -102,6 +104,56 @@ describe('UserKycDocumentRepository', () => {
         where: { id: 'doc-1' },
         data: { deletedAt: expect.any(Date) },
       });
+    });
+  });
+  describe('review queries', () => {
+    it('findManyForReview joins only safe user fields', async () => {
+      mockPrisma.userKycDocument.findMany.mockResolvedValue([]);
+
+      await repository.findManyForReview({ where: { deletedAt: null }, skip: 0, take: 10, orderBy: { createdAt: 'asc' } });
+
+      expect(mockPrisma.userKycDocument.findMany).toHaveBeenCalledWith({
+        where: { deletedAt: null },
+        skip: 0,
+        take: 10,
+        orderBy: { createdAt: 'asc' },
+        include: { user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } } },
+      });
+    });
+
+    it('findByIdForReview ignores soft-deleted documents', async () => {
+      mockPrisma.userKycDocument.findFirst.mockResolvedValue({ id: 'doc-1' });
+
+      await repository.findByIdForReview('doc-1');
+
+      expect(mockPrisma.userKycDocument.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'doc-1', deletedAt: null } }),
+      );
+    });
+
+    it('decideIfReviewable only updates a document that is still waiting, in one statement', async () => {
+      mockPrisma.userKycDocument.updateMany.mockResolvedValue({ count: 1 });
+      const data = { verificationStatus: 'APPROVED' as const, verifiedBy: 'admin-1', verifiedAt: new Date() };
+
+      const decided = await repository.decideIfReviewable('doc-1', data);
+
+      expect(decided).toBe(true);
+      expect(mockPrisma.userKycDocument.updateMany).toHaveBeenCalledWith({
+        where: { id: 'doc-1', deletedAt: null, verificationStatus: { in: ['PENDING', 'UNDER_REVIEW'] } },
+        data,
+      });
+    });
+
+    it('decideIfReviewable reports false when nothing matched, so the loser of a race is told', async () => {
+      mockPrisma.userKycDocument.updateMany.mockResolvedValue({ count: 0 });
+
+      const decided = await repository.decideIfReviewable('doc-1', {
+        verificationStatus: 'REJECTED',
+        verifiedBy: 'admin-1',
+        verifiedAt: new Date(),
+      });
+
+      expect(decided).toBe(false);
     });
   });
 });

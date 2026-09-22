@@ -1,0 +1,20 @@
+{
+  "entity": "event",
+  "account_id": "acc_BFQ7uQEaa7j2z7",
+  "event": "order.paid",
+  "contains": [
+    "payment",
+    "order"
+  ],
+  "payload": {
+    "order": {
+      "entity": {
+        "id": "order_DESlLckIVRkHWj",
+        "entity": "order",
+        "amount": 500000,
+        "status": "paid"
+      }
+    }
+  },
+  "created_at": 1567674606
+}

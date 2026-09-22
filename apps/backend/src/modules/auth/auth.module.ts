@@ -3,6 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
+import { LocationModule } from '../location/location.module';
+import { RiskModule } from '../risk/risk.module';
+
 import { AuthController } from './controllers/auth.controller';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
@@ -15,6 +18,7 @@ import { OtpRepository } from './repositories/otp.repository';
 import { SessionRepository } from './repositories/session.repository';
 import { UserRepository } from './repositories/user.repository';
 import { AuthService } from './services/auth.service';
+import { DemographicsService } from './services/demographics.service';
 import { DeviceService } from './services/device.service';
 import { OtpService } from './services/otp.service';
 import { PasswordService } from './services/password.service';
@@ -40,12 +44,15 @@ import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy';
         },
       }),
     }),
+    RiskModule,
+    LocationModule,
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
     SessionService,
     DeviceService,
+    DemographicsService,
     PasswordService,
     OtpService,
     UserRepository,

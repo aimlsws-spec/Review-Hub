@@ -5,6 +5,10 @@ import { BadRequestException } from '@common/exceptions/domain.exceptions';
 import { getIstDayBoundaries } from '@common/utils';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+import { lockUserWallet } from '../../../database/prisma/row-lock';
+import { TransactionFilter, transactionWhere } from '../transaction-filter';
+
+import { finalizeInTx, holdInTx, releaseInTx, reverseInTx } from './withdrawal-ledger';
 
 @Injectable()
 export class UserWalletRepository {
@@ -14,15 +18,28 @@ export class UserWalletRepository {
     return this.prisma.userWallet.findUnique({ where: { userId } });
   }
 
+  /**
+   * The user's wallet, created on first use. Two requests can both find no wallet and both try to create one; the
+   * loser hits the unique constraint on the user. That is not a failure (the wallet exists now), so it returns the
+   * winner's wallet instead of a 500.
+   */
   async getOrCreate(userId: string) {
     const existing = await this.findByUserId(userId);
     if (existing) return existing;
-    return this.prisma.userWallet.create({ data: { user: { connect: { id: userId } } } });
+
+    try {
+      return await this.prisma.userWallet.create({ data: { user: { connect: { id: userId } } } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const created = await this.findByUserId(userId);
+        if (created) return created;
+      }
+      throw error;
+    }
   }
 
-  async findTransactions(walletId: string, page: number, limit: number, type?: WalletTransactionType) {
-    const where: Prisma.WalletTransactionWhereInput = { walletId };
-    if (type) where.type = type;
+  async findTransactions(walletId: string, page: number, limit: number, filter: TransactionFilter = {}) {
+    const where = transactionWhere(walletId, filter);
 
     const [data, total] = await Promise.all([
       this.prisma.walletTransaction.findMany({
@@ -37,6 +54,18 @@ export class UserWalletRepository {
     return { data, total, page, limit };
   }
 
+  /**
+   * The newest transactions under a filter, for a downloaded statement. Asks for one more than [limit] so the caller can
+   * tell a history that fits from one that was cut.
+   */
+  async findForExport(walletId: string, filter: TransactionFilter, limit: number) {
+    return this.prisma.walletTransaction.findMany({
+      where: transactionWhere(walletId, filter),
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+    });
+  }
+
   /** Sum of today's (IST) successful credits — powers the "Today's Earnings" home screen figure. */
   async getTodayEarnings(walletId: string): Promise<Prisma.Decimal> {
     const { start, end } = getIstDayBoundaries();
@@ -47,7 +76,13 @@ export class UserWalletRepository {
     return result._sum.amount ?? new Prisma.Decimal(0);
   }
 
-  /** Credits the available balance immediately — used for rewards and referral bonuses. */
+  /**
+   * Credits the available balance immediately — used for rewards and referral bonuses.
+   *
+   * With `idempotent: true` and a reference, a credit that is already in the ledger for that same reference is not
+   * applied a second time: the existing entry is returned with `alreadyApplied: true`. That lets a job that failed
+   * part-way be retried safely. It is opt-in because some callers reuse one reference for several genuine credits.
+   */
   async creditAvailable(params: {
     walletId: string;
     amount: number;
@@ -55,11 +90,21 @@ export class UserWalletRepository {
     referenceType?: string;
     referenceId?: string;
     remarks?: string;
+    idempotent?: boolean;
   }) {
-    const { walletId, amount, type, referenceType, referenceId, remarks } = params;
+    const { walletId, amount, type, referenceType, referenceId, remarks, idempotent } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockUserWallet(tx, walletId);
       const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
+
+      if (idempotent && referenceType && referenceId) {
+        const existing = await tx.walletTransaction.findFirst({
+          where: { walletId, type, referenceType, referenceId, status: 'SUCCESS' },
+        });
+        if (existing) return { wallet, transaction: existing, alreadyApplied: true };
+      }
+
       const balanceBefore = wallet.availableBalance;
       const balanceAfter = Number(balanceBefore) + amount;
 
@@ -85,7 +130,7 @@ export class UserWalletRepository {
         },
       });
 
-      return { wallet: updatedWallet, transaction };
+      return { wallet: updatedWallet, transaction, alreadyApplied: false };
     });
   }
 
@@ -107,6 +152,7 @@ export class UserWalletRepository {
     const { walletId, amount, referenceId, remarks } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockUserWallet(tx, walletId);
       const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
       const balanceBefore = wallet.availableBalance;
       const recoverable = Math.min(amount, Number(balanceBefore));
@@ -140,6 +186,7 @@ export class UserWalletRepository {
     const { walletId, amount, referenceType, referenceId, remarks } = params;
 
     return this.prisma.transaction(async (tx) => {
+      await lockUserWallet(tx, walletId);
       const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
       if (Number(wallet.availableBalance) < amount) {
         throw new BadRequestException('Insufficient wallet balance');
@@ -176,70 +223,12 @@ export class UserWalletRepository {
    * against the same stale read.
    */
   async holdForWithdrawal(params: { walletId: string; amount: number; withdrawalId: string }) {
-    const { walletId, amount, withdrawalId } = params;
-
-    return this.prisma.transaction(async (tx) => {
-      const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
-      if (Number(wallet.availableBalance) < amount) {
-        throw new BadRequestException('Insufficient wallet balance');
-      }
-
-      const balanceBefore = wallet.availableBalance;
-      const availableAfter = Number(balanceBefore) - amount;
-
-      await tx.userWallet.update({
-        where: { id: walletId },
-        data: {
-          availableBalance: availableAfter,
-          lockedBalance: { increment: amount },
-        },
-      });
-
-      return tx.walletTransaction.create({
-        data: {
-          wallet: { connect: { id: walletId } },
-          type: 'HOLD',
-          status: 'SUCCESS',
-          amount,
-          balanceBefore,
-          balanceAfter: availableAfter,
-          referenceType: 'WithdrawalRequest',
-          referenceId: withdrawalId,
-        },
-      });
-    });
+    return this.prisma.transaction((tx) => holdInTx(tx, params));
   }
 
   /** Releases a held amount back to available balance — a rejected or cancelled withdrawal. */
   async releaseHold(params: { walletId: string; amount: number; withdrawalId: string }) {
-    const { walletId, amount, withdrawalId } = params;
-
-    return this.prisma.transaction(async (tx) => {
-      const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
-      const balanceBefore = wallet.availableBalance;
-      const balanceAfter = Number(balanceBefore) + amount;
-
-      await tx.userWallet.update({
-        where: { id: walletId },
-        data: {
-          availableBalance: balanceAfter,
-          lockedBalance: { decrement: amount },
-        },
-      });
-
-      return tx.walletTransaction.create({
-        data: {
-          wallet: { connect: { id: walletId } },
-          type: 'RELEASE',
-          status: 'SUCCESS',
-          amount,
-          balanceBefore,
-          balanceAfter,
-          referenceType: 'WithdrawalRequest',
-          referenceId: withdrawalId,
-        },
-      });
-    });
+    return this.prisma.transaction((tx) => releaseInTx(tx, params));
   }
 
   /**
@@ -248,66 +237,11 @@ export class UserWalletRepository {
    * money that left `totalWithdrawn` needs to come back to available balance.
    */
   async reverseFinalizedWithdrawal(params: { walletId: string; amount: number; withdrawalId: string }) {
-    const { walletId, amount, withdrawalId } = params;
-
-    return this.prisma.transaction(async (tx) => {
-      const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
-      const balanceBefore = wallet.availableBalance;
-      const balanceAfter = Number(balanceBefore) + amount;
-
-      await tx.userWallet.update({
-        where: { id: walletId },
-        data: {
-          availableBalance: balanceAfter,
-          totalWithdrawn: { decrement: amount },
-        },
-      });
-
-      return tx.walletTransaction.create({
-        data: {
-          wallet: { connect: { id: walletId } },
-          type: 'REFUND',
-          status: 'SUCCESS',
-          amount,
-          balanceBefore,
-          balanceAfter,
-          referenceType: 'WithdrawalRequest',
-          referenceId: withdrawalId,
-          remarks: 'Payout failed or was reversed by the gateway after approval',
-        },
-      });
-    });
+    return this.prisma.transaction((tx) => reverseInTx(tx, params, 'Payout failed or was reversed by the gateway after approval'));
   }
 
   /** Clears a held amount for good — an approved withdrawal moving toward payout. */
   async finalizeWithdrawal(params: { walletId: string; amount: number; withdrawalId: string }) {
-    const { walletId, amount, withdrawalId } = params;
-
-    return this.prisma.transaction(async (tx) => {
-      const wallet = await tx.userWallet.findUniqueOrThrow({ where: { id: walletId } });
-      const balanceBefore = wallet.lockedBalance;
-      const lockedAfter = Number(balanceBefore) - amount;
-
-      await tx.userWallet.update({
-        where: { id: walletId },
-        data: {
-          lockedBalance: lockedAfter,
-          totalWithdrawn: { increment: amount },
-        },
-      });
-
-      return tx.walletTransaction.create({
-        data: {
-          wallet: { connect: { id: walletId } },
-          type: 'WITHDRAWAL',
-          status: 'SUCCESS',
-          amount,
-          balanceBefore,
-          balanceAfter: lockedAfter,
-          referenceType: 'WithdrawalRequest',
-          referenceId: withdrawalId,
-        },
-      });
-    });
+    return this.prisma.transaction((tx) => finalizeInTx(tx, params));
   }
 }

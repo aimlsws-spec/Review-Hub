@@ -1,4 +1,13 @@
+import type { CampaignGoal } from '@/types'
+
 export const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1'
+
+/**
+ * Whether to show the "Simulate Payment" button, which credits a wallet with no real payment.
+ * The backend also refuses it unless its mock gateway is active; this keeps the button out of
+ * production builds. Opt in outside `npm run dev` with VITE_ENABLE_PAYMENT_SIMULATION=true.
+ */
+export const PAYMENT_SIMULATION_ENABLED = import.meta.env.DEV || import.meta.env.VITE_ENABLE_PAYMENT_SIMULATION === 'true'
 
 export const ROUTES = {
   LOGIN: '/login',
@@ -13,6 +22,7 @@ export const ROUTES = {
   CAMPAIGNS: '/campaigns',
   REWARDS: '/rewards',
   COUPONS: '/coupons',
+  ANALYTICS: '/analytics',
   WALLET: '/wallet',
   REFUNDS: '/refunds',
   DOCUMENTS: '/documents',
@@ -40,6 +50,7 @@ export const QUERY_KEYS = {
   CUSTOMERS: ['customers'],
   CUSTOMER_STATS: ['customers', 'stats'],
   DASHBOARD: ['dashboard'],
+  ANALYTICS: ['analytics'],
   NOTIFICATIONS: ['notifications'],
   WEBHOOKS: ['webhooks'],
   WEBHOOK_DELIVERIES: ['webhook-deliveries'],
@@ -110,6 +121,16 @@ export const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Cancelled',
   REJECTED: 'Rejected',
   EXPIRED: 'Expired',
+}
+
+export const CAMPAIGN_GOAL_LABELS: Record<CampaignGoal, string> = {
+  MORE_REVIEWS: 'Get more reviews',
+  MORE_FOLLOWERS: 'Get more followers',
+  SPREAD_THE_WORD: 'Get people to share about us',
+  APP_INSTALLS: 'Get more app installs',
+  WEBSITE_TRAFFIC: 'Get more website visits',
+  CUSTOMER_FEEDBACK: 'Collect customer feedback',
+  VIDEO_VIEWS: 'Get more video views',
 }
 
 export const CAMPAIGN_TYPE_LABELS: Record<string, string> = {

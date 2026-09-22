@@ -5,17 +5,20 @@ import { Link } from 'react-router-dom'
 import { ROUTES, REWARD_TYPE_LABELS } from '@/constants'
 import { useCampaignsQuery } from '@/hooks/useCampaigns'
 import { useAuthStore } from '@/stores/auth.store'
-import type { RewardType } from '@/types'
+import type { Campaign, RewardType } from '@/types'
 import { formatCurrency } from '@/utils'
 
 const COUPON_REWARD_TYPES: RewardType[] = ['COUPON', 'GIFT_CARD', 'DISCOUNT']
+
+/** A stable empty list, so memoised values below do not recompute on every render while loading. */
+const NO_CAMPAIGNS: Campaign[] = []
 
 export default function CouponsPage() {
   const merchantId = useAuthStore((s) => s.merchant?.id)
 
   const { data, isLoading, isError, refetch } = useCampaignsQuery(merchantId, { limit: 100 }, 'coupons')
 
-  const campaigns = data?.data?.data?.data ?? []
+  const campaigns = data?.data?.data?.data ?? NO_CAMPAIGNS
   const coupons = useMemo(() => campaigns.filter((c) => COUPON_REWARD_TYPES.includes(c.rewardType)), [campaigns])
 
   return (

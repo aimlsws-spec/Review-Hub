@@ -1,256 +1,111 @@
-# Backend Technical Audit Report
-## VIRAL KAR / ReviewHub Platform — `apps/backend`
+# VIRAL KAR: Project Status Report
 
-**Audited:** 2026-07-10  
-**Auditor:** Cline (AI Code Review)  
-**Scope:** NestJS backend API (`apps/backend`)
+**As of:** 21 September 2026
+**Scope:** the whole repository (`apps/backend`, `apps/admin-portal`, `apps/merchant-portal`, `apps/mobile`, `apps/ai-services`)
 
----
+This replaces the audit of 10 July 2026, which rated the backend "A, production-ready" and described two modules. That audit is kept in `docs/archive/REPORT-2026-07-10-stale.md` for history and should not be relied on: since then the code has grown a lot, and testing against a real database has found several serious bugs (see section 5).
 
-## Executive Summary
-
-| Metric | Result |
-|--------|--------|
-| **Build** | ✅ PASS (500 files emitted, 0 errors, 0 warnings) |
-| **Type Check** | ✅ PASS (`tsc --noEmit`, 0 errors) |
-| **Prisma Client** | ✅ GENERATED (`@prisma/client` present) |
-| **Overall Grade** | **A (Production-Ready with minor polish)** |
+**The honest summary:** the platform is feature-rich and now has real end-to-end tests, but it is **not launch-ready**. Payments have never run against a real gateway, the mobile app is incomplete, and security review, load testing and production deployment have not been done.
 
 ---
 
-## 1. Architecture Overview
+## 1. What exists
 
-### Tech Stack
-- **Runtime:** Node.js 20+ (LTS)
-- **Framework:** NestJS 10.3 with Express platform
-- **Language:** TypeScript 5.4 (strict mode enabled)
-- **ORM:** Prisma 5.14 with MySQL
-- **Cache/Queue:** Redis + BullMQ
-- **Auth:** Passport-JWT + bcrypt + OTP (Twilio)
-- **Email:** Nodemailer (SMTP)
-- **Storage:** Local filesystem (configurable)
-- **Logging:** Winston with DailyRotateFile
-- **Validation:** class-validator + class-transformer
-- **Config:** @nestjs/config + Joi validation
+| Area | Size |
+|---|---|
+| Backend | NestJS 10, 22 feature modules, 60 controllers, 89 database models, 60 enums, 14 migrations |
+| Admin portal | React, 23 pages |
+| Merchant portal | React, 15 pages |
+| Mobile app | Flutter, 34 screens |
+| AI service | FastAPI, with optional local Ollama; deterministic fallbacks when the model is off |
 
-### Module Structure
-```
-src/
-├── main.ts                    # Bootstrap (helmet, compression, CORS, versioning)
-├── app.module.ts              # Root module (imports all infra + domain modules)
-├── common/                    # Shared kernel
-│   ├── constants.ts           # API_VERSION, ERROR_CODES, SWAGGER_TAGS, etc.
-│   ├── decorators/            # @CurrentUser, @Public, @Roles
-│   ├── exceptions/            # Domain exceptions (NotFound, Unauthorized, etc.)
-│   ├── filters/               # GlobalExceptionFilter, PrismaExceptionFilter
-│   ├── interceptors/          # ResponseTransform, Logging
-│   ├── middleware/            # RequestId, RequestLogger
-│   └── pipes/                 # ValidationPipe factory
-├── config/                    # Configuration module
-│   ├── config.module.ts       # Global ConfigModule with Joi schema
-│   ├── swagger.config.ts      # Swagger/OpenAPI setup
-│   └── envs/                  # Per-domain config factories
-├── database/prisma/           # Prisma service + exception filter
-├── cache/                     # Global CacheService
-├── mail/                      # Global MailService
-├── storage/                   # Global LocalStorageService
-├── queues/                    # BullMQ root config + queue constants
-├── shared/
-│   ├── health/                # Health check endpoint
-│   └── logger/                # Winston logger module
-└── modules/
-    ├── auth/                  # Authentication & authorization
-    │   ├── controllers/
-    │   ├── services/          # AuthService, SessionService, OtpService, PasswordService
-    │   ├── repositories/      # UserRepository, SessionRepository, OtpRepository
-    │   ├── guards/            # RolesGuard, PermissionsGuard
-    │   ├── middleware/        # RoleMiddleware, PermissionMiddleware
-    │   ├── strategies/        # JwtStrategy
-    │   └── listeners/         # AuthListener (event-driven)
-    └── merchant/              # Merchant, KYC, Team, Wallet, Dashboard
-        ├── controllers/
-        ├── services/
-        ├── repositories/
-        └── listeners/
-```
+**Backend modules:** admin, ai, analytics, auth, campaign, dashboard, gamification, location, marketplace, merchant, notification, payment, referral, reports, risk, scheduled-jobs, settlement, support, task, user-kyc, wallet, webhooks.
 
----
+**Stack decisions (from CLAUDE.md, permanent):** MySQL only, UUID keys, soft delete, local file storage under `uploads/` (no S3), Prisma as the only ORM, BullMQ on Redis for background jobs, Winston logging.
 
-## 2. Build & Type Safety
+## 2. Verification (21 Sep 2026)
 
-### Findings
-- **`tsconfig.json`:** Strict mode enabled (`strict: true`, `noImplicitAny`, `strictNullChecks`, `noUnusedLocals`, `noUnusedParameters`). Excellent.
-- **Path aliases:** Well-configured (`@/*`, `@common/*`, `@config/*`, `@shared/*`, `@database/*`, `@modules/*`).
-- **Jest mapper:** Missing `@modules/*` in `moduleNameMapper`. Minor — tests may break if they import from `@modules/...`.
-- **Missing `tsconfig.build.json`:** `nest-cli.json` uses `tsconfig.json` directly. Works fine since `tsconfig.json` already excludes `test/` and `**/*spec.ts`, but a dedicated build config is cleaner.
+| Check | Result |
+|---|---|
+| Backend typecheck, lint (src and test), build | Clean, 0 warnings |
+| Backend unit tests | 194 suites, 1,673 tests pass |
+| Backend end-to-end tests | 6 suites, 76 tests pass (three full runs in a row) |
+| Admin portal | 290 tests pass, lint clean at `--max-warnings 0`, builds |
+| Merchant portal | 140 tests pass, lint clean at `--max-warnings 0`, builds |
+| Mobile | `flutter analyze` clean, 45 tests pass |
+| AI service | 70 tests pass |
 
-### Verdict
-Build pipeline is solid. Zero compiler errors or warnings.
+### How to run the tests
 
----
+- **Unit tests:** `npm test --workspace=apps/backend`. They mock the database.
+- **End-to-end tests:** they start the whole app against real MySQL and Redis.
+  1. `docker compose up -d mysql redis`
+  2. `npm run e2e:db:create --workspace=apps/backend` (once)
+  3. `npm run test:e2e --workspace=apps/backend`
+- **The e2e tests can not touch real data.** They use the database `viral_kar_test`, Redis database 15, the mock payment gateway, captured (never sent) email, and blank credentials for SMS, push and payments. If any of those is wrong the run refuses to start. See `apps/backend/test/setup/safety.ts`.
 
-## 3. Database (Prisma)
+## 3. What the end-to-end tests cover
 
-### Schema Assessment
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| **Tables** | 38+ | Comprehensive domain model |
-| **Soft Delete** | ✅ | `deletedAt` field on key entities; `withoutDeleted()` helper in PrismaService |
-| **Audit Logging** | ✅ | Dedicated `AuditLog` model with `beforeData`/`afterData` JSON |
-| **Referrals** | ✅ | Multi-level (3 tiers) with wallet integration |
-| **KYC** | ✅ | `KycLevel` enum, document uploads, admin review |
-| **Campaign Flow** | ✅ | Campaign → Task → TaskSubmission with status machine |
-| **Wallet** | ✅ | Balance tracking, transactions, withdrawals with Razorpay |
-| **Indexes** | ✅ | B-tree indexes on `email`, `phone`, `slug`, `status`, FKs |
-| **Prisma Features** | ✅ | Full-text search preview, `dbgenerated()` for UUIDs |
+- Merchant onboarding, campaign creation, admin moderation, and funding a campaign from the wallet
+- A user completing a task, an admin approving it, the reward reaching the wallet, and the campaign budget being charged
+- Withdrawals: minimum amount, PAN verification, balance check, bank-account ownership, hold on request, refund on rejection, payout on approval
+- **Concurrency:** three simultaneous withdrawals against one balance, and three simultaneous approvals of one submission
+- Profile details (date of birth, gender, state, city) and the public locations endpoints
+- Health, authentication, and the test-safety guards themselves
 
-### Schema Strengths
-- Clean separation of user vs. merchant concerns.
-- `CampaignStatus` enum prevents invalid state transitions at DB level.
-- `WalletTransaction` ledger pattern for financial records.
-- `CampaignDailyStat` + `CampaignStat` for analytics aggregation.
-- `TaskSubmissionAiAnalysis` for AI-powered fraud/content review.
+## 4. Rules the code enforces, and how
 
----
+| Rule | Where |
+|---|---|
+| A merchant can not approve their own campaign. Every submitted campaign goes to an admin. | `CampaignService.submitForApproval`. The `autoApprove` flag is stored but ignored. |
+| Two requests can not spend one balance | Row locks (`SELECT ... FOR UPDATE`) in every wallet-changing method (`database/prisma/row-lock.ts`). Lock order: payment record, campaign, wallet. |
+| A reward is paid exactly once, even if the job is retried | `RewardProcessor` and the ledger: each step checks the ledger before applying, so a retry resumes rather than skipping or repeating |
+| A payment can not be credited twice by a webhook and a verify call together | `MerchantWalletRepository.confirmTopUp` locks the ledger entry first |
+| Duplicate or suspicious proof is held for review | `risk` module: perceptual image hash, OCR text, IP reputation, account linkage |
+| Personal details are not written to logs | Profile changes record that a detail changed, never its value |
 
-## 4. Authentication & Security
+## 5. Serious bugs found by real-database testing (all fixed)
 
-### Implementation
-| Feature | Status | Implementation |
-|---------|--------|----------------|
-| **JWT Access Token** | ✅ | 15min expiry, signed with `JWT_ACCESS_SECRET` |
-| **JWT Refresh Token** | ✅ | 7d expiry, session-bound, rotate-on-refresh |
-| **Password Hashing** | ✅ | bcrypt (configurable rounds) |
-| **Account Lockout** | ✅ | 5 failed attempts → 30min lock |
-| **2FA / OTP** | ✅ | TOTP via Twilio, verify/resend flows |
-| **Role-Based Access** | ✅ | `RolesGuard` + `@Roles()` decorator |
-| **Permission-Based** | ✅ | `PermissionsGuard` with module:action strings |
-| **Logout / Revoke** | ✅ | Single session or all devices |
-| **Password Reset** | ✅ | OTP-based, invalidates all sessions on success |
-| **Helmet** | ✅ | HTTP security headers |
-| **Rate Limiting** | ✅ | `@nestjs/throttler` (100req/60s default) |
-| **CORS** | ✅ | Configurable origins, credentials enabled |
+1. **The backend could not start.** A background worker needed a repository its module never exported. Unit tests mock every dependency, so nothing noticed.
+2. **Withdrawal double-spend.** Three simultaneous withdrawals of ₹2,000 from a ₹3,000 wallet all succeeded. Fixed with row locks.
+3. **Rewards could be lost.** A worker that failed half-way through paying a reward left a record that a retry treated as "already done", so the user was never paid and the merchant never charged. Fixed by making every step repeatable.
+4. **Merchant self-approval** of campaigns through a merchant-set flag.
+5. **Two requests creating the same wallet** made one of them return a 500.
 
-### Security Observations
-- **Good:** `AuthService.changePassword()` revokes ALL sessions — forces re-auth after password change.
-- **Good:** `forgotPassword` returns silently if user not found — prevents user enumeration.
-- **Good:** Validation pipe uses `whitelist: true, forbidNonWhitelisted: true` — blocks unexpected fields.
-- **Note:** The `.env` template contains placeholder secrets that are shorter than the Joi `min(32)` requirement. Production must use real 32+ char secrets.
+The lesson: mocked unit tests do not find these. Any new code that moves money needs an end-to-end test that runs it concurrently.
 
----
+## 6. Known gaps and risks
 
-## 5. API Design
+**Money**
+- **Razorpay has never run for real.** No credentials exist yet. Wallet recharge and payouts work only on the mock gateway. Production refuses the mock, so nothing money-related works in production until live keys are added.
+- The reward worker still performs its steps as separate database operations. They are now safely repeatable, but they are not one atomic transaction.
+- The admin-configurable minimum and maximum withdrawal are not connected to anything. The enforced minimum is a fixed ₹1,000, no maximum is enforced, and there is no daily limit or 24-hour cooling period (the original spec asks for both).
+- Other money paths (refunds, marketplace redemptions, referral bonuses) have unit tests and row locks but no concurrent end-to-end tests yet.
 
-### Response Standardization
-All responses conform to a uniform envelope:
-```json
-{
-  "success": true,
-  "statusCode": 200,
-  "message": "Data retrieved successfully.",
-  "data": { ... },
-  "timestamp": "2026-07-10T07:30:00.000Z"
-}
-```
+**Product**
+- No dispute workflow, no merchant auto-recharge, no forced app-update check.
+- `CampaignAnalytics` is never written (it is always empty). Use `CampaignPerformanceService` for campaign results.
+- The list of cities is a starter set (217 cities). A full list is needed before launch, and there is no admin screen for it.
+- Mobile app: no Google or Apple sign-in, biometric lock, location or QR tasks, localization, or leaderboard screen.
 
-Handled by:
-- `ResponseTransformInterceptor` — wraps all success responses
-- `GlobalExceptionFilter` — wraps all errors with consistent `code`, `message`, `path`, `method`
+**Operations**
+- The deploy script and `.cpanel.yml` were tested by dry run only, never on a real cPanel server. The host may not offer Redis. See `docs/DEPLOYMENT.md`.
+- Duplicate-image detection is tested in code and SQL but not with real uploaded photos.
+- No security review, load test, monitoring or backup test has been done.
 
-### Error Codes
-Domain-specific error codes in `ERROR_CODES` constant:
-- Generic: `INTERNAL_SERVER_ERROR`, `VALIDATION_ERROR`, `NOT_FOUND`, etc.
-- Auth: `INVALID_CREDENTIALS`, `TOKEN_EXPIRED`, `OTP_INVALID`
-- Merchant: `MERCHANT_NOT_VERIFIED`, `KYC_ALREADY_SUBMITTED`
-- Wallet: `INSUFFICIENT_BALANCE`
-- Campaign: `CAMPAIGN_INSUFFICIENT_BUDGET`
+## 7. What changed most recently
 
-### Validation
-- `buildValidationPipe()` formats `class-validator` errors into a flat `field → messages[]` map.
-- Nested object validation is recursively flattened.
+- Campaign builder, support chatbot, merchant insights and smart notification timing (AI growth features)
+- Admin KYC review and the notification center
+- Duplicate-image and multi-account fraud signals
+- Date of birth, gender and location on profiles, with public location lists
+- The safe end-to-end test suite and the fixes it drove
+- Portal lint cleanup, and the deploy script
 
----
+## 8. Next
 
-## 6. Infrastructure & DevEx
-
-### Logging
-- **Winston** with colorized console output (dev) and JSON (prod).
-- **DailyRotateFile** for app logs and dedicated error logs.
-- **Request logging** via `LoggingInterceptor` and `RequestLoggerMiddleware`.
-- **Slow query logging** in dev (>200ms).
-
-### Configuration
-- `ConfigModule` is **global** with Joi schema validation.
-- Validates `NODE_ENV`, `DATABASE_URL`, `JWT_*_SECRET` at boot.
-- Supports `.env.local` override.
-
-### Queues (BullMQ)
-- Redis-backed with exponential backoff.
-- Registered queues: `SUBMISSIONS`, `NOTIFICATIONS`, `REWARDS`, `WITHDRAWALS`, `EMAILS`, `ANALYTICS`.
-
-### Cache
-- `CacheService` global module (ready for Redis integration).
-
-### Health Checks
-- `HealthModule` with `HealthController` — standard NestJS Terminus pattern.
-
----
-
-## 7. Issues Found
-
-| # | Severity | File | Issue | Recommendation |
-|---|----------|------|-------|----------------|
-| 1 | 🟡 Low | `src/config/swagger.config.ts` | Swagger title says "ReviewHub API" but project branding is "VIRAL KAR". | Align branding: `.setTitle('VIRAL KAR API')`. |
-| 2 | 🟡 Low | `package.json` (jest) | Missing `^@modules/(.*)$` in `moduleNameMapper`. | Add `"^@modules/(.*)$": "<rootDir>/modules/$1"` for test parity. |
-| 3 | 🟡 Low | `tsconfig.json` only | No dedicated `tsconfig.build.json`. | Create one excluding tests for cleaner CI builds (optional). |
-| 4 | 🟢 Info | `.env` | Template values fail Joi `min(32)` for JWT secrets. | Document that production `.env` must use real secrets. |
-| 5 | 🟢 Info | `.env` | `DATABASE_URL` password is URL-encoded (`%40` = `@`). | Valid, but document URL-encoding requirement for special chars. |
-
-**No critical or high-severity issues were found.**
-
----
-
-## 8. Production Readiness Checklist
-
-- [x] TypeScript strict mode
-- [x] Centralized error handling
-- [x] Request/response logging
-- [x] Rate limiting
-- [x] Helmet security headers
-- [x] CORS configuration
-- [x] JWT auth with refresh rotation
-- [x] Password hashing (bcrypt)
-- [x] Account lockout
-- [x] Role + permission guards
-- [x] Soft deletes
-- [x] Audit logging (DB model)
-- [x] Health check endpoint
-- [x] Environment validation (Joi)
-- [x] Queue system (BullMQ)
-- [x] Winston logging with rotation
-- [x] Swagger/OpenAPI docs
-- [ ] API versioning tests (not reviewed)
-- [ ] DB migration automation in CI/CD (not reviewed)
-- [ ] Redis Sentinel / Cluster config for production (not reviewed)
-
----
-
-## 9. Conclusion
-
-The `apps/backend` codebase is **well-architected, type-safe, and production-ready**. It demonstrates:
-
-1. **Clean architecture** — clear separation between common infrastructure, config, database, and domain modules.
-2. **Security-first design** — JWT with refresh rotation, bcrypt, rate limiting, helmet, RBAC + ABAC.
-3. **Developer experience** — path aliases, Swagger docs, comprehensive error codes, env validation.
-4. **Scalability patterns** — BullMQ queues, Redis cache, Prisma connection pooling, query logging.
-
-**Recommended next steps:**
-1. Fix the minor branding/swagger inconsistency.
-2. Add `@modules/*` Jest mapper.
-3. Ensure production `.env` uses secrets ≥ 32 characters.
-4. Run `prisma migrate deploy` against production database.
-5. Add integration tests for auth flows and campaign lifecycle.
-
----
-
-*End of Report*
+1. Phase 1: review-first product work (an honest-feedback guard on campaign wording, help content for the chatbot, the review flow on mobile)
+2. Wire the withdrawal limits; add the daily limit and cooling period
+3. Merchant analytics and finance
+4. Mobile completion
+5. Hardening, deployment and launch, then the Razorpay switch when credentials arrive

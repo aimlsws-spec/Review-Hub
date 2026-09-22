@@ -5,6 +5,7 @@ export * from './invite-team.dto';
 export * from './add-bank.dto';
 export * from './admin.dto';
 export * from './wallet-recharge.dto';
+export * from './manual-top-up.dto';
 export * from './review.dto';
 export * from './customer.dto';
 export * from './refund.dto';

@@ -7,11 +7,13 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../../campaigns/data/models/campaign_task_model.dart';
 import '../../data/models/text_suggestion_model.dart';
 import '../../providers/task_providers.dart';
+import '../widgets/honest_feedback_notice.dart';
 
 final _pickedFileProvider = StateProvider.autoDispose<File?>((ref) => null);
 
@@ -117,6 +119,21 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
     ref.read(_suggestionProvider.notifier).clear();
   }
 
+  /// The assistant hands back the draft the person chose. It goes into the answer box when this task has one;
+  /// otherwise it is already on the clipboard, ready to paste into the review they post themselves.
+  Future<void> _openReviewAssistant() async {
+    final draft = await context.push<String>(RoutePaths.reviewAssistantPath(widget.taskId));
+    if (!mounted || draft == null) return;
+
+    if (widget.task.acceptsText) {
+      _textController.text = draft;
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Copied. Paste it into your review and change anything you like.')));
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     final picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
     if (picked != null) ref.read(_pickedFileProvider.notifier).state = File(picked.path);
@@ -167,7 +184,12 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-              if (task.supportsTextAssist) ...[
+              if (task.isReviewTask) ...[
+                const HonestFeedbackNotice(),
+                const SizedBox(height: 12),
+                _ReviewAssistantCard(onOpen: _openReviewAssistant),
+                const SizedBox(height: 20),
+              ] else if (task.supportsTextAssist) ...[
                 _TextAssistCard(
                   isLoading: suggestionState.isLoading,
                   suggestion: suggestionState.value,
@@ -243,6 +265,39 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Opens the guided review assistant. Optional: the person can write their review without it.
+class _ReviewAssistantCard extends StatelessWidget {
+  const _ReviewAssistantCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary100),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary600),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Need help putting it into words?',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(onPressed: onOpen, child: const Text('Help me write')),
+        ],
       ),
     );
   }

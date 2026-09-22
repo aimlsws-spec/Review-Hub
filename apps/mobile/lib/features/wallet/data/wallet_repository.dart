@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import '../../../core/constants/api_endpoints.dart';
@@ -6,6 +9,7 @@ import '../../../core/network/failure_mapper.dart';
 import '../../../shared/models/api_response.dart';
 import 'models/bank_account_model.dart';
 import 'models/reward_model.dart';
+import 'models/transaction_history.dart';
 import 'models/wallet_summary_model.dart';
 import 'models/wallet_transaction_model.dart';
 import 'models/withdrawal_model.dart';
@@ -28,11 +32,21 @@ class WalletRepository {
     int page = 1,
     int limit = 20,
     String? type,
+    String? from,
+    String? to,
+    String? search,
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         ApiEndpoints.walletTransactions,
-        queryParameters: {'page': page, 'limit': limit, 'type': ?type},
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+          'type': ?type,
+          'from': ?from,
+          'to': ?to,
+          if (search != null && search.isNotEmpty) 'search': search,
+        },
       );
       final data = response.data!['data'] as Map<String, dynamic>;
       return Result.success(
@@ -41,6 +55,53 @@ class WalletRepository {
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));
     }
+  }
+
+  /// The history under the same filter as the list, as a CSV statement to hand to another app.
+  Future<Result<TransactionExport>> exportTransactions({String? type, String? from, String? to, String? search}) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        ApiEndpoints.walletTransactionsExport,
+        queryParameters: {
+          'type': ?type,
+          'from': ?from,
+          'to': ?to,
+          if (search != null && search.isNotEmpty) 'search': search,
+        },
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Result.success(
+        TransactionExport(
+          bytes: Uint8List.fromList(response.data ?? const []),
+          filename: _filenameOf(response.headers.value('content-disposition')) ?? 'wallet-statement.csv',
+          truncated: response.headers.value('x-export-truncated') == 'true',
+        ),
+      );
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(_withReadableBody(e)));
+    }
+  }
+
+  /// The name the server gave the file, from `attachment; filename="wallet-statement-2026-09-21.csv"`.
+  static String? _filenameOf(String? contentDisposition) {
+    final match = RegExp('filename="([^"]+)"').firstMatch(contentDisposition ?? '');
+    final name = match?.group(1);
+    // Only a plain file name is used, so a server can not point the file somewhere else.
+    return name != null && RegExp(r'^[\w.-]+$').hasMatch(name) ? name : null;
+  }
+
+  /// A download asks for raw bytes, so an error comes back as bytes too. Turns it back into the JSON the rest of the
+  /// app reads its error messages from.
+  static DioException _withReadableBody(DioException e) {
+    final data = e.response?.data;
+    if (data is List<int>) {
+      try {
+        e.response!.data = jsonDecode(utf8.decode(data));
+      } catch (_) {
+        // Not JSON: the caller gets the generic message.
+      }
+    }
+    return e;
   }
 
   Future<Result<PaginatedResponse<RewardModel>>> getRewards({int page = 1, int limit = 20, String? status}) async {

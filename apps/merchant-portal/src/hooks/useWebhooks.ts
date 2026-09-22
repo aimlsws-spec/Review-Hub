@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 export function useWebhooksQuery(merchantId: string | undefined) {
   return useQuery({
     queryKey: QUERY_KEYS.WEBHOOKS,
-    queryFn: () => merchantApi.listWebhooks(merchantId!),
+    queryFn: () => merchantApi.listWebhooks(requireValue(merchantId, 'merchantId')),
     enabled: !!merchantId,
   })
 }
@@ -16,7 +16,7 @@ export function useWebhooksQuery(merchantId: string | undefined) {
 export function useWebhookDeliveriesQuery(merchantId: string | undefined, webhookId: string, params: { page: number; limit: number }) {
   return useQuery({
     queryKey: [...QUERY_KEYS.WEBHOOK_DELIVERIES, webhookId, params.page],
-    queryFn: () => merchantApi.listWebhookDeliveries(merchantId!, webhookId, params),
+    queryFn: () => merchantApi.listWebhookDeliveries(requireValue(merchantId, 'merchantId'), webhookId, params),
     enabled: !!merchantId && !!webhookId,
   })
 }
@@ -24,7 +24,7 @@ export function useWebhookDeliveriesQuery(merchantId: string | undefined, webhoo
 export function useCreateWebhookMutation(merchantId: string | undefined, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { url: string; events: string[]; enabled?: boolean }) => merchantApi.createWebhook(merchantId!, data),
+    mutationFn: (data: { url: string; events: string[]; enabled?: boolean }) => merchantApi.createWebhook(requireValue(merchantId, 'merchantId'), data),
     onSuccess: () => {
       toast.success('Webhook created')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.WEBHOOKS })
@@ -38,7 +38,7 @@ export function useUpdateWebhookMutation(merchantId: string | undefined, onSucce
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ webhookId, data }: { webhookId: string; data: Partial<{ url: string; events: string[]; enabled: boolean }> }) =>
-      merchantApi.updateWebhook(merchantId!, webhookId, data),
+      merchantApi.updateWebhook(requireValue(merchantId, 'merchantId'), webhookId, data),
     onSuccess: () => {
       toast.success('Webhook updated')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.WEBHOOKS })
@@ -51,7 +51,7 @@ export function useUpdateWebhookMutation(merchantId: string | undefined, onSucce
 export function useDeleteWebhookMutation(merchantId: string | undefined, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (webhookId: string) => merchantApi.deleteWebhook(merchantId!, webhookId),
+    mutationFn: (webhookId: string) => merchantApi.deleteWebhook(requireValue(merchantId, 'merchantId'), webhookId),
     onSuccess: () => {
       toast.success('Webhook removed')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.WEBHOOKS })

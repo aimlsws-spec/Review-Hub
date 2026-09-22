@@ -1,16 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { PAYMENT_EVENTS } from '../../payment/constants';
 import { PayoutStatusEventPayload } from '../../payment/interfaces';
-import { UserWalletRepository, WithdrawalRepository } from '../repositories';
+import { WithdrawalFailedEvent, WithdrawalPaidEvent } from '../events';
+import { WithdrawalRepository, WithdrawalSettlementRepository } from '../repositories';
 
 /**
  * The definitive word on whether a RazorpayX payout actually moved money.
  * `WithdrawalService.initiatePayout()` only records that a payout was
  * *requested* — this listener reacts once Razorpay reports what actually
  * happened to it.
+ *
+ * Settling goes through WithdrawalSettlementRepository, which locks the withdrawal first: the same report arriving
+ * twice, or arriving while an admin is settling it, changes the ledger once and only once.
  */
 @Injectable()
 export class PayoutListener {
@@ -18,8 +22,9 @@ export class PayoutListener {
 
   constructor(
     private readonly withdrawalRepository: WithdrawalRepository,
-    private readonly walletRepository: UserWalletRepository,
+    private readonly settlementRepository: WithdrawalSettlementRepository,
     private readonly auditLogService: AuditLogService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   @OnEvent(PAYMENT_EVENTS.PAYOUT_STATUS_CHANGED)
@@ -36,45 +41,44 @@ export class PayoutListener {
     }
 
     if (event.status === 'processed') {
-      await this.withdrawalRepository.update(withdrawal.id, {
-        status: 'PAID',
-        metadata: { ...(withdrawal.metadata as object), razorpayPayoutId: event.payoutId, utr: event.utr },
+      const outcome = await this.settlementRepository.markPaid({
+        withdrawalId: withdrawal.id,
+        source: 'GATEWAY',
+        reference: event.utr ?? undefined,
+        metadata: { razorpayPayoutId: event.payoutId, ...(event.utr ? { utr: event.utr } : {}) },
       });
-      await this.withdrawalRepository.createLog({
-        withdrawal: { connect: { id: withdrawal.id } },
-        oldStatus: withdrawal.status,
-        newStatus: 'PAID',
-        remarks: event.utr ? `UTR: ${event.utr}` : undefined,
-      });
-      this.logger.log(`Withdrawal ${withdrawal.id} paid out (UTR ${event.utr ?? 'n/a'})`);
+
+      if (outcome.applied) {
+        this.eventEmitter.emit(
+          'wallet.withdrawal.paid',
+          new WithdrawalPaidEvent(withdrawal.id, outcome.withdrawal.wallet.userId, Number(outcome.withdrawal.amount), event.utr ?? undefined),
+        );
+        this.logger.log(`Withdrawal ${withdrawal.id} paid out (UTR ${event.utr ?? 'n/a'})`);
+      } else if (outcome.reason !== 'already_paid') {
+        // Paid by the gateway but not in a state where that can be recorded (for example already returned to the
+        // user). Money and ledger now disagree, so it needs a person.
+        this.logger.error(`Gateway reports withdrawal ${withdrawal.id} paid but it is ${outcome.status}. Check it by hand.`);
+      }
       return;
     }
 
     // failed or reversed — the money never reached the user, so give it back.
-    if (withdrawal.status === 'PAID') {
-      // Already marked paid by an earlier event; don't double-reverse.
+    const reason = event.failureReason ?? `Payout ${event.status} by Razorpay`;
+    const outcome = await this.settlementRepository.markFailed({
+      withdrawalId: withdrawal.id,
+      source: 'GATEWAY',
+      reason,
+      metadata: { razorpayPayoutId: event.payoutId },
+    });
+    if (!outcome.applied) {
+      // Already paid or already failed: a repeat of an earlier report. Nothing to undo twice.
       return;
     }
 
-    await this.walletRepository.reverseFinalizedWithdrawal({
-      walletId: withdrawal.walletId,
-      amount: Number(withdrawal.amount),
-      withdrawalId: withdrawal.id,
-    });
-
-    await this.withdrawalRepository.update(withdrawal.id, {
-      status: 'FAILED',
-      rejectionReason: event.failureReason ?? `Payout ${event.status} by Razorpay`,
-      metadata: { ...(withdrawal.metadata as object), razorpayPayoutId: event.payoutId },
-    });
-
-    await this.withdrawalRepository.createLog({
-      withdrawal: { connect: { id: withdrawal.id } },
-      oldStatus: withdrawal.status,
-      newStatus: 'FAILED',
-      remarks: event.failureReason ?? `Payout ${event.status} by Razorpay`,
-    });
-
+    this.eventEmitter.emit(
+      'wallet.withdrawal.failed',
+      new WithdrawalFailedEvent(withdrawal.id, outcome.withdrawal.wallet.userId, Number(outcome.withdrawal.amount), reason),
+    );
     await this.auditLogService.record({
       actorId: 'system',
       actorType: 'SYSTEM',

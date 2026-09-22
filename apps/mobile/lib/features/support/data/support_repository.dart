@@ -4,6 +4,7 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../core/errors/result.dart';
 import '../../../core/network/failure_mapper.dart';
 import '../../../shared/models/api_response.dart';
+import 'models/chatbot_model.dart';
 import 'models/support_message_model.dart';
 import 'models/support_ticket_model.dart';
 
@@ -64,6 +65,40 @@ class SupportRepository {
   Future<Result<SupportTicketModel>> getTicket(String ticketId) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.supportTicket(ticketId));
+      return Result.success(SupportTicketModel.fromJson(response.data!['data'] as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  /// Asks the help assistant a question. It answers from the FAQ and help pages only.
+  Future<Result<ChatbotReplyModel>> askAssistant(String message) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.supportChatbotMessage,
+        data: {'message': message},
+      );
+      return Result.success(ChatbotReplyModel.fromJson(response.data!['data'] as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  /// Hands the conversation over to the support team; it comes back as a new ticket.
+  Future<Result<SupportTicketModel>> handOffChat(
+    List<({ChatRole role, String text})> transcript, {
+    String? category,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.supportChatbotHandoff,
+        data: {
+          'messages': [
+            for (final line in transcript) {'role': line.role.apiValue, 'text': line.text},
+          ],
+          'category': ?category,
+        },
+      );
       return Result.success(SupportTicketModel.fromJson(response.data!['data'] as Map<String, dynamic>));
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));

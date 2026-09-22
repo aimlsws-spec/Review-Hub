@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
@@ -68,7 +69,8 @@ export class TaskParticipationController {
     @CurrentUser('id') userId: string,
     @Body() dto: SubmitTaskDto,
     @UploadedFile() file?: Express.Multer.File,
+    @Req() req?: Request,
   ) {
-    return this.participationService.submitTask(taskId, userId, dto, file);
+    return this.participationService.submitTask(taskId, userId, dto, file, { ip: req?.ip });
   }
 }

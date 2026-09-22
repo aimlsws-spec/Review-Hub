@@ -3,12 +3,42 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useCampaignMutations, useCampaignsQuery } from '@/hooks/useCampaigns'
+import { useWordingCheck } from '@/hooks/useWordingCheck'
 import { useAuthStore } from '@/stores/auth.store'
 
 import CampaignsPage from './CampaignsPage'
 
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
 vi.mock('@/hooks/useCampaigns', () => ({ useCampaignsQuery: vi.fn(), useCampaignMutations: vi.fn() }))
+vi.mock('@/hooks/useWordingCheck', () => ({ useWordingCheck: vi.fn() }))
+vi.mock('@/hooks/useCampaignBuilder', () => ({
+  useCampaignRecommendation: () => ({
+    mutate: vi.fn(),
+    reset: vi.fn(),
+    isPending: false,
+    data: {
+      goal: 'MORE_REVIEWS',
+      draft: {
+        title: 'Share your honest review of Brew Bar',
+        shortDescription: 'Tell others about your real experience.',
+        description: 'Visit Brew Bar and write an honest review about your experience.',
+        campaignType: 'REVIEW',
+        rewardType: 'CASH',
+        rewardAmount: 40,
+        totalBudget: 4000,
+        maxParticipants: 100,
+        minimumFollowers: 0,
+        startAt: '2026-10-01T00:00:00.000Z',
+        endAt: '2026-10-08T00:00:00.000Z',
+        autoApprove: false,
+      },
+      estimate: { participants: 100, rewardSpend: 4000, platformFeeRate: 0, estimatedPlatformFee: 0, totalEstimatedCost: 4000 },
+      benchmark: { source: 'defaults', sampleSize: 0 },
+      rationale: [],
+      warnings: [],
+    },
+  }),
+}))
 
 const draftCampaign = {
   id: 'campaign-1',
@@ -45,6 +75,7 @@ function renderPage() {
 
 describe('CampaignsPage', () => {
   beforeEach(() => {
+    vi.mocked(useWordingCheck).mockReset()
     mockAuthState('merchant-1')
     vi.mocked(useCampaignsQuery).mockReturnValue({
       data: { data: { data: { data: [draftCampaign], total: 1, page: 1, limit: 20 } } },
@@ -96,6 +127,77 @@ describe('CampaignsPage', () => {
     await waitFor(() =>
       expect(saveMutateMock).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Winter Review Drive', description: 'Collect reviews during the winter promotion period.' }),
+      ),
+    )
+  })
+
+  it('warns while writing when the wording asks for a rating, and says nothing otherwise', async () => {
+    const user = userEvent.setup()
+    vi.mocked(useWordingCheck).mockReturnValue({
+      allowed: false,
+      findings: [{ rule: 'REQUIRES_RATING', severity: 'BLOCK', field: 'description', excerpt: '5 star review', message: 'm' }],
+    })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /new campaign/i }))
+
+    const alert = within(screen.getByRole('dialog')).getByRole('alert')
+    expect(alert).toHaveTextContent(/needs to change/i)
+    expect(alert).toHaveTextContent(/5 star review/)
+    expect(alert).toHaveTextContent(/never depend on the rating/i)
+  })
+
+  it('shows a softer notice, not an alert, when the words only need a second look', async () => {
+    const user = userEvent.setup()
+    vi.mocked(useWordingCheck).mockReturnValue({
+      allowed: true,
+      findings: [{ rule: 'POSITIVE_WORDING', severity: 'REVIEW', field: 'title', excerpt: 'great reviews', message: 'm' }],
+    })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /new campaign/i }))
+
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.queryByRole('alert')).not.toBeInTheDocument()
+    expect(dialog.getByRole('status')).toHaveTextContent(/second look/i)
+  })
+
+  it('shows no notice for honest wording', async () => {
+    const user = userEvent.setup()
+    vi.mocked(useWordingCheck).mockReturnValue({ allowed: true, findings: [] })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /new campaign/i }))
+
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.queryByRole('alert')).not.toBeInTheDocument()
+    expect(dialog.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('opens the normal form pre-filled from the builder draft, and saves it only when the merchant confirms', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /help me plan a campaign/i }))
+    await user.click(screen.getByRole('button', { name: /use this draft/i }))
+
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByLabelText(/^title/i)).toHaveValue('Share your honest review of Brew Bar')
+    expect(dialog.getByLabelText(/reward per participant/i)).toHaveValue(40)
+    expect(saveMutateMock).not.toHaveBeenCalled()
+
+    await user.click(dialog.getByRole('button', { name: /create draft/i }))
+
+    await waitFor(() =>
+      expect(saveMutateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Share your honest review of Brew Bar',
+          rewardAmount: 40,
+          totalBudget: 4000,
+          maxParticipants: 100,
+          startAt: '2026-10-01T00:00:00.000Z',
+          endAt: '2026-10-08T00:00:00.000Z',
+        }),
       ),
     )
   })

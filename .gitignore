@@ -87,6 +87,7 @@ htmlcov/
 
 # Uploads (local dev)
 uploads/
+uploads-test/
 temp/
 
 # Keys
@@ -114,3 +115,6 @@ Thumbs.db
 
 # Claude Code local session state
 .claude/
+# Local database dumps (may contain real user data) — never commit
+/backup.sql
+/*.dump.sql

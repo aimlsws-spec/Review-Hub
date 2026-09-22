@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/loading_button.dart';
@@ -37,6 +39,8 @@ class GamificationScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             const _DailyRewardCard(),
+            const SizedBox(height: 12),
+            const _LeaderboardTile(),
             const SizedBox(height: 24),
             const Text('Badges', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
@@ -244,3 +248,45 @@ class _BadgeTile extends StatelessWidget {
     );
   }
 }
+
+/// A way into the leaderboard from the place people already look at their progress.
+class _LeaderboardTile extends StatelessWidget {
+  const _LeaderboardTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => context.push(RoutePaths.leaderboard),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.slate200),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.leaderboard_rounded, color: AppColors.orange700),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Leaderboard', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 2),
+                    Text('See who earned most this month', style: TextStyle(fontSize: 12.5, color: AppColors.slate500)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: AppColors.slate400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

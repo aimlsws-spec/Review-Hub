@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE `users` ADD COLUMN `cityId` VARCHAR(191) NULL,
+    ADD COLUMN `countryId` VARCHAR(191) NULL,
+    ADD COLUMN `dateOfBirth` DATE NULL,
+    ADD COLUMN `gender` ENUM('ALL', 'MALE', 'FEMALE', 'OTHER') NULL,
+    ADD COLUMN `socialFollowers` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `stateId` VARCHAR(191) NULL;
+

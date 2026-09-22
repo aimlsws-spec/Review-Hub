@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { merchantApi, type RegisterMerchantInput } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Merchant } from '@/types'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 /** The merchant's own business profile (ProfilePage). */
 export function useMerchantProfileQuery() {
@@ -40,7 +40,7 @@ export function useUpdateMerchantProfileMutation(onSuccess?: () => void) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: Partial<Merchant>) => merchantApi.updateProfile(merchantId!, input),
+    mutationFn: (input: Partial<Merchant>) => merchantApi.updateProfile(requireValue(merchantId, 'merchantId'), input),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MERCHANT_PROFILE })
       toast.success('Profile updated')

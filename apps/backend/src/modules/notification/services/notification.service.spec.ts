@@ -133,6 +133,58 @@ describe('NotificationService', () => {
     });
   });
 
+  describe('dispatch — broadcasts and email safety', () => {
+    const payload = { userId: 'user-1', type: 'PROMOTIONAL' as const, title: 'Happy hour', message: 'Tasks are live' };
+    const allEnabled = { inAppEnabled: true, emailEnabled: true, pushEnabled: true };
+
+    beforeEach(() => {
+      mockPreferenceRepository.getOrCreate.mockResolvedValue(allEnabled);
+      mockNotificationRepository.create.mockResolvedValue({ id: 'notif-1' });
+      mockUserRepository.findByIdSimple.mockResolvedValue({ email: 'priya@example.com' });
+      mockDeviceRepository.findByUserId.mockResolvedValue([{ pushToken: 'token-1' }]);
+    });
+
+    it('links every channel copy to its broadcast, so delivery can be counted per broadcast', async () => {
+      await service.dispatch({ ...payload, channels: ['IN_APP', 'EMAIL', 'PUSH'], broadcastId: 'b1' });
+
+      expect(mockNotificationRepository.create).toHaveBeenCalledTimes(3);
+      for (const [record] of mockNotificationRepository.create.mock.calls) {
+        expect(record.broadcast).toEqual({ connect: { id: 'b1' } });
+      }
+    });
+
+    it('leaves ordinary notifications unlinked', async () => {
+      await service.dispatch({ ...payload, channels: ['IN_APP'] });
+
+      expect(mockNotificationRepository.create.mock.calls[0][0]).not.toHaveProperty('broadcast');
+    });
+
+    it('still respects a user who opted out of a channel, broadcast or not', async () => {
+      mockPreferenceRepository.getOrCreate.mockResolvedValue({ ...allEnabled, pushEnabled: false, emailEnabled: false });
+
+      await service.dispatch({ ...payload, channels: ['IN_APP', 'EMAIL', 'PUSH'], broadcastId: 'b1' });
+
+      expect(mockNotificationRepository.create).toHaveBeenCalledTimes(1);
+      expect(mockNotificationRepository.create.mock.calls[0][0].channel).toBe('IN_APP');
+      expect(mockPushService.sendToTokens).not.toHaveBeenCalled();
+      expect(mockEmailQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('escapes the message in the email body, since it can contain a name or admin-typed text', async () => {
+      await service.dispatch({ ...payload, message: 'Hi <script>alert(1)</script> & "friends"', channels: ['EMAIL'] });
+
+      const email = mockEmailQueueService.enqueue.mock.calls[0][0];
+      expect(email.html).toBe('<p>Hi &lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;friends&quot;</p>');
+      expect(email.html).not.toContain('<script>');
+    });
+
+    it('keeps the stored in-app and push text exactly as written', async () => {
+      await service.dispatch({ ...payload, message: 'Fish & Chips <3', channels: ['IN_APP'] });
+
+      expect(mockNotificationRepository.create.mock.calls[0][0].message).toBe('Fish & Chips <3');
+    });
+  });
+
   describe('markRead', () => {
     it('should mark a notification read when it belongs to the caller', async () => {
       mockNotificationRepository.findById.mockResolvedValue({ id: 'notif-1', userId: 'user-1' });

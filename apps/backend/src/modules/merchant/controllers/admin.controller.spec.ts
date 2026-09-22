@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { AdminService, KycService, RefundService } from '../services';
+import { AdminService, KycService, ManualTopUpService, RefundService } from '../services';
 
 import { AdminMerchantController } from './admin.controller';
 
@@ -27,6 +27,8 @@ describe('AdminMerchantController', () => {
     reject: jest.fn(),
   };
 
+  const mockManualTopUpService = { record: jest.fn(), list: jest.fn(), listPendingApproval: jest.fn(), approve: jest.fn(), reject: jest.fn(), reverse: jest.fn() };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminMerchantController],
@@ -34,6 +36,7 @@ describe('AdminMerchantController', () => {
         { provide: AdminService, useValue: mockAdminService },
         { provide: KycService, useValue: mockKycService },
         { provide: RefundService, useValue: mockRefundService },
+        { provide: ManualTopUpService, useValue: mockManualTopUpService },
       ],
     }).compile();
 
@@ -43,6 +46,49 @@ describe('AdminMerchantController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('manual top-ups', () => {
+    it('records a top-up as the signed-in admin, from their address', async () => {
+      const dto = { amount: 5000, bankReference: 'UTR123456', receivedOn: '2026-09-21' };
+      mockManualTopUpService.record.mockResolvedValue({ id: 'topup-1' });
+
+      const result = await controller.recordManualTopUp('merchant-1', 'admin-1', dto, { ip: '10.0.0.1' } as never);
+
+      expect(mockManualTopUpService.record).toHaveBeenCalledWith('merchant-1', 'admin-1', dto, '10.0.0.1');
+      expect(result).toEqual({ id: 'topup-1' });
+    });
+
+    it('lists a merchant’s top-ups with the page asked for', async () => {
+      await controller.listManualTopUps('merchant-1', '2', '10');
+      expect(mockManualTopUpService.list).toHaveBeenCalledWith('merchant-1', 2, 10);
+    });
+
+    it('is rate limited', () => {
+      expect(Reflect.getMetadata('THROTTLER:LIMITdefault', AdminMerchantController.prototype.recordManualTopUp)).toBe(30);
+    });
+
+    it('lists the large top-ups waiting for a second admin', async () => {
+      await controller.listPendingTopUps('2', '10');
+      expect(mockManualTopUpService.listPendingApproval).toHaveBeenCalledWith(2, 10);
+    });
+
+    it('approves as the signed-in admin, from their address', async () => {
+      await controller.approveTopUp('top-1', 'admin-2', { ip: '10.0.0.2' } as never);
+      expect(mockManualTopUpService.approve).toHaveBeenCalledWith('top-1', 'admin-2', '10.0.0.2');
+    });
+
+    it('rejects and reverses with the reason given, as the signed-in admin', async () => {
+      await controller.rejectTopUp('top-1', 'admin-2', { reason: 'Does not match the statement' }, { ip: '10.0.0.2' } as never);
+      await controller.reverseTopUp('top-2', 'admin-3', { reason: 'Typed the wrong amount' }, { ip: '10.0.0.3' } as never);
+
+      expect(mockManualTopUpService.reject).toHaveBeenCalledWith('top-1', 'admin-2', 'Does not match the statement', '10.0.0.2');
+      expect(mockManualTopUpService.reverse).toHaveBeenCalledWith('top-2', 'admin-3', 'Typed the wrong amount', '10.0.0.3');
+    });
+
+    it.each(['approveTopUp', 'rejectTopUp', 'reverseTopUp'] as const)('%s is rate limited', (method) => {
+      expect(Reflect.getMetadata('THROTTLER:LIMITdefault', AdminMerchantController.prototype[method])).toBe(30);
+    });
   });
 
   describe('listPending', () => {

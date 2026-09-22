@@ -37,6 +37,10 @@ extension CampaignTaskModelX on CampaignTaskModel {
   /// Whether the submission form should offer a free-text field.
   bool get acceptsText => taskType == 'TEXT' || proofType == 'TEXT';
 
+  /// Review tasks are where the honest-feedback guidance and the guided review assistant apply. Mirrors
+  /// REVIEW_DRAFT_SUPPORTED_TASK_TYPES in apps/backend/src/modules/ai/constants.
+  bool get isReviewTask => const {'GOOGLE_REVIEW', 'PLAY_STORE_REVIEW'}.contains(taskType);
+
   /// Mirrors TEXT_ASSIST_SUPPORTED_TASK_TYPES in apps/backend/src/modules/ai/constants —
   /// task types a drafted review/caption actually makes sense for.
   bool get supportsTextAssist => const {

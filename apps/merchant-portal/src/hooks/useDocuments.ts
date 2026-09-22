@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
-import { getApiErrorMessage } from '@/utils'
+import { getApiErrorMessage, requireValue } from '@/utils'
 
 export function useDocumentsQuery(merchantId: string | undefined) {
   return useQuery({
     queryKey: QUERY_KEYS.DOCUMENTS,
-    queryFn: () => merchantApi.getDocuments(merchantId!),
+    queryFn: () => merchantApi.getDocuments(requireValue(merchantId, 'merchantId')),
     enabled: !!merchantId,
   })
 }
@@ -16,7 +16,7 @@ export function useDocumentsQuery(merchantId: string | undefined) {
 export function useBankAccountsQuery(merchantId: string | undefined) {
   return useQuery({
     queryKey: QUERY_KEYS.BANK_ACCOUNTS,
-    queryFn: () => merchantApi.getBankAccounts(merchantId!),
+    queryFn: () => merchantApi.getBankAccounts(requireValue(merchantId, 'merchantId')),
     enabled: !!merchantId,
   })
 }
@@ -31,7 +31,7 @@ export function useUploadDocumentMutation(merchantId: string | undefined, select
   return useMutation({
     mutationFn: (data: UploadDocumentInput) => {
       if (!selectedFile) throw new Error('Please select a file')
-      return merchantApi.uploadDocument(merchantId!, { ...data, file: selectedFile })
+      return merchantApi.uploadDocument(requireValue(merchantId, 'merchantId'), { ...data, file: selectedFile })
     },
     onSuccess: () => {
       toast.success('Document uploaded successfully')
@@ -54,7 +54,7 @@ interface BankAccountInput {
 export function useAddBankAccountMutation(merchantId: string | undefined, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: BankAccountInput) => merchantApi.addBankAccount(merchantId!, data),
+    mutationFn: (data: BankAccountInput) => merchantApi.addBankAccount(requireValue(merchantId, 'merchantId'), data),
     onSuccess: () => {
       toast.success('Bank account added')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.BANK_ACCOUNTS })
@@ -67,7 +67,7 @@ export function useAddBankAccountMutation(merchantId: string | undefined, onSucc
 export function useRemoveBankAccountMutation(merchantId: string | undefined, onSuccess?: () => void) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => merchantApi.deleteBankAccount(merchantId!, id),
+    mutationFn: (id: string) => merchantApi.deleteBankAccount(requireValue(merchantId, 'merchantId'), id),
     onSuccess: () => {
       toast.success('Bank account removed')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.BANK_ACCOUNTS })
@@ -80,7 +80,7 @@ export function useRemoveBankAccountMutation(merchantId: string | undefined, onS
 export function useSetPrimaryBankAccountMutation(merchantId: string | undefined) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => merchantApi.setPrimaryBankAccount(merchantId!, id),
+    mutationFn: (id: string) => merchantApi.setPrimaryBankAccount(requireValue(merchantId, 'merchantId'), id),
     onSuccess: () => {
       toast.success('Primary account updated')
       qc.invalidateQueries({ queryKey: QUERY_KEYS.BANK_ACCOUNTS })

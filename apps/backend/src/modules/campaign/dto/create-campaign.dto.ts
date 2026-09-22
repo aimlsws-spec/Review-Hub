@@ -138,7 +138,10 @@ export class CreateCampaignDto {
   @IsDateString()
   endAt?: string;
 
-  @ApiPropertyOptional({ default: false, description: 'Skip manual review when submitted, if AI/risk confidence allows it' })
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Currently ignored: every campaign is reviewed by an admin before it can go live.',
+  })
   @IsOptional()
   @IsBoolean()
   autoApprove?: boolean;
