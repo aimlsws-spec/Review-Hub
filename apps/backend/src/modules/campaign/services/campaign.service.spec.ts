@@ -1,6 +1,7 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { CampaignSort } from '@common/enums';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
@@ -131,6 +132,29 @@ describe('CampaignService', () => {
       mockCampaignRepository.findPublicById.mockResolvedValue(null);
 
       await expect(service.getPublicById('campaign-1')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('listPublic', () => {
+    it('rejects sort=nearest without a location', async () => {
+      await expect(service.listPublic({ page: 1, limit: 20, sort: CampaignSort.Nearest } as never)).rejects.toThrow(BadRequestException);
+      expect(mockCampaignRepository.findPublic).not.toHaveBeenCalled();
+    });
+
+    it('passes latitude/longitude through for sort=nearest', async () => {
+      mockCampaignRepository.findPublic.mockResolvedValue({ data: [], total: 0, page: 1, limit: 20 });
+
+      await service.listPublic({ page: 1, limit: 20, sort: CampaignSort.Nearest, latitude: 12.9716, longitude: 77.5946 } as never);
+
+      expect(mockCampaignRepository.findPublic).toHaveBeenCalledWith(
+        expect.objectContaining({ sort: CampaignSort.Nearest, latitude: 12.9716, longitude: 77.5946 }),
+      );
+    });
+
+    it('does not require a location for other sorts', async () => {
+      mockCampaignRepository.findPublic.mockResolvedValue({ data: [], total: 0, page: 1, limit: 20 });
+
+      await expect(service.listPublic({ page: 1, limit: 20, sort: CampaignSort.Newest } as never)).resolves.toBeDefined();
     });
   });
 

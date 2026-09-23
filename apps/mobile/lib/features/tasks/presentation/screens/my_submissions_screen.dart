@@ -47,13 +47,13 @@ class MySubmissionsScreen extends ConsumerWidget {
   }
 }
 
-class _SubmissionTile extends StatelessWidget {
+class _SubmissionTile extends ConsumerWidget {
   const _SubmissionTile({required this.submission});
 
   final TaskSubmissionModel submission;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -83,10 +83,60 @@ class _SubmissionTile extends StatelessWidget {
                 submission.rejectionReason!,
                 style: const TextStyle(fontSize: 12.5, color: AppColors.danger),
               ),
+              if (submission.dispute == null)
+                TextButton(
+                  onPressed: () => _showDisputeDialog(context, ref, submission.id),
+                  child: const Text('Dispute this rejection'),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Dispute status: ${submission.dispute!.status}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
             ],
           ],
         ),
       ),
     );
   }
+}
+
+Future<void> _showDisputeDialog(BuildContext context, WidgetRef ref, String submissionId) async {
+  final controller = TextEditingController();
+  final reason = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Dispute this rejection'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLines: 4,
+        maxLength: 1000,
+        decoration: const InputDecoration(hintText: 'Explain why this submission should be approved'),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+          child: const Text('Submit'),
+        ),
+      ],
+    ),
+  );
+  if (reason == null || reason.isEmpty || !context.mounted) return;
+
+  final result = await ref.read(taskRepositoryProvider).createDispute(submissionId, reason);
+  if (!context.mounted) return;
+  result.when(
+    success: (_) {
+      ref.invalidate(mySubmissionsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dispute submitted')));
+    },
+    failure: (failure) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+    },
+  );
 }

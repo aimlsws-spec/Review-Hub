@@ -60,6 +60,7 @@ void main() {
 
       expect(result.isRooted, isTrue);
       expect(result.isEmulator, isFalse);
+      expect(result.isAutomationDetected, isFalse);
     });
 
     test('asks the phone the right question', () async {
@@ -73,6 +74,7 @@ void main() {
 
       expect(asked, ['check']);
       expect(result.isEmulator, isTrue);
+      expect(result.isAutomationDetected, isFalse);
     });
 
     test('asks only once, since the phone does not change while the app runs', () async {
@@ -95,6 +97,7 @@ void main() {
 
       expect(result.isRooted, isFalse);
       expect(result.isEmulator, isFalse);
+      expect(result.isAutomationDetected, isFalse);
     });
 
     test('takes the phone as clean when the native side fails', () async {
@@ -104,6 +107,7 @@ void main() {
 
       expect(result.isRooted, isFalse);
       expect(result.isEmulator, isFalse);
+      expect(result.isAutomationDetected, isFalse);
     });
 
     test('counts only a real true, never a string, a number or a missing value', () async {
@@ -113,6 +117,7 @@ void main() {
 
       expect(result.isRooted, isFalse);
       expect(result.isEmulator, isFalse);
+      expect(result.isAutomationDetected, isFalse);
     });
 
     test('copes with an empty reply', () async {
@@ -144,6 +149,7 @@ void main() {
 
       expect(adapter.bodies.single, containsPair('isRooted', true));
       expect(adapter.bodies.single, containsPair('isEmulator', false));
+      expect(adapter.bodies.single, containsPair('isAutomationDetected', false));
     });
 
     test('registration tells it too', () async {
@@ -166,6 +172,7 @@ void main() {
 
       expect(adapter.bodies.single, containsPair('isRooted', false));
       expect(adapter.bodies.single, containsPair('isEmulator', false));
+      expect(adapter.bodies.single, containsPair('isAutomationDetected', false));
     });
 
     test('sends no signals at all when there is no checker', () async {
@@ -174,6 +181,7 @@ void main() {
       final body = adapter.bodies.single! as Map;
       expect(body.containsKey('isRooted'), isFalse);
       expect(body.containsKey('isEmulator'), isFalse);
+      expect(body.containsKey('isAutomationDetected'), isFalse);
     });
   });
 }

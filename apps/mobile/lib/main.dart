@@ -6,6 +6,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'core/constants/storage_keys.dart';
+import 'core/deep_link/deep_link_controller.dart';
+import 'core/deep_link/pending_referral_code_provider.dart';
 import 'core/notifications/push_notification_controller.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -40,6 +42,7 @@ Future<void> main() async {
     ],
   );
   await container.read(pushNotificationControllerProvider).start();
+  await container.read(deepLinkControllerProvider).start();
 
   runApp(UncontrolledProviderScope(container: container, child: const ViralKarApp()));
 }
@@ -70,6 +73,9 @@ class _ViralKarAppState extends ConsumerState<ViralKarApp> {
       final justSignedIn = next.value != null && previous?.value == null;
       if (justSignedIn) {
         unawaited(ref.read(pushNotificationControllerProvider).syncForCurrentUser());
+        // A referral link only matters pre-registration — drop a stale one so
+        // a later, unrelated visit to the register screen never sees it.
+        ref.read(pendingReferralCodeProvider.notifier).state = null;
       }
     });
 

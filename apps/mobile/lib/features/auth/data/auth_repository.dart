@@ -23,7 +23,7 @@ class AuthRepository {
     final integrity = await _integrity?.check();
     if (integrity == null) return const {};
     // Always both, true or false: a phone that is no longer rooted must be able to clear an earlier report.
-    return {'isRooted': integrity.isRooted, 'isEmulator': integrity.isEmulator};
+    return {'isRooted': integrity.isRooted, 'isEmulator': integrity.isEmulator, 'isAutomationDetected': integrity.isAutomationDetected};
   }
 
   Future<Result<AuthSessionModel>> register({
@@ -69,6 +69,26 @@ class AuthRepository {
           if (phone != null && phone.isNotEmpty) 'phone': phone,
           'password': password,
           'rememberMe': rememberMe,
+          ...await _deviceSignals(),
+        },
+      );
+      final session = AuthSessionModel.fromJson(response.data!['data'] as Map<String, dynamic>);
+      await _persistSession(session);
+      return Result.success(session);
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  Future<Result<AuthSessionModel>> socialLogin(String provider, String idToken, {String? firstName, String? lastName, String? avatarUrl}) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/$provider/mobile',
+        data: {
+          'idToken': idToken,
+          'firstName': ?firstName,
+          'lastName': ?lastName,
+          'avatarUrl': ?avatarUrl,
           ...await _deviceSignals(),
         },
       );

@@ -11,3 +11,6 @@ export * from './support-ticket.controller';
 export * from './platform-configuration.controller';
 export * from './kyc-management.controller';
 export * from './account-risk.controller';
+export * from './city.controller';
+
+export * from './admin-dispute.controller';

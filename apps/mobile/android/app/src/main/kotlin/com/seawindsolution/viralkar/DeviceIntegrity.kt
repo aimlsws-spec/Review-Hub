@@ -30,6 +30,13 @@ object DeviceIntegrity {
     )
 
     /** Root managers. Also declared under `<queries>` in the manifest, or Android 11 and later hides them from us. */
+
+    val AUTOMATION_PACKAGES = listOf(
+        "de.robv.android.xposed.installer",
+        "org.meowcat.edxposed.manager",
+        "org.lsposed.manager"
+    )
+
     val ROOT_PACKAGES = listOf(
         "com.topjohnwu.magisk",
         "eu.chainfire.supersu",
@@ -58,6 +65,11 @@ object DeviceIntegrity {
             fileExists = { path -> File(path).exists() },
             isInstalled = { name -> isInstalled(context, name) },
         ),
+
+        "isAutomationDetected" to hasAutomationMarkers(
+            fileExists = { path -> File(path).exists() },
+            isInstalled = { name -> isInstalled(context, name) },
+        ),
         "isEmulator" to looksLikeEmulator(
             BuildInfo(
                 fingerprint = Build.FINGERPRINT.orEmpty(),
@@ -83,6 +95,19 @@ object DeviceIntegrity {
     }
 
     /** The names the Android emulator, Genymotion and similar tools give themselves. */
+
+    fun hasAutomationMarkers(
+        fileExists: (String) -> Boolean,
+        isInstalled: (String) -> Boolean,
+    ): Boolean {
+        val automationPaths = listOf(
+            "/data/local/tmp/frida-server",
+            "/data/local/tmp/re.frida.server"
+        )
+        if (automationPaths.any { runCatching { fileExists(it) }.getOrDefault(false) }) return true
+        return AUTOMATION_PACKAGES.any { runCatching { isInstalled(it) }.getOrDefault(false) }
+    }
+
     fun looksLikeEmulator(build: BuildInfo): Boolean {
         val fingerprint = build.fingerprint.lowercase()
         val model = build.model.lowercase()

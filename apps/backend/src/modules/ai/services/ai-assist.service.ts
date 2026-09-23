@@ -1,9 +1,13 @@
+import { randomUUID } from 'crypto';
+
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
+import sharp from 'sharp';
 
+import { LocalStorageService } from '../../../storage/storage.service';
 import { AI_ASSIST_GENEROUS_TIMEOUT_MS } from '../constants';
 
 import { buildReviewDraftTemplates, ReviewDraftAnswers } from './review-draft-templates';
@@ -45,6 +49,12 @@ export interface CaptionResult {
   source: 'llm' | 'template';
 }
 
+export interface StoryResult {
+  imageUrl: string;
+  caption: string;
+  hashtags: string[];
+}
+
 /**
  * Calls out to apps/ai-services for a suggested caption/review draft. The AI
  * service itself never requires a paid key (it falls back to a local
@@ -59,6 +69,7 @@ export class AiAssistService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly storageService: LocalStorageService,
   ) {}
 
   async suggestText(context: TextSuggestionContext): Promise<TextSuggestionResult> {
@@ -143,5 +154,38 @@ export class AiAssistService {
     const slug = context.campaignTitle.replace(/[^a-zA-Z0-9]/g, '');
     const hashtags = slug ? [`#${slug}`, '#ViralKar'] : ['#ViralKar'];
     return { captions, hashtags };
+  }
+
+
+  /** Composes a campaign photo into a story-ready image (a plain background plus the photo, no generative model), reusing generateCaptions' text/hashtags rather than drafting new ones. */
+  async composeStory(context: CaptionContext, photo: Express.Multer.File): Promise<StoryResult> {
+    const { captions, hashtags } = await this.generateCaptions(context);
+
+    const composedBuffer = await sharp({
+      create: {
+        width: 1080,
+        height: 1920,
+        channels: 4,
+        background: { r: 200, g: 200, b: 200, alpha: 1 },
+      },
+    })
+      .composite([
+        {
+          input: await sharp(photo.buffer).resize(1000, 1000, { fit: 'cover' }).toBuffer(),
+          top: 200,
+          left: 40,
+        },
+      ])
+      .jpeg()
+      .toBuffer();
+
+    // A fixed filename would let every story overwrite the last one saved.
+    const uploadResult = await this.storageService.saveFile(composedBuffer, `${randomUUID()}.jpg`, 'stories');
+
+    return {
+      imageUrl: uploadResult.path,
+      caption: captions[0]?.caption ?? '',
+      hashtags,
+    };
   }
 }

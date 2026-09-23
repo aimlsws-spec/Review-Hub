@@ -7,7 +7,7 @@ import { BadgeEarnedEvent, LevelUpEvent } from '../../gamification/events';
 import { MarketplaceRedeemedEvent } from '../../marketplace/events';
 import { MerchantToppedUpEvent, MerchantTopUpReversedEvent } from '../../merchant/events';
 import { MerchantRepository } from '../../merchant/repositories';
-import { SubmissionRejectedEvent } from '../../task/events';
+import { DisputeResolvedEvent, SubmissionRejectedEvent } from '../../task/events';
 import { UserKycReviewedEvent } from '../../user-kyc/events';
 import { RewardCreditedEvent, RewardReversedEvent, WithdrawalFailedEvent, WithdrawalPaidEvent, WithdrawalReviewedEvent } from '../../wallet/events';
 import { NotificationQueueService } from '../services';
@@ -155,6 +155,21 @@ export class NotificationListener {
       message: `Your task submission was rejected. Reason: ${event.reason}`,
       channels: ['IN_APP', 'EMAIL'],
       data: { submissionId: event.submissionId, taskId: event.taskId },
+    });
+  }
+
+  @OnEvent('task.dispute.resolved')
+  async handleDisputeResolved(event: DisputeResolvedEvent) {
+    const upheld = event.decision === 'UPHELD';
+    await this.notificationQueue.enqueue({
+      userId: event.userId,
+      type: 'SYSTEM',
+      title: upheld ? 'Dispute reviewed' : 'Dispute resolved in your favour',
+      message: upheld
+        ? 'An admin reviewed your dispute and upheld the original decision.'
+        : 'An admin reviewed your dispute and reversed the rejection — your reward has been credited.',
+      channels: ['IN_APP', 'EMAIL'],
+      data: { disputeId: event.disputeId, submissionId: event.submissionId, decision: event.decision },
     });
   }
 

@@ -30,4 +30,8 @@ export class LoginDto {
   @IsOptional()
   @IsBoolean()
   isEmulator?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isAutomationDetected?: boolean;
 }

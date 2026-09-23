@@ -3,7 +3,14 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Fingerprint / face / screen-lock check for the optional app lock. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
-    <!-- Lets the device check see whether a root manager is installed (Android 11+ hides other apps unless named). -->
+    <!-- Nearest-campaign sort and location check-in tasks; asked for at the point of use, never on launch. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <!-- QR-scan tasks. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+    <!-- Lets the device check see whether a root manager or an automation-framework manager is installed (Android 11+ hides other apps unless named). -->
     <queries>
         <package android:name="com.topjohnwu.magisk"/>
         <package android:name="eu.chainfire.supersu"/>
@@ -13,6 +20,9 @@
         <package android:name="com.yellowes.su"/>
         <package android:name="com.kingroot.kinguser"/>
         <package android:name="com.kingo.root"/>
+        <package android:name="de.robv.android.xposed.installer"/>
+        <package android:name="org.meowcat.edxposed.manager"/>
+        <package android:name="org.lsposed.manager"/>
     </queries>
     <application
         android:label="viral_kar"
@@ -38,6 +48,15 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Referral shares: viralkar://referral?code=XYZ. A real https://
+                 App Link can be added alongside this once a production domain
+                 and signing fingerprint exist — see DeepLinkController. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="viralkar" android:host="referral"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

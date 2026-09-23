@@ -475,6 +475,27 @@ export interface FraudFlag {
   user?: { id: string; firstName: string; lastName: string; email: string | null }
 }
 
+// ============================================================
+// DISPUTE TYPES
+// ============================================================
+
+export type DisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'UPHELD' | 'REVERSED'
+export type DisputeDecision = 'UPHELD' | 'REVERSED'
+
+export interface Dispute {
+  id: string
+  submissionId: string
+  userId: string
+  reason: string
+  status: DisputeStatus
+  adminNotes: string | null
+  resolvedBy: string | null
+  resolvedAt: string | null
+  createdAt: string
+  user: { id: string; firstName: string; lastName: string; email: string | null; phone: string | null; avatarUrl: string | null }
+  submission: { id: string; status: string; rejectionReason: string | null; task: { id: string; title: string } }
+}
+
 /** Result of clawing back a reward for confirmed fraud — see FraudReviewService.reverseReward on the backend. */
 export interface ReversedReward {
   id: string
@@ -536,6 +557,24 @@ export interface FAQ {
   isActive: boolean
   createdAt: string
   updatedAt: string
+}
+
+// ============================================================
+// LOCATION TYPES
+// ============================================================
+
+export interface LocationState {
+  id: string
+  name: string
+  code: string | null
+}
+
+export interface City {
+  id: string
+  stateId: string
+  name: string
+  isActive: boolean
+  state?: { name: string }
 }
 
 // ============================================================

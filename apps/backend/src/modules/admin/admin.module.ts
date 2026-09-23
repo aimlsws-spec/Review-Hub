@@ -6,6 +6,7 @@ import { CampaignModule } from '../campaign/campaign.module';
 import { MerchantModule } from '../merchant/merchant.module';
 import { RiskModule } from '../risk/risk.module';
 import { SupportModule } from '../support/support.module';
+import { TaskModule } from '../task/task.module';
 import { UserKycModule } from '../user-kyc/user-kyc.module';
 import { WalletModule } from '../wallet/wallet.module';
 
@@ -23,7 +24,9 @@ import {
   UserManagementController,
   KycManagementController,
   AccountRiskController,
+  CityController,
 } from './controllers';
+import { AdminDisputeController } from './controllers/admin-dispute.controller';
 import {
   AuditLogRepository,
   CmsPageRepository,
@@ -33,6 +36,7 @@ import {
   PlatformConfigurationRepository,
   SystemSettingRepository,
   UserAdminRepository,
+  CityRepository,
 } from './repositories';
 import {
   AuditLogViewerService,
@@ -44,11 +48,23 @@ import {
   SettingsService,
   UserManagementService,
   KycManagementService,
+  CityService,
 } from './services';
 
 @Module({
-  imports: [AppConfigModule, AuthModule, CampaignModule, MerchantModule, WalletModule, SupportModule, UserKycModule, RiskModule],
+  imports: [
+    TaskModule,
+    AppConfigModule,
+    AuthModule,
+    CampaignModule,
+    MerchantModule,
+    WalletModule,
+    SupportModule,
+    UserKycModule,
+    RiskModule,
+  ],
   controllers: [
+    AdminDisputeController,
     UserManagementController,
     AdminCampaignQueueController,
     AdminWithdrawalQueueController,
@@ -62,6 +78,7 @@ import {
     PlatformConfigurationController,
     KycManagementController,
     AccountRiskController,
+    CityController,
   ],
   providers: [
     UserManagementService,
@@ -73,6 +90,7 @@ import {
     AuditLogViewerService,
     PlatformConfigurationService,
     KycManagementService,
+    CityService,
     UserAdminRepository,
     FraudFlagRepository,
     CmsPageRepository,
@@ -81,6 +99,7 @@ import {
     FeatureFlagRepository,
     AuditLogRepository,
     PlatformConfigurationRepository,
+    CityRepository,
   ],
   exports: [FraudFlagRepository],
 })

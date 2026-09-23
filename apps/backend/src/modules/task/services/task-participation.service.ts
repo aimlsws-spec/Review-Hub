@@ -20,6 +20,13 @@ import { SubmitTaskDto } from '../dto';
 import { TaskStartedEvent, TaskSubmittedEvent } from '../events';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
+import { LocationCheckinVerificationService } from './location-checkin-verification.service';
+import { QrScanVerificationService } from './qr-scan-verification.service';
+import { SubmissionService } from './submission.service';
+
+/** Verified by a deterministic rule instead of the AI/manual review pipeline — see submitDeterministicTask. */
+const DETERMINISTIC_TASK_TYPES = ['QR_SCAN', 'LOCATION_CHECKIN'] as const;
+
 
 
 /**
@@ -43,6 +50,9 @@ export class TaskParticipationService {
     private readonly aiAssistService: AiAssistService,
     private readonly merchantRepository: MerchantRepository,
     private readonly submissionRisk: SubmissionRiskService,
+    private readonly submissionService: SubmissionService,
+    private readonly qrScanVerification: QrScanVerificationService,
+    private readonly locationCheckinVerification: LocationCheckinVerificationService,
     @InjectQueue(QUEUE_NAMES.AI_VERIFICATION) private readonly aiQueue: Queue,
   ) {}
 
@@ -133,6 +143,10 @@ export class TaskParticipationService {
       throw new BadRequestException(`This task already has a submission in ${latestAttempt.status} status`);
     }
 
+    if (DETERMINISTIC_TASK_TYPES.includes(task.taskType as (typeof DETERMINISTIC_TASK_TYPES)[number])) {
+      return this.submitDeterministicTask(task, campaign, participant.id, latestAttempt, userId, dto, context);
+    }
+
     if (task.proofRequired && !file && !dto.externalUrl && !dto.textAnswer) {
       throw new BadRequestException('This task requires evidence: upload a file, a link, or a written answer');
     }
@@ -220,6 +234,56 @@ export class TaskParticipationService {
 
     // 2) Emit event for local listeners (if any)
     this.eventEmitter.emit('task.submitted', new TaskSubmittedEvent(submission.id, taskId, campaign.id, userId));
+
+    return this.submissionRepository.findById(submission.id);
+  }
+
+  /**
+   * QR_SCAN and LOCATION_CHECKIN don't need the AI service or a human reviewer — the check is a deterministic rule
+   * against `task.configuration`, so the decision (and any reward) lands the moment the submission is created.
+   */
+  private async submitDeterministicTask(
+    task: Awaited<ReturnType<CampaignTaskRepository['findById']>> & object,
+    campaign: Awaited<ReturnType<CampaignRepository['findById']>> & object,
+    participantId: string,
+    latestAttempt: Awaited<ReturnType<TaskSubmissionRepository['findLatestAttempt']>>,
+    userId: string,
+    dto: SubmitTaskDto,
+    context: { ip?: string },
+  ) {
+    const submission = await this.submissionRepository.create({
+      participant: { connect: { id: participantId } },
+      task: { connect: { id: task.id } },
+      user: { connect: { id: userId } },
+      status: 'PENDING',
+      verificationSource: 'SYSTEM',
+      attemptNumber: (latestAttempt?.attemptNumber ?? 0) + 1,
+      textAnswer: dto.textAnswer,
+      metadata: dto.latitude !== undefined && dto.longitude !== undefined ? { latitude: dto.latitude, longitude: dto.longitude } : undefined,
+    });
+
+    // Same as the AI-queued path: a failure here must never stop the submission, only skip its flags.
+    try {
+      await this.submissionRisk.assess({ submissionId: submission.id, userId, campaignId: campaign.id, ip: context.ip });
+    } catch (error) {
+      this.logger.error(`Risk check failed for submission ${submission.id}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    const submittedLocation =
+      dto.latitude !== undefined && dto.longitude !== undefined ? { latitude: dto.latitude, longitude: dto.longitude } : null;
+
+    const verdict =
+      task.taskType === 'QR_SCAN'
+        ? this.qrScanVerification.verify(task.configuration, dto.textAnswer)
+        : this.locationCheckinVerification.verify(task.configuration, submittedLocation);
+
+    if (verdict.passed) {
+      await this.submissionService.aiApprove(submission.id);
+    } else {
+      await this.submissionService.aiReject(submission.id, verdict.reason ?? 'Verification failed');
+    }
+
+    this.eventEmitter.emit('task.submitted', new TaskSubmittedEvent(submission.id, task.id, campaign.id, userId));
 
     return this.submissionRepository.findById(submission.id);
   }

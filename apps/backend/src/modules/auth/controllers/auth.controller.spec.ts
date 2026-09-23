@@ -1,10 +1,20 @@
 import { AuthGuard } from '@nestjs/passport';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import appleSignin from 'apple-signin-auth';
 
 import { AuthService } from '../services/auth.service';
 
 import { AuthController } from './auth.controller';
+
+// One shared fn across every `new OAuth2Client(...)` instance (AuthController makes one per test, since it's a
+// class-field initializer) — `jest.clearAllMocks()` in beforeEach only resets call history, never the identity
+// jest.mock returns, so referencing it directly here survives that reset (mock.results wouldn't).
+const mockGoogleVerifyIdToken = jest.fn();
+jest.mock('google-auth-library', () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({ verifyIdToken: mockGoogleVerifyIdToken })),
+}));
+jest.mock('apple-signin-auth', () => ({ __esModule: true, default: { verifyIdToken: jest.fn() } }));
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -142,6 +152,81 @@ describe('AuthController', () => {
     });
   });
 
+  describe('googleMobileAuth', () => {
+    const req = { ip: '127.0.0.1', headers: { 'user-agent': 'Mozilla/5.0' } } as unknown as import('express').Request;
+
+    const mockedVerifyIdToken = () => mockGoogleVerifyIdToken;
+
+    it('verifies the token against this app\'s own client id, not just any Google client', async () => {
+      mockedVerifyIdToken().mockResolvedValue({ getPayload: () => ({ sub: 'google-sub-1', email: 'a@example.com' }) });
+      mockAuthService.socialLogin.mockResolvedValue({ user: {}, tokens: {} });
+      process.env.GOOGLE_CLIENT_ID = 'expected-client-id.apps.googleusercontent.com';
+
+      await controller.googleMobileAuth({ idToken: 'token-1' }, req);
+
+      expect(mockedVerifyIdToken()).toHaveBeenCalledWith(
+        expect.objectContaining({ idToken: 'token-1', audience: 'expected-client-id.apps.googleusercontent.com' }),
+      );
+    });
+
+    it('signs in with the verified payload', async () => {
+      mockedVerifyIdToken().mockResolvedValue({
+        getPayload: () => ({ sub: 'google-sub-1', email: 'a@example.com', given_name: 'A', family_name: 'B', picture: 'http://x/pic.jpg' }),
+      });
+      mockAuthService.socialLogin.mockResolvedValue({ user: {}, tokens: {} });
+
+      await controller.googleMobileAuth({ idToken: 'token-1' }, req);
+
+      expect(mockAuthService.socialLogin).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: 'google', providerId: 'google-sub-1', email: 'a@example.com', firstName: 'A', lastName: 'B' }),
+      );
+    });
+
+    it('rejects a token that fails verification, without leaking the underlying error', async () => {
+      mockedVerifyIdToken().mockRejectedValue(new Error('Wrong recipient, payload audience != requiredAudience'));
+
+      await expect(controller.googleMobileAuth({ idToken: 'token-1' }, req)).rejects.toThrow('Google authentication failed');
+    });
+
+    it('rejects a token with no usable payload', async () => {
+      mockedVerifyIdToken().mockResolvedValue({ getPayload: () => null });
+
+      await expect(controller.googleMobileAuth({ idToken: 'token-1' }, req)).rejects.toThrow('Google authentication failed');
+    });
+  });
+
+  describe('appleMobileAuth', () => {
+    const req = { ip: '127.0.0.1', headers: { 'user-agent': 'Mozilla/5.0' } } as unknown as import('express').Request;
+    const mockedAppleVerify = () => jest.mocked(appleSignin).verifyIdToken as jest.Mock;
+
+    it('verifies the token against this app\'s own client id, not just any Apple app', async () => {
+      mockedAppleVerify().mockResolvedValue({ sub: 'apple-sub-1', email: 'a@example.com' });
+      mockAuthService.socialLogin.mockResolvedValue({ user: {}, tokens: {} });
+      process.env.APPLE_CLIENT_ID = 'com.seawindsolution.viralkar.service';
+
+      await controller.appleMobileAuth({ idToken: 'token-1' }, req);
+
+      expect(mockedAppleVerify()).toHaveBeenCalledWith('token-1', expect.objectContaining({ audience: 'com.seawindsolution.viralkar.service' }));
+    });
+
+    it('signs in with the verified payload', async () => {
+      mockedAppleVerify().mockResolvedValue({ sub: 'apple-sub-1', email: 'a@example.com' });
+      mockAuthService.socialLogin.mockResolvedValue({ user: {}, tokens: {} });
+
+      await controller.appleMobileAuth({ idToken: 'token-1', firstName: 'A', lastName: 'B' }, req);
+
+      expect(mockAuthService.socialLogin).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: 'apple', providerId: 'apple-sub-1', email: 'a@example.com', firstName: 'A', lastName: 'B' }),
+      );
+    });
+
+    it('rejects a token that fails verification', async () => {
+      mockedAppleVerify().mockRejectedValue(new Error('jwt audience invalid'));
+
+      await expect(controller.appleMobileAuth({ idToken: 'token-1' }, req)).rejects.toThrow('Apple authentication failed');
+    });
+  });
+
   describe('updatePushToken', () => {
     it('should call authService.updatePushToken with the session id and token', async () => {
       const user = { id: 'user-1', sessionId: 'session-1' };
@@ -256,7 +341,14 @@ describe('AuthController', () => {
 
       const signals = mockAuthService.register.mock.calls[0][3];
       expect(JSON.stringify(signals)).not.toContain('Secret@123');
-      expect(Object.keys(signals).sort()).toEqual(['installId', 'isEmulator', 'isRooted', 'via', 'xForwardedFor']);
+      expect(Object.keys(signals).sort()).toEqual([
+        'installId',
+        'isAutomationDetected',
+        'isEmulator',
+        'isRooted',
+        'via',
+        'xForwardedFor',
+      ]);
     });
 
     it('is passed to register as the install id, next to the other device signals', async () => {

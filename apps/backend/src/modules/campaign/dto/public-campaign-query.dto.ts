@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { CampaignType } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsLatitude, IsLongitude, IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { PaginationQueryDto } from '@common/dto';
 import { CampaignSort } from '@common/enums';
@@ -21,4 +22,16 @@ export class PublicCampaignQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(CampaignSort)
   sort: CampaignSort = CampaignSort.Featured;
+
+  @ApiPropertyOptional({ description: 'Required with sort=nearest — the device\'s current position', example: 12.9716 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  latitude?: number;
+
+  @ApiPropertyOptional({ description: 'Required with sort=nearest — the device\'s current position', example: 77.5946 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  longitude?: number;
 }

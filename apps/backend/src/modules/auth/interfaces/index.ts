@@ -62,6 +62,7 @@ export interface RegisterInput extends DemographicsInput {
   referralCode?: string;
   isRooted?: boolean;
   isEmulator?: boolean;
+  isAutomationDetected?: boolean;
 }
 
 export interface SocialLoginInput {

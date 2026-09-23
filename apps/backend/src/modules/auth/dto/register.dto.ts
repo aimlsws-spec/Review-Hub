@@ -50,4 +50,8 @@ export class RegisterDto extends DemographicsDto {
   @IsOptional()
   @IsBoolean()
   isEmulator?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isAutomationDetected?: boolean;
 }

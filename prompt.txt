@@ -1,0 +1,328 @@
+<USER_REQUEST>
+# VIRAL KAR — Phase 3–6 Continuation Brief
+
+You are continuing work on VIRAL KAR, a reward-driven viral marketing platform (NestJS backend, 
+Flutter mobile, React admin/merchant portals, MySQL/Prisma, Redis/BullMQ). This is a monorepo at 
+the repo root. You have no memory of prior sessions — everything you need is below or in the repo.
+
+## Before you write a single line of code
+
+1. Read `CLAUDE.md` at the repo root in full. It is the project's permanent rulebook (MySQL only, 
+   UUID primary keys, soft delete, local file storage — never S3, Feature Module architecture, 
+   Winston logging — never console.log, class-validator DTOs, global response format, etc.). 
+   Every rule in it is non-negotiable unless the user explicitly says otherwise.
+2. Read `REPORT.md` at the repo root for the current honest state of the platform.
+3. Run `git log --oneline -20` to see what was just done. Recent commits cover: merchant finance UI, 
+   city admin management, mobile location services, deep links (`viralkar://` scheme), and 
+   QR-scan/location-checkin task types. You will be extending this same codebase, not starting fresh.
+
+## How to work (this is the important part)
+
+**Investigate before you build.** For every task below, before writing anything: search the codebase 
+for the closest existing analog and read it fully. Copy its structure, its error handling, its test 
+style, its naming. Do not invent a new pattern when one already exists. Specific analogs are named 
+under each task below — read them first.
+
+**Never guess a package version.** Use `flutter pub add <package>` or `npm view <package> version` / 
+`npm install <package>` to resolve the real current version. Do not hardcode a version number from 
+memory.
+
+**Schema changes are never partial.** Whenever you touch `apps/backend/prisma/schema.prisma`:
+- Update the schema, then run `npx prisma migrate dev --name <descriptive_name>` from `apps/backend` 
+  to generate and apply a real migration (this needs MySQL + Redis running — check `docker compose ps` 
+  from the repo root, and `docker compose up -d mysql redis` if they're down).
+- If `migrate dev` fails with "shadow database" permission errors, the local MySQL user may need a 
+  temporary grant: `docker exec <mysql-container-name> mysql -uroot -p<root-password> -e "GRANT ALL 
+  PRIVILEGES ON *.* TO '<app-db-user>'@'%'; FLUSH PRIVILEGES;"` (check `docker-compose.yml` for the 
+  actual credentials), then run the migration, then scope the grant back down afterward.
+- Update every DTO, service, and test that touches the changed model in the same change. Never leave 
+  a schema field unused by the application code, or vice versa.
+- Regenerate the Prisma client (`npx prisma generate`) after schema edits. Note: your editor's inline 
+  type-checking can show stale errors for a few seconds right after a schema change — if a diagnostic 
+  claims a field/enum value doesn't exist right after you just added it, re-verify with a fresh 
+  `npx tsc --noEmit` run from `apps/backend` before trusting the inline error.
+
+**Every backend service, repository, and controller needs a matching `.spec.ts`** in the same folder, 
+following the existing Jest + `Test.createTestingModule` + manually-mocked-dependencies style used 
+throughout `apps/backend/src`. Look at any existing `*.service.spec.ts` next to the file you're 
+editing for the exact pattern.
+
+**Mobile is Riverpod-only.** No `setState`, no `StatefulWidget` holding business logic (only for 
+things like `TextEditingController` lifecycle). Every new capability that other code will need again 
+gets a provider, not a one-off. Widget structure mirrors `apps/mobile/lib/features/*` — a `data/` 
+layer (models + repository), a `providers/` layer, a `presentation/screens|widgets/` layer.
+
+**Verification gate — run after every phase step, before moving to the next:**
+```
+# Backend (from apps/backend)
+npx tsc --noEmit
+npx eslint "{src,test}/**/*.ts"
+npx jest
+npx nest build
+
+# Mobile (from apps/mobile)
+flutter analyze
+flutter test
+flutter build apk --debug   # only after native/manifest changes
+
+# Admin/Merchant portal (from apps/admin-portal or apps/merchant-portal, if touched)
+npx tsc --noEmit
+npx eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0
+npx vitest run
+npm run build
+```
+All of these must be clean — zero errors, zero new warnings — before you consider a task done. If a 
+test suite shows failures when run all together but the same files pass in isolation, that's parallel 
+resource contention, not a real bug (re-run the specific failing file alone to confirm before 
+concluding anything).
+
+## Hard rules — do not cross these
+
+- **Never touch anything Razorpay-related.** No live payment gateway work, no "auto-recharge" 
+  features, no changes to `apps/backend/src/modules/payment`. Live credentials don't exist yet; this 
+  is explicitly out of scope until the user says otherwise.
+- **Never commit, push, or run destructive git commands** (`reset --hard`, `checkout .`, force-push) 
+  unless the user explicitly asks in that exact turn.
+- **Never fabricate or hardcode secrets, API keys, or credentials.** Where a task needs a real 
+  external credential (see Phase 5 below), ship the code with an empty placeholder in `.env.example` 
+  and a comment explaining what's needed, exactly like the existing `RAZORPAY_KEY_ID` /
+  `APPLE_KEY_ID` entries in `apps/backend/.env.example`.
+- **No scope creep.** Don't refactor unrelated code, don't add abstractions "for later," don't 
+  upgrade dependencies you weren't asked to touch. Small, reviewable diffs.
+- **No dead or half-wired code.** If you add a service, wire it into its module's providers/exports. 
+  If you add a mobile screen, wire it into `app_router.dart` and give it a real entry point (a button, 
+  a redirect) — don't leave it unreachable.
+- If you hit a genuine product decision that isn't answered by the code or CLAUDE.md (not an 
+  engineering detail — an actual "what should the business rule be" question), stop and ask the user 
+  rather than guessing.
+
+---
+
+## Phase 3 — Trust
+
+### Task 7: Dispute workflow
+
+**What**: Let a user formally dispute a rejected task submission or reward, distinct from the 
+existing general support-ticket system. Gives admins a structured queue to review and reverse or 
+uphold rejections.
+
+**Why**: Right now a rejected user has no path back except a generic support ticket with no link to 
+the actual submission record — no reason captured, no admin queue, no resolution notification.
+
+**Scope** (confirmed with the user earlier): user disputes a *rejected submission/reward* only. Not 
+merchant-side disputes, not fraud-flag disputes — those are separate existing systems.
+
+**Backend — investigate first**: 
+- Read `apps/backend/src/modules/task/services/submission.service.ts` (the `approve`/`reject`/
+  `finalizeApproval`/`finalizeRejection` methods) — a dispute resolution will call the same 
+  `finalizeApproval`/`decide` machinery to reverse a rejection.
+- Read `apps/backend/src/modules/task/events/` (`SubmissionApprovedEvent`, `SubmissionRejectedEvent`) 
+  for the event-emission pattern a `DisputeResolvedEvent` should follow.
+- Read `apps/backend/src/modules/admin/controllers/kyc-management.controller.ts` and its service for 
+  the shape of an "admin review queue" (list pending, approve, reject with reason) — a dispute queue 
+  is structurally almost identical.
+- Read `apps/backend/src/shared/audit/audit-log.service.ts` usage patterns — every admin decision on 
+  a dispute must be audit-logged, exactly like KYC/fraud decisions are.
+
+**Suggested schema** (design it properly, this is a starting point not a spec): a `Dispute` model — 
+`id` (UUID), `submissionId` (FK to `TaskSubmission`), `userId`, `reason` (text, required), 
+`status` (enum: `OPEN`, `UNDER_REVIEW`, `UPHELD`, `REVERSED`), `adminNotes` (text, nullable), 
+`resolvedBy` (nullable FK to admin user), `resolvedAt` (nullable), standard `createdAt`/`updatedAt`/
+`deletedAt`. One dispute per submission (unique constraint on `submissionId`) — a user can't dispute 
+the same rejection twice while one is already open.
+
+**Backend endpoints**:
+- `POST /submissions/:id/dispute` (user, authenticated) — only allowed if the submission's status is 
+  `REJECTED` and no dispute already exists for it.
+- `GET /admin/disputes` (admin) — paginated list, filterable by status.
+- `POST /admin/disputes/:id/resolve` (admin) — body: `{ decision: 'UPHELD' | 'REVERSED', notes: 
+  string }`. `REVERSED` should call through to the same reward-crediting path a normal approval uses 
+  (reuse `SubmissionService`'s approval logic — don't duplicate the reward/participant-progress 
+  math).
+
+**Notification on resolution**: find the existing notification-on-decision pattern (search for how 
+`SubmissionApprovedEvent`/`SubmissionRejectedEvent` currently trigger a push/in-app notification — 
+likely a listener in the notification module) and add the same for dispute resolution.
+
+**Mobile**:
+- On a rejected submission (find `my_submissions_screen.dart` and/or the submission detail view), 
+  add a "Dispute this rejection" action that opens a small form (reason, optional extra evidence) and 
+  posts to the new endpoint.
+- Show dispute status (open/under review/resolved) wherever the submission itself is shown.
+
+**Admin portal**: new page mirroring `FraudFlagsPage.tsx` or the KYC review page — a table of open 
+disputes, a detail view with the original submission/rejection reason, and Uphold/Reverse actions 
+with a notes field.
+
+### Task 8: Extend `DeviceIntegrity.kt` with automation-framework detection
+
+**What**: The device-integrity check currently reports root and emulator status only. Add detection 
+for automation/instrumentation frameworks (Frida, Xposed, common hook-injection signatures).
+
+**Why**: Named as a fraud signal in the platform spec; cheap to add since the plumbing (native 
+Kotlin check → method channel → Dart → backend risk score) already exists end to end.
+
+**Investigate first**:
+- `apps/mobile/android/app/src/main/kotlin/com/seawindsolution/viralkar/DeviceIntegrity.kt` — the 
+  native side. See how root/emulator detection is currently implemented (likely checking for known 
+  package names, build fingerprints, or file paths) and follow the exact same "signal, not proof" 
+  philosophy — a positive result should be one input to a risk score, never an auto-block. On 
+  failure to determine anything, always default to "clean" (a false negative costs one signal; a 
+  false positive holds a real person's money — this exact reasoning is already commented in the 
+  file).
+- `apps/mobile/lib/features/auth/data/device_integrity.dart` — the Dart-side model and the 
+  `PlatformDeviceIntegrityChecker` that calls the method channel. You'll add a new boolean field here 
+  (e.g. `isAutomationDetected`) matching the existing `isRooted`/`isEmulator` fields exactly.
+- `apps/mobile/test/features/auth/device_integrity_test.dart` — the existing test file. Add new test 
+  cases here following its `TestDefaultBinaryMessengerBinding` mock-channel pattern; don't create a 
+  new test file for this.
+- On the backend: find where `isRooted`/`isEmulator` are received (`auth.service.ts` or similar, 
+  search for `isRooted`) and add the new field through the same path into whatever risk-scoring 
+  consumes it (`apps/backend/src/modules/risk`).
+
+Update the DTOs on both sides in the same change (never leave one side sending a field the other 
+doesn't read, or vice versa).
+
+---
+
+## Phase 4 — AI content
+
+### Task 9: Backend `POST /ai/story`
+
+**What**: Compose a campaign photo into a story-ready image (background template + logo overlay), 
+reusing the caption/hashtag generation that already exists.
+
+**Why**: Named as a distinct AI capability in the platform spec, separate from captions (already 
+built). Template-based image composition needs no new AI model/budget.
+
+**Investigate first**:
+- `apps/backend/src/modules/ai/services/ai-assist.service.ts` — read `generateCaptions` in full. It 
+  calls out to `apps/ai-services` (the Python FastAPI service) with a local-template fallback if that 
+  service is unavailable. Your story endpoint should follow the exact same call-out-with-fallback 
+  shape, and reuse `generateCaptions`'s hashtag logic rather than reimplementing it.
+- `apps/backend/src/modules/ai/controllers/ai-assist.controller.ts` — see the existing `captions`/
+  `review-drafts`/`suggest-text` endpoints for the controller pattern (auth guard, DTO, Swagger docs).
+- Check `apps/ai-services/src` for whether there's already any image-handling code (search for 
+  `PIL`, `Pillow`, or `image` in that directory) — if the Python service already loads/processes 
+  images anywhere (e.g. for duplicate-image detection in the risk module), reuse that dependency 
+  rather than adding a new one.
+- Check `apps/backend/src/storage` (`LocalStorageService`) for how generated files get saved — a 
+  composed story image should be saved the same way campaign uploads are, under `uploads/`.
+
+**Design**: keep this simple — a template image (or a few style variants) with the campaign's photo 
+composited in and a text/logo overlay, not a generative-AI image call. Endpoint: `POST /ai/story` 
+taking a campaign/task reference and an uploaded or already-stored photo, returning the composed 
+image's URL plus the caption/hashtags from the existing caption logic.
+
+### Task 10: Mobile story preview/download/share screen
+
+**What**: A screen that shows the composed story image with its caption, and lets the user download 
+it or share it (reuse `share_plus`, already a dependency — see `referral_screen.dart` for the current 
+`SharePlus.instance.share(ShareParams(...))` usage pattern, not the deprecated `Share.share()` 
+static method).
+
+**Investigate first**: `apps/mobile/lib/features/tasks/presentation/screens/review_assistant_screen.dart` 
+for the pattern of a screen that calls an AI-assist endpoint and returns a result to the caller via 
+`context.push<T>(...)` / `context.pop(result)`.
+
+---
+
+## Phase 5 — Native auth
+
+### Task 11: Backend mobile ID-token verification endpoints
+
+**What**: The backend currently only supports Google/Apple sign-in via a browser-redirect OAuth flow 
+(used by the web portals). Mobile needs endpoints that accept a native SDK's ID token directly and 
+verify it server-side.
+
+**Investigate first**:
+- `apps/backend/src/modules/auth/strategies/google.strategy.ts` and `apple.strategy.ts` — the 
+  existing web-redirect strategies. Do NOT try to reuse Passport's redirect-based strategy for this — 
+  mobile needs direct token verification, a different flow.
+- `apps/backend/src/modules/auth/controllers/auth.controller.ts` — see the existing `/auth/google`, 
+  `/auth/google/callback`, `/auth/apple` endpoints and how a successful OAuth login currently issues 
+  JWT/refresh tokens (find the shared method that builds the token pair — reuse it exactly, don't 
+  duplicate token-issuance logic).
+- `apps/backend/src/modules/auth/services/auth.service.ts` for the login/registration logic tied to 
+  an external-provider profile (look for how `provider: 'google'` is currently handled in 
+  `googleAuthCallback`).
+
+**New endpoints**:
+- `POST /auth/google/mobile` — body `{ idToken: string }`. Verify the token against Google's public 
+  keys (use `google-auth-library`'s `OAuth2Client.verifyIdToken`, a well-known package for this — 
+  resolve its current version via `npm view google-auth-library version`, don't guess). Extract the 
+  verified email/name/subject, then run through the same find-or-create-user + issue-tokens path the 
+  web callback uses.
+- `POST /auth/apple/mobile` — body `{ identityToken: string }`. Apple's tokens are verified against 
+  Apple's JWKS endpoint — check if a suitable library already exists as a dependency (search 
+  `package.json` for anything Apple/JWT-related tied to the existing `apple.strategy.ts`) before 
+  adding a new one.
+- New env vars in `apps/backend/.env.example` (placeholders, empty by default): `GOOGLE_MOBILE_CLIENT_ID` 
+  and whatever Apple's mobile verification needs (Team ID / Service ID / Key ID — check what 
+  `apple.strategy.ts` already expects via its existing `APPLE_*` env vars and extend consistently 
+  rather than inventing new names).
+- Config validation: if these env vars are the same shape as `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` 
+  (optional, feature disabled gracefully when absent), follow that exact pattern — check 
+  `apps/backend/src/config/envs/payment.config.ts` for how an optional integration's config is 
+  structured and validated.
+
+### Task 12: Mobile native sign-in buttons and SDK wiring
+
+**Investigate first**: `apps/mobile/lib/features/auth/presentation/screens/login_screen.dart` and 
+`register_screen.dart` for the current UI structure and how the existing phone-OTP flow calls 
+`authRepositoryProvider`.
+
+- Add `google_sign_in` and `sign_in_with_apple` via `flutter pub add` (resolve real current versions, 
+  don't guess).
+- Add "Continue with Google" / "Continue with Apple" buttons to login and register screens.
+- On tap: invoke the native SDK to get an ID token, POST it to the new `/auth/google/mobile` or 
+  `/auth/apple/mobile` endpoint, store the returned JWT pair exactly like the existing OTP login does 
+  (reuse `TokenStorage`, reuse `authStateProvider`'s existing success path — don't build a parallel 
+  auth state).
+- Apple sign-in button should only render on iOS per Apple's guidelines (check `Platform.isIOS`) — 
+  note this repo currently has no `ios/` directory at all (Android-only so far), so Apple sign-in code 
+  should be written defensively (compiles fine, but there's no iOS target to actually run it on yet — 
+  don't block on this, just don't assume an iOS build exists).
+
+### Task 13 — external input required from the user
+
+This phase cannot fully function without:
+- A **Google OAuth client ID** registered in Google Cloud Console against this app's Android package 
+  name (`com.seawindsolution.viralkar`) and its release-signing SHA-1/SHA-256 fingerprint.
+- An **Apple Service ID and private key** from an Apple Developer account (needed once an iOS target 
+  exists).
+
+Ship all the code with empty placeholders (same pattern as Razorpay's `RAZORPAY_KEY_ID` in 
+`.env.example` — never a live-looking dummy value). The feature simply won't authenticate anyone 
+until the user supplies real credentials later; that's expected and fine — don't treat it as a 
+blocker to finishing the code.
+
+---
+
+## Phase 6 — Revisit later, not scheduled
+
+Do not start these without the user explicitly asking:
+- Social features (friends, chat, groups, following) — Phase 2+ per the platform's own roadmap.
+- Real gift-card vendor integration (Amazon/Flipkart/Swiggy/etc.) — blocked on picking a vendor, a 
+  business decision.
+- Merchant CRM/loyalty — the platform's own roadmap places this at v1.5, after core launch.
+- Agency/multi-tenant dashboards — Phase 3 per the platform's own roadmap.
+
+---
+
+## Order of work
+
+Do Phase 3 → 4 → 5 in that order, running the full verification gate (typecheck/lint/test/build for 
+every app you touched) after each numbered task, not just at the end of a phase. If a verification 
+step fails, fix it before starting the next task — do not accumulate unverified work.
+
+At the end of each phase, give a short summary: what changed, which files, what was verified, and 
+what (if anything) still needs the user's input before it's fully functional.
+```
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-22T13:11:57+05:30.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from None to Gemini 3.1 Pro (Low). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>

@@ -5,10 +5,11 @@ import 'package:flutter/services.dart';
 /// These are signs, not proof. Anyone who controls the phone can hide them, so the backend counts them as one input
 /// to a risk score (a risky device has its withdrawals held for review) and never as a verdict.
 class DeviceIntegrity {
-  const DeviceIntegrity({this.isRooted = false, this.isEmulator = false});
+  const DeviceIntegrity({this.isRooted = false, this.isEmulator = false, this.isAutomationDetected = false});
 
   final bool isRooted;
   final bool isEmulator;
+  final bool isAutomationDetected;
 }
 
 /// Asks the phone whether it looks rooted or emulated.
@@ -37,7 +38,7 @@ class PlatformDeviceIntegrityChecker implements DeviceIntegrityChecker {
       final reply = await _channel.invokeMapMethod<String, dynamic>('check');
       if (reply == null) return const DeviceIntegrity();
       // Only a real true counts; anything else is "no".
-      return DeviceIntegrity(isRooted: reply['isRooted'] == true, isEmulator: reply['isEmulator'] == true);
+      return DeviceIntegrity(isRooted: reply['isRooted'] == true, isEmulator: reply['isEmulator'] == true, isAutomationDetected: reply['isAutomationDetected'] == true);
     } on PlatformException {
       return const DeviceIntegrity();
     } on MissingPluginException {

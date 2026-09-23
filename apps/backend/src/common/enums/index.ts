@@ -72,6 +72,8 @@ export enum CampaignSort {
   HighestReward = 'highest_reward',
   /** Only campaigns with an end date still ahead, soonest first. */
   EndingSoon = 'ending_soon',
+  /** Needs `latitude`/`longitude` in the request. Merchants with no location set sort last, not excluded. */
+  Nearest = 'nearest',
 }
 
 // -------------------------------------------------------------
@@ -93,6 +95,8 @@ export enum TaskType {
   WatchVideo = 'WATCH_VIDEO',
   YoutubeSubscribe = 'YOUTUBE_SUBSCRIBE',
   TwitterFollow = 'TWITTER_FOLLOW',
+  QrScan = 'QR_SCAN',
+  LocationCheckin = 'LOCATION_CHECKIN',
 }
 
 // -------------------------------------------------------------
@@ -119,6 +123,8 @@ export enum EvidenceType {
   Url = 'URL',
   Text = 'TEXT',
   Metadata = 'METADATA',
+  QrCode = 'QR_CODE',
+  Location = 'LOCATION',
 }
 
 // -------------------------------------------------------------

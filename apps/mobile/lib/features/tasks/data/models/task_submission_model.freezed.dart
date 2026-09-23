@@ -13,9 +13,287 @@ part of 'task_submission_model.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
+mixin _$DisputeModel {
+
+ String get id; String get status; String get reason; String? get adminNotes; DateTime? get resolvedAt; DateTime get createdAt;
+/// Create a copy of DisputeModel
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$DisputeModelCopyWith<DisputeModel> get copyWith => _$DisputeModelCopyWithImpl<DisputeModel>(this as DisputeModel, _$identity);
+
+  /// Serializes this DisputeModel to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DisputeModel&&(identical(other.id, id) || other.id == id)&&(identical(other.status, status) || other.status == status)&&(identical(other.reason, reason) || other.reason == reason)&&(identical(other.adminNotes, adminNotes) || other.adminNotes == adminNotes)&&(identical(other.resolvedAt, resolvedAt) || other.resolvedAt == resolvedAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,status,reason,adminNotes,resolvedAt,createdAt);
+
+@override
+String toString() {
+  return 'DisputeModel(id: $id, status: $status, reason: $reason, adminNotes: $adminNotes, resolvedAt: $resolvedAt, createdAt: $createdAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $DisputeModelCopyWith<$Res>  {
+  factory $DisputeModelCopyWith(DisputeModel value, $Res Function(DisputeModel) _then) = _$DisputeModelCopyWithImpl;
+@useResult
+$Res call({
+ String id, String status, String reason, String? adminNotes, DateTime? resolvedAt, DateTime createdAt
+});
+
+
+
+
+}
+/// @nodoc
+class _$DisputeModelCopyWithImpl<$Res>
+    implements $DisputeModelCopyWith<$Res> {
+  _$DisputeModelCopyWithImpl(this._self, this._then);
+
+  final DisputeModel _self;
+  final $Res Function(DisputeModel) _then;
+
+/// Create a copy of DisputeModel
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? status = null,Object? reason = null,Object? adminNotes = freezed,Object? resolvedAt = freezed,Object? createdAt = null,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,adminNotes: freezed == adminNotes ? _self.adminNotes : adminNotes // ignore: cast_nullable_to_non_nullable
+as String?,resolvedAt: freezed == resolvedAt ? _self.resolvedAt : resolvedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [DisputeModel].
+extension DisputeModelPatterns on DisputeModel {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _DisputeModel value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _DisputeModel() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _DisputeModel value)  $default,){
+final _that = this;
+switch (_that) {
+case _DisputeModel():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _DisputeModel value)?  $default,){
+final _that = this;
+switch (_that) {
+case _DisputeModel() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String status,  String reason,  String? adminNotes,  DateTime? resolvedAt,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _DisputeModel() when $default != null:
+return $default(_that.id,_that.status,_that.reason,_that.adminNotes,_that.resolvedAt,_that.createdAt);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String status,  String reason,  String? adminNotes,  DateTime? resolvedAt,  DateTime createdAt)  $default,) {final _that = this;
+switch (_that) {
+case _DisputeModel():
+return $default(_that.id,_that.status,_that.reason,_that.adminNotes,_that.resolvedAt,_that.createdAt);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String status,  String reason,  String? adminNotes,  DateTime? resolvedAt,  DateTime createdAt)?  $default,) {final _that = this;
+switch (_that) {
+case _DisputeModel() when $default != null:
+return $default(_that.id,_that.status,_that.reason,_that.adminNotes,_that.resolvedAt,_that.createdAt);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _DisputeModel implements DisputeModel {
+  const _DisputeModel({required this.id, required this.status, required this.reason, this.adminNotes, this.resolvedAt, required this.createdAt});
+  factory _DisputeModel.fromJson(Map<String, dynamic> json) => _$DisputeModelFromJson(json);
+
+@override final  String id;
+@override final  String status;
+@override final  String reason;
+@override final  String? adminNotes;
+@override final  DateTime? resolvedAt;
+@override final  DateTime createdAt;
+
+/// Create a copy of DisputeModel
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$DisputeModelCopyWith<_DisputeModel> get copyWith => __$DisputeModelCopyWithImpl<_DisputeModel>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$DisputeModelToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DisputeModel&&(identical(other.id, id) || other.id == id)&&(identical(other.status, status) || other.status == status)&&(identical(other.reason, reason) || other.reason == reason)&&(identical(other.adminNotes, adminNotes) || other.adminNotes == adminNotes)&&(identical(other.resolvedAt, resolvedAt) || other.resolvedAt == resolvedAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,status,reason,adminNotes,resolvedAt,createdAt);
+
+@override
+String toString() {
+  return 'DisputeModel(id: $id, status: $status, reason: $reason, adminNotes: $adminNotes, resolvedAt: $resolvedAt, createdAt: $createdAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$DisputeModelCopyWith<$Res> implements $DisputeModelCopyWith<$Res> {
+  factory _$DisputeModelCopyWith(_DisputeModel value, $Res Function(_DisputeModel) _then) = __$DisputeModelCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, String status, String reason, String? adminNotes, DateTime? resolvedAt, DateTime createdAt
+});
+
+
+
+
+}
+/// @nodoc
+class __$DisputeModelCopyWithImpl<$Res>
+    implements _$DisputeModelCopyWith<$Res> {
+  __$DisputeModelCopyWithImpl(this._self, this._then);
+
+  final _DisputeModel _self;
+  final $Res Function(_DisputeModel) _then;
+
+/// Create a copy of DisputeModel
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? status = null,Object? reason = null,Object? adminNotes = freezed,Object? resolvedAt = freezed,Object? createdAt = null,}) {
+  return _then(_DisputeModel(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,adminNotes: freezed == adminNotes ? _self.adminNotes : adminNotes // ignore: cast_nullable_to_non_nullable
+as String?,resolvedAt: freezed == resolvedAt ? _self.resolvedAt : resolvedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$TaskSubmissionModel {
 
- String get id; String get taskId; String get status; String get verificationSource; int get attemptNumber; String? get fileUrl; String? get externalUrl; String? get textAnswer; double? get aiConfidence; String? get rejectionReason; String? get rewardAmount; DateTime? get rewardCreditedAt; DateTime get createdAt;
+ String get id; String get taskId; String get status; String get verificationSource; int get attemptNumber; String? get fileUrl; String? get externalUrl; String? get textAnswer; double? get aiConfidence; String? get rejectionReason; String? get rewardAmount; DateTime? get rewardCreditedAt; DateTime get createdAt; DisputeModel? get dispute;
 /// Create a copy of TaskSubmissionModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +306,16 @@ $TaskSubmissionModelCopyWith<TaskSubmissionModel> get copyWith => _$TaskSubmissi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TaskSubmissionModel&&(identical(other.id, id) || other.id == id)&&(identical(other.taskId, taskId) || other.taskId == taskId)&&(identical(other.status, status) || other.status == status)&&(identical(other.verificationSource, verificationSource) || other.verificationSource == verificationSource)&&(identical(other.attemptNumber, attemptNumber) || other.attemptNumber == attemptNumber)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&(identical(other.externalUrl, externalUrl) || other.externalUrl == externalUrl)&&(identical(other.textAnswer, textAnswer) || other.textAnswer == textAnswer)&&(identical(other.aiConfidence, aiConfidence) || other.aiConfidence == aiConfidence)&&(identical(other.rejectionReason, rejectionReason) || other.rejectionReason == rejectionReason)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.rewardCreditedAt, rewardCreditedAt) || other.rewardCreditedAt == rewardCreditedAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TaskSubmissionModel&&(identical(other.id, id) || other.id == id)&&(identical(other.taskId, taskId) || other.taskId == taskId)&&(identical(other.status, status) || other.status == status)&&(identical(other.verificationSource, verificationSource) || other.verificationSource == verificationSource)&&(identical(other.attemptNumber, attemptNumber) || other.attemptNumber == attemptNumber)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&(identical(other.externalUrl, externalUrl) || other.externalUrl == externalUrl)&&(identical(other.textAnswer, textAnswer) || other.textAnswer == textAnswer)&&(identical(other.aiConfidence, aiConfidence) || other.aiConfidence == aiConfidence)&&(identical(other.rejectionReason, rejectionReason) || other.rejectionReason == rejectionReason)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.rewardCreditedAt, rewardCreditedAt) || other.rewardCreditedAt == rewardCreditedAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.dispute, dispute) || other.dispute == dispute));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,taskId,status,verificationSource,attemptNumber,fileUrl,externalUrl,textAnswer,aiConfidence,rejectionReason,rewardAmount,rewardCreditedAt,createdAt);
+int get hashCode => Object.hash(runtimeType,id,taskId,status,verificationSource,attemptNumber,fileUrl,externalUrl,textAnswer,aiConfidence,rejectionReason,rewardAmount,rewardCreditedAt,createdAt,dispute);
 
 @override
 String toString() {
-  return 'TaskSubmissionModel(id: $id, taskId: $taskId, status: $status, verificationSource: $verificationSource, attemptNumber: $attemptNumber, fileUrl: $fileUrl, externalUrl: $externalUrl, textAnswer: $textAnswer, aiConfidence: $aiConfidence, rejectionReason: $rejectionReason, rewardAmount: $rewardAmount, rewardCreditedAt: $rewardCreditedAt, createdAt: $createdAt)';
+  return 'TaskSubmissionModel(id: $id, taskId: $taskId, status: $status, verificationSource: $verificationSource, attemptNumber: $attemptNumber, fileUrl: $fileUrl, externalUrl: $externalUrl, textAnswer: $textAnswer, aiConfidence: $aiConfidence, rejectionReason: $rejectionReason, rewardAmount: $rewardAmount, rewardCreditedAt: $rewardCreditedAt, createdAt: $createdAt, dispute: $dispute)';
 }
 
 
@@ -48,11 +326,11 @@ abstract mixin class $TaskSubmissionModelCopyWith<$Res>  {
   factory $TaskSubmissionModelCopyWith(TaskSubmissionModel value, $Res Function(TaskSubmissionModel) _then) = _$TaskSubmissionModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String taskId, String status, String verificationSource, int attemptNumber, String? fileUrl, String? externalUrl, String? textAnswer, double? aiConfidence, String? rejectionReason, String? rewardAmount, DateTime? rewardCreditedAt, DateTime createdAt
+ String id, String taskId, String status, String verificationSource, int attemptNumber, String? fileUrl, String? externalUrl, String? textAnswer, double? aiConfidence, String? rejectionReason, String? rewardAmount, DateTime? rewardCreditedAt, DateTime createdAt, DisputeModel? dispute
 });
 
 
-
+$DisputeModelCopyWith<$Res>? get dispute;
 
 }
 /// @nodoc
@@ -65,7 +343,7 @@ class _$TaskSubmissionModelCopyWithImpl<$Res>
 
 /// Create a copy of TaskSubmissionModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? taskId = null,Object? status = null,Object? verificationSource = null,Object? attemptNumber = null,Object? fileUrl = freezed,Object? externalUrl = freezed,Object? textAnswer = freezed,Object? aiConfidence = freezed,Object? rejectionReason = freezed,Object? rewardAmount = freezed,Object? rewardCreditedAt = freezed,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? taskId = null,Object? status = null,Object? verificationSource = null,Object? attemptNumber = null,Object? fileUrl = freezed,Object? externalUrl = freezed,Object? textAnswer = freezed,Object? aiConfidence = freezed,Object? rejectionReason = freezed,Object? rewardAmount = freezed,Object? rewardCreditedAt = freezed,Object? createdAt = null,Object? dispute = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,taskId: null == taskId ? _self.taskId : taskId // ignore: cast_nullable_to_non_nullable
@@ -80,10 +358,23 @@ as double?,rejectionReason: freezed == rejectionReason ? _self.rejectionReason :
 as String?,rewardAmount: freezed == rewardAmount ? _self.rewardAmount : rewardAmount // ignore: cast_nullable_to_non_nullable
 as String?,rewardCreditedAt: freezed == rewardCreditedAt ? _self.rewardCreditedAt : rewardCreditedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,dispute: freezed == dispute ? _self.dispute : dispute // ignore: cast_nullable_to_non_nullable
+as DisputeModel?,
   ));
 }
+/// Create a copy of TaskSubmissionModel
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$DisputeModelCopyWith<$Res>? get dispute {
+    if (_self.dispute == null) {
+    return null;
+  }
 
+  return $DisputeModelCopyWith<$Res>(_self.dispute!, (value) {
+    return _then(_self.copyWith(dispute: value));
+  });
+}
 }
 
 
@@ -165,10 +456,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String taskId,  String status,  String verificationSource,  int attemptNumber,  String? fileUrl,  String? externalUrl,  String? textAnswer,  double? aiConfidence,  String? rejectionReason,  String? rewardAmount,  DateTime? rewardCreditedAt,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String taskId,  String status,  String verificationSource,  int attemptNumber,  String? fileUrl,  String? externalUrl,  String? textAnswer,  double? aiConfidence,  String? rejectionReason,  String? rewardAmount,  DateTime? rewardCreditedAt,  DateTime createdAt,  DisputeModel? dispute)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TaskSubmissionModel() when $default != null:
-return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_that.attemptNumber,_that.fileUrl,_that.externalUrl,_that.textAnswer,_that.aiConfidence,_that.rejectionReason,_that.rewardAmount,_that.rewardCreditedAt,_that.createdAt);case _:
+return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_that.attemptNumber,_that.fileUrl,_that.externalUrl,_that.textAnswer,_that.aiConfidence,_that.rejectionReason,_that.rewardAmount,_that.rewardCreditedAt,_that.createdAt,_that.dispute);case _:
   return orElse();
 
 }
@@ -186,10 +477,10 @@ return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String taskId,  String status,  String verificationSource,  int attemptNumber,  String? fileUrl,  String? externalUrl,  String? textAnswer,  double? aiConfidence,  String? rejectionReason,  String? rewardAmount,  DateTime? rewardCreditedAt,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String taskId,  String status,  String verificationSource,  int attemptNumber,  String? fileUrl,  String? externalUrl,  String? textAnswer,  double? aiConfidence,  String? rejectionReason,  String? rewardAmount,  DateTime? rewardCreditedAt,  DateTime createdAt,  DisputeModel? dispute)  $default,) {final _that = this;
 switch (_that) {
 case _TaskSubmissionModel():
-return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_that.attemptNumber,_that.fileUrl,_that.externalUrl,_that.textAnswer,_that.aiConfidence,_that.rejectionReason,_that.rewardAmount,_that.rewardCreditedAt,_that.createdAt);case _:
+return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_that.attemptNumber,_that.fileUrl,_that.externalUrl,_that.textAnswer,_that.aiConfidence,_that.rejectionReason,_that.rewardAmount,_that.rewardCreditedAt,_that.createdAt,_that.dispute);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -206,10 +497,10 @@ return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String taskId,  String status,  String verificationSource,  int attemptNumber,  String? fileUrl,  String? externalUrl,  String? textAnswer,  double? aiConfidence,  String? rejectionReason,  String? rewardAmount,  DateTime? rewardCreditedAt,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String taskId,  String status,  String verificationSource,  int attemptNumber,  String? fileUrl,  String? externalUrl,  String? textAnswer,  double? aiConfidence,  String? rejectionReason,  String? rewardAmount,  DateTime? rewardCreditedAt,  DateTime createdAt,  DisputeModel? dispute)?  $default,) {final _that = this;
 switch (_that) {
 case _TaskSubmissionModel() when $default != null:
-return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_that.attemptNumber,_that.fileUrl,_that.externalUrl,_that.textAnswer,_that.aiConfidence,_that.rejectionReason,_that.rewardAmount,_that.rewardCreditedAt,_that.createdAt);case _:
+return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_that.attemptNumber,_that.fileUrl,_that.externalUrl,_that.textAnswer,_that.aiConfidence,_that.rejectionReason,_that.rewardAmount,_that.rewardCreditedAt,_that.createdAt,_that.dispute);case _:
   return null;
 
 }
@@ -221,7 +512,7 @@ return $default(_that.id,_that.taskId,_that.status,_that.verificationSource,_tha
 @JsonSerializable()
 
 class _TaskSubmissionModel implements TaskSubmissionModel {
-  const _TaskSubmissionModel({required this.id, required this.taskId, required this.status, required this.verificationSource, this.attemptNumber = 1, this.fileUrl, this.externalUrl, this.textAnswer, this.aiConfidence, this.rejectionReason, this.rewardAmount, this.rewardCreditedAt, required this.createdAt});
+  const _TaskSubmissionModel({required this.id, required this.taskId, required this.status, required this.verificationSource, this.attemptNumber = 1, this.fileUrl, this.externalUrl, this.textAnswer, this.aiConfidence, this.rejectionReason, this.rewardAmount, this.rewardCreditedAt, required this.createdAt, this.dispute});
   factory _TaskSubmissionModel.fromJson(Map<String, dynamic> json) => _$TaskSubmissionModelFromJson(json);
 
 @override final  String id;
@@ -237,6 +528,7 @@ class _TaskSubmissionModel implements TaskSubmissionModel {
 @override final  String? rewardAmount;
 @override final  DateTime? rewardCreditedAt;
 @override final  DateTime createdAt;
+@override final  DisputeModel? dispute;
 
 /// Create a copy of TaskSubmissionModel
 /// with the given fields replaced by the non-null parameter values.
@@ -251,16 +543,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TaskSubmissionModel&&(identical(other.id, id) || other.id == id)&&(identical(other.taskId, taskId) || other.taskId == taskId)&&(identical(other.status, status) || other.status == status)&&(identical(other.verificationSource, verificationSource) || other.verificationSource == verificationSource)&&(identical(other.attemptNumber, attemptNumber) || other.attemptNumber == attemptNumber)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&(identical(other.externalUrl, externalUrl) || other.externalUrl == externalUrl)&&(identical(other.textAnswer, textAnswer) || other.textAnswer == textAnswer)&&(identical(other.aiConfidence, aiConfidence) || other.aiConfidence == aiConfidence)&&(identical(other.rejectionReason, rejectionReason) || other.rejectionReason == rejectionReason)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.rewardCreditedAt, rewardCreditedAt) || other.rewardCreditedAt == rewardCreditedAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TaskSubmissionModel&&(identical(other.id, id) || other.id == id)&&(identical(other.taskId, taskId) || other.taskId == taskId)&&(identical(other.status, status) || other.status == status)&&(identical(other.verificationSource, verificationSource) || other.verificationSource == verificationSource)&&(identical(other.attemptNumber, attemptNumber) || other.attemptNumber == attemptNumber)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&(identical(other.externalUrl, externalUrl) || other.externalUrl == externalUrl)&&(identical(other.textAnswer, textAnswer) || other.textAnswer == textAnswer)&&(identical(other.aiConfidence, aiConfidence) || other.aiConfidence == aiConfidence)&&(identical(other.rejectionReason, rejectionReason) || other.rejectionReason == rejectionReason)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.rewardCreditedAt, rewardCreditedAt) || other.rewardCreditedAt == rewardCreditedAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.dispute, dispute) || other.dispute == dispute));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,taskId,status,verificationSource,attemptNumber,fileUrl,externalUrl,textAnswer,aiConfidence,rejectionReason,rewardAmount,rewardCreditedAt,createdAt);
+int get hashCode => Object.hash(runtimeType,id,taskId,status,verificationSource,attemptNumber,fileUrl,externalUrl,textAnswer,aiConfidence,rejectionReason,rewardAmount,rewardCreditedAt,createdAt,dispute);
 
 @override
 String toString() {
-  return 'TaskSubmissionModel(id: $id, taskId: $taskId, status: $status, verificationSource: $verificationSource, attemptNumber: $attemptNumber, fileUrl: $fileUrl, externalUrl: $externalUrl, textAnswer: $textAnswer, aiConfidence: $aiConfidence, rejectionReason: $rejectionReason, rewardAmount: $rewardAmount, rewardCreditedAt: $rewardCreditedAt, createdAt: $createdAt)';
+  return 'TaskSubmissionModel(id: $id, taskId: $taskId, status: $status, verificationSource: $verificationSource, attemptNumber: $attemptNumber, fileUrl: $fileUrl, externalUrl: $externalUrl, textAnswer: $textAnswer, aiConfidence: $aiConfidence, rejectionReason: $rejectionReason, rewardAmount: $rewardAmount, rewardCreditedAt: $rewardCreditedAt, createdAt: $createdAt, dispute: $dispute)';
 }
 
 
@@ -271,11 +563,11 @@ abstract mixin class _$TaskSubmissionModelCopyWith<$Res> implements $TaskSubmiss
   factory _$TaskSubmissionModelCopyWith(_TaskSubmissionModel value, $Res Function(_TaskSubmissionModel) _then) = __$TaskSubmissionModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String taskId, String status, String verificationSource, int attemptNumber, String? fileUrl, String? externalUrl, String? textAnswer, double? aiConfidence, String? rejectionReason, String? rewardAmount, DateTime? rewardCreditedAt, DateTime createdAt
+ String id, String taskId, String status, String verificationSource, int attemptNumber, String? fileUrl, String? externalUrl, String? textAnswer, double? aiConfidence, String? rejectionReason, String? rewardAmount, DateTime? rewardCreditedAt, DateTime createdAt, DisputeModel? dispute
 });
 
 
-
+@override $DisputeModelCopyWith<$Res>? get dispute;
 
 }
 /// @nodoc
@@ -288,7 +580,7 @@ class __$TaskSubmissionModelCopyWithImpl<$Res>
 
 /// Create a copy of TaskSubmissionModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? taskId = null,Object? status = null,Object? verificationSource = null,Object? attemptNumber = null,Object? fileUrl = freezed,Object? externalUrl = freezed,Object? textAnswer = freezed,Object? aiConfidence = freezed,Object? rejectionReason = freezed,Object? rewardAmount = freezed,Object? rewardCreditedAt = freezed,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? taskId = null,Object? status = null,Object? verificationSource = null,Object? attemptNumber = null,Object? fileUrl = freezed,Object? externalUrl = freezed,Object? textAnswer = freezed,Object? aiConfidence = freezed,Object? rejectionReason = freezed,Object? rewardAmount = freezed,Object? rewardCreditedAt = freezed,Object? createdAt = null,Object? dispute = freezed,}) {
   return _then(_TaskSubmissionModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,taskId: null == taskId ? _self.taskId : taskId // ignore: cast_nullable_to_non_nullable
@@ -303,11 +595,24 @@ as double?,rejectionReason: freezed == rejectionReason ? _self.rejectionReason :
 as String?,rewardAmount: freezed == rewardAmount ? _self.rewardAmount : rewardAmount // ignore: cast_nullable_to_non_nullable
 as String?,rewardCreditedAt: freezed == rewardCreditedAt ? _self.rewardCreditedAt : rewardCreditedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,dispute: freezed == dispute ? _self.dispute : dispute // ignore: cast_nullable_to_non_nullable
+as DisputeModel?,
   ));
 }
 
+/// Create a copy of TaskSubmissionModel
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$DisputeModelCopyWith<$Res>? get dispute {
+    if (_self.dispute == null) {
+    return null;
+  }
 
+  return $DisputeModelCopyWith<$Res>(_self.dispute!, (value) {
+    return _then(_self.copyWith(dispute: value));
+  });
+}
 }
 
 // dart format on

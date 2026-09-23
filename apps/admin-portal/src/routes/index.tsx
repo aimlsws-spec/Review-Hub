@@ -34,6 +34,8 @@ const AiProvidersPage = lazy(() => import('@/pages/AiProvidersPage'))
 const PlatformConfigurationPage = lazy(() => import('@/pages/PlatformConfigurationPage'))
 const CmsPagesPage = lazy(() => import('@/pages/cms/CmsPagesPage'))
 const FaqsPage = lazy(() => import('@/pages/cms/FaqsPage'))
+const CitiesPage = lazy(() => import('@/pages/CitiesPage'))
+const DisputesPage = lazy(() => import('@/pages/DisputesPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const FeatureFlagsPage = lazy(() => import('@/pages/FeatureFlagsPage'))
 const AuditLogsPage = lazy(() => import('@/pages/AuditLogsPage'))
@@ -86,6 +88,8 @@ export const router = createBrowserRouter(
             { path: ROUTES.PLATFORM_CONFIGURATION, element: <PlatformConfigurationPage /> },
             { path: ROUTES.CMS_PAGES, element: <CmsPagesPage /> },
             { path: ROUTES.FAQS, element: <FaqsPage /> },
+            { path: ROUTES.CITIES, element: <CitiesPage /> },
+            { path: ROUTES.DISPUTES, element: <DisputesPage /> },
             { path: ROUTES.SETTINGS, element: <SettingsPage /> },
             { path: ROUTES.FEATURE_FLAGS, element: <FeatureFlagsPage /> },
             { path: ROUTES.AUDIT_LOGS, element: <AuditLogsPage /> },

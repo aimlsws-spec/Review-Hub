@@ -41,3 +41,21 @@ export class SubmissionRejectedEvent {
     public readonly reason: string,
   ) {}
 }
+export class DisputeResolvedEvent {
+  constructor(
+    public readonly disputeId: string,
+    public readonly submissionId: string,
+    public readonly userId: string,
+    public readonly decision: 'UPHELD' | 'REVERSED',
+    public readonly notes?: string,
+  ) {}
+}
+
+export class DisputeOpenedEvent {
+  constructor(
+    public readonly disputeId: string,
+    public readonly submissionId: string,
+    public readonly userId: string,
+    public readonly reason: string,
+  ) {}
+}

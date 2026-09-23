@@ -14,6 +14,7 @@ export interface DeviceMetadata {
   pushToken?: string;
   isRooted?: boolean;
   isEmulator?: boolean;
+  isAutomationDetected?: boolean;
   vpnSuspected?: boolean;
   /** SHA-256 of the app's stable install id (see hashInstallId). */
   installId?: string;
@@ -29,6 +30,7 @@ export interface DeviceMetadata {
 export interface DeviceSignalsInput {
   isRooted?: boolean;
   isEmulator?: boolean;
+  isAutomationDetected?: boolean;
   xForwardedFor?: string;
   via?: string;
   /** The raw X-Device-ID header the app sends. Validated and hashed by DeviceService.hashInstallId before storing. */
@@ -61,6 +63,7 @@ export class DeviceService {
         // latest report over the stored value (a rooted device can be
         // un-rooted, a VPN can be turned off) rather than sticking once flagged.
         const isRooted = metadata.isRooted ?? existingDevice.isRooted;
+        const isAutomationDetected = metadata.isAutomationDetected ?? existingDevice.isAutomationDetected;
         const isEmulator = metadata.isEmulator ?? existingDevice.isEmulator;
         const vpnSuspected = metadata.vpnSuspected ?? existingDevice.vpnSuspected;
 
@@ -71,10 +74,11 @@ export class DeviceService {
           appVersion: metadata.appVersion ?? existingDevice.appVersion,
           pushToken: metadata.pushToken ?? existingDevice.pushToken,
           isRooted,
+        isAutomationDetected,
           isEmulator,
           vpnSuspected,
           installId: metadata.installId ?? existingDevice.installId,
-          riskScore: this.calculateRiskScore({ isRooted, isEmulator, vpnSuspected }),
+          riskScore: this.calculateRiskScore({ isRooted, isEmulator, vpnSuspected, isAutomationDetected }),
           isActive: true,
           lastSeenAt: new Date(),
         });
@@ -83,6 +87,7 @@ export class DeviceService {
     }
 
     const isRooted = metadata.isRooted ?? false;
+    const isAutomationDetected = metadata.isAutomationDetected ?? false;
     const isEmulator = metadata.isEmulator ?? false;
     const vpnSuspected = metadata.vpnSuspected ?? false;
 
@@ -96,10 +101,11 @@ export class DeviceService {
       fingerprint: metadata.fingerprint,
       pushToken: metadata.pushToken,
       isRooted,
+        isAutomationDetected,
       isEmulator,
       vpnSuspected,
       installId: metadata.installId,
-      riskScore: this.calculateRiskScore({ isRooted, isEmulator, vpnSuspected }),
+      riskScore: this.calculateRiskScore({ isRooted, isEmulator, vpnSuspected, isAutomationDetected }),
       isActive: true,
       lastSeenAt: new Date(),
     });
@@ -112,7 +118,8 @@ export class DeviceService {
    * score since either one is a strong signal on its own, VPN suspicion adds
    * a smaller amount since the header heuristic below is much weaker evidence.
    */
-  calculateRiskScore(signals: { isRooted?: boolean; isEmulator?: boolean; vpnSuspected?: boolean }): number {
+  calculateRiskScore(signals: { isRooted?: boolean; isEmulator?: boolean;
+  isAutomationDetected?: boolean; vpnSuspected?: boolean }): number {
     let score = 0;
     if (signals.isRooted) score += 40;
     if (signals.isEmulator) score += 40;

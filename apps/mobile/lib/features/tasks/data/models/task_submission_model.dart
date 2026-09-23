@@ -6,6 +6,22 @@ part 'task_submission_model.g.dart';
 /// Mirrors the raw `TaskSubmission` Prisma model as returned by
 /// `SubmissionService.listMine()` / `getMine()`.
 @freezed
+abstract class DisputeModel with _$DisputeModel {
+  const factory DisputeModel({
+    required String id,
+    required String status,
+    required String reason,
+    String? adminNotes,
+    DateTime? resolvedAt,
+    required DateTime createdAt,
+  }) = _DisputeModel;
+
+  factory DisputeModel.fromJson(Map<String, dynamic> json) => _$DisputeModelFromJson(json);
+}
+
+/// Mirrors the raw `TaskSubmission` Prisma model as returned by
+/// `SubmissionService.listMine()` / `getMine()`.
+@freezed
 abstract class TaskSubmissionModel with _$TaskSubmissionModel {
   const factory TaskSubmissionModel({
     required String id,
@@ -21,6 +37,7 @@ abstract class TaskSubmissionModel with _$TaskSubmissionModel {
     String? rewardAmount,
     DateTime? rewardCreditedAt,
     required DateTime createdAt,
+    DisputeModel? dispute,
   }) = _TaskSubmissionModel;
 
   factory TaskSubmissionModel.fromJson(Map<String, dynamic> json) => _$TaskSubmissionModelFromJson(json);

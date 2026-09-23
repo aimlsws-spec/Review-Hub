@@ -81,6 +81,7 @@ export class AuthService {
       fingerprint,
       isRooted: input.isRooted,
       isEmulator: input.isEmulator,
+      isAutomationDetected: input.isAutomationDetected,
       vpnSuspected,
       installId: this.deviceService.hashInstallId(deviceSignals?.installId),
     } as DeviceMetadata);
@@ -170,6 +171,7 @@ export class AuthService {
       fingerprint,
       isRooted: deviceSignals?.isRooted,
       isEmulator: deviceSignals?.isEmulator,
+      isAutomationDetected: deviceSignals?.isAutomationDetected,
       vpnSuspected,
       installId: this.deviceService.hashInstallId(deviceSignals?.installId),
     } as DeviceMetadata);

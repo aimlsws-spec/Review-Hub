@@ -16,6 +16,11 @@ import type {
   DailyAnalytics,
   DailyRewardPrize,
   FAQ,
+  LocationState,
+  City,
+  Dispute,
+  DisputeStatus,
+  DisputeDecision,
   FeatureFlag,
   FraudFlag,
   FraudRiskLevel,
@@ -263,6 +268,25 @@ export const adminApi = {
     apiClient.patch<ApiResponse<FAQ>>(`/admin/cms/faqs/${faqId}`, data),
 
   deleteFaq: (faqId: string) => apiClient.delete<ApiResponse<FAQ>>(`/admin/cms/faqs/${faqId}`),
+
+  // ── Locations (city picker) ───────────────────────────────────────────
+  listLocationStates: () => apiClient.get<ApiResponse<LocationState[]>>('/admin/locations/states'),
+
+  listCities: (params: { page: number; limit: number; stateId?: string; includeInactive?: boolean }) =>
+    apiClient.get<ApiResponse<PaginatedResult<City>>>('/admin/locations/cities', { params }),
+
+  createCity: (data: { stateId: string; name: string }) =>
+    apiClient.post<ApiResponse<City>>('/admin/locations/cities', data),
+
+  updateCity: (cityId: string, data: Partial<{ name: string; isActive: boolean }>) =>
+    apiClient.patch<ApiResponse<City>>(`/admin/locations/cities/${cityId}`, data),
+
+  // ── Disputes ───────────────────────────────────────────────────────────
+  listDisputes: (params: { page: number; limit: number; status?: DisputeStatus }) =>
+    apiClient.get<ApiResponse<PaginatedResult<Dispute>>>('/admin/disputes', { params }),
+
+  resolveDispute: (disputeId: string, data: { decision: DisputeDecision; notes?: string }) =>
+    apiClient.post<ApiResponse<Dispute>>(`/admin/disputes/${disputeId}/resolve`, data),
 
   // ── System settings ────────────────────────────────────────────────────
   listSettings: (category?: string) =>

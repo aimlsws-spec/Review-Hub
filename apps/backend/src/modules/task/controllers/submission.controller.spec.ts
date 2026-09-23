@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { RolesGuard } from '../../auth/guards';
-import { SubmissionService } from '../services';
+import { DisputeService, SubmissionService } from '../services';
 
 import { SubmissionController } from './submission.controller';
 
@@ -14,12 +14,14 @@ describe('SubmissionController', () => {
     approve: jest.fn(),
     reject: jest.fn(),
   };
+  const mockDisputeService = { createDispute: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SubmissionController],
       providers: [
         { provide: SubmissionService, useValue: mockSubmissionService },
+        { provide: DisputeService, useValue: mockDisputeService },
         RolesGuard,
       ],
     }).compile();
@@ -59,6 +61,14 @@ describe('SubmissionController', () => {
       const dto = { rejectionReason: 'Blurry screenshot' };
       await controller.reject('submission-1', 'admin-1', dto as never);
       expect(mockSubmissionService.reject).toHaveBeenCalledWith('submission-1', 'admin-1', dto);
+    });
+  });
+
+  describe('dispute', () => {
+    it('should call disputeService.createDispute with the submitter id', async () => {
+      const dto = { reason: 'I completed the task correctly' };
+      await controller.dispute('submission-1', 'user-1', dto);
+      expect(mockDisputeService.createDispute).toHaveBeenCalledWith('submission-1', 'user-1', dto);
     });
   });
 });

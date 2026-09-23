@@ -25,6 +25,8 @@ class RoutePaths {
   static const String taskSubmission = '/tasks/:taskId/submit';
   static String taskSubmissionPath(String taskId) => '/tasks/$taskId/submit';
 
+  static const String qrScanner = '/qr-scanner';
+
   static const String reviewAssistant = '/tasks/:taskId/review-assistant';
   static String reviewAssistantPath(String taskId) => '/tasks/$taskId/review-assistant';
 

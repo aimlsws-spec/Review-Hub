@@ -60,7 +60,9 @@ export class TaskParticipationController {
       properties: {
         file: { type: 'string', format: 'binary' },
         externalUrl: { type: 'string' },
-        textAnswer: { type: 'string' },
+        textAnswer: { type: 'string', description: 'Also doubles as the scanned code for a QR_SCAN task' },
+        latitude: { type: 'number', description: 'Required for a LOCATION_CHECKIN task' },
+        longitude: { type: 'number', description: 'Required for a LOCATION_CHECKIN task' },
       },
     },
   })

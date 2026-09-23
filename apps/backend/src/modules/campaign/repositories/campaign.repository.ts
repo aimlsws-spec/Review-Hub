@@ -2,8 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, TargetGender } from '@prisma/client';
 
 import { CampaignSort } from '@common/enums';
+import { haversineDistanceMeters } from '@common/utils';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+
+/** How many candidates the "nearest" sort scans before paginating in memory — distance can't be computed in SQL through Prisma, so this bounds the cost instead of loading every public campaign. */
+const NEAREST_SORT_CANDIDATE_LIMIT = 500;
 
 @Injectable()
 export class CampaignRepository {
@@ -74,8 +78,16 @@ export class CampaignRepository {
     return { data, total, page, limit };
   }
 
-  async findPublic(params: { page: number; limit: number; campaignType?: string; search?: string; sort?: CampaignSort }) {
-    const { page, limit, campaignType, search, sort } = params;
+  async findPublic(params: {
+    page: number;
+    limit: number;
+    campaignType?: string;
+    search?: string;
+    sort?: CampaignSort;
+    latitude?: number;
+    longitude?: number;
+  }) {
+    const { page, limit, campaignType, search, sort, latitude, longitude } = params;
     const where: Prisma.CampaignWhereInput = {
       deletedAt: null,
       status: 'ACTIVE' as never,
@@ -91,6 +103,11 @@ export class CampaignRepository {
 
     // A campaign with no end date never "ends soon", so that sort leaves those out instead of sorting nulls somewhere odd.
     if (sort === CampaignSort.EndingSoon) where.endAt = { gte: new Date() };
+
+    if (sort === CampaignSort.Nearest && latitude !== undefined && longitude !== undefined) {
+      return this.findPublicNearest(where, { page, limit, latitude, longitude });
+    }
+
     const orderBy = this.publicOrder(sort);
 
     const [data, total] = await Promise.all([
@@ -104,6 +121,48 @@ export class CampaignRepository {
     ]);
 
     return { data, total, page, limit };
+  }
+
+  /**
+   * Distance from a merchant's store can't be computed in SQL through Prisma's query builder, so this pulls a bounded
+   * batch of candidates, sorts them by distance in memory, and paginates that. A merchant with no location set sorts
+   * last rather than being dropped from the results.
+   */
+  private async findPublicNearest(
+    where: Prisma.CampaignWhereInput,
+    params: { page: number; limit: number; latitude: number; longitude: number },
+  ) {
+    const { page, limit, latitude, longitude } = params;
+
+    const candidatesQuery = this.prisma.campaign.findMany({
+      where,
+      take: NEAREST_SORT_CANDIDATE_LIMIT,
+      orderBy: { createdAt: 'desc' },
+      include: { merchant: { select: { latitude: true, longitude: true } } },
+    });
+    const [candidates, total] = await Promise.all([candidatesQuery, this.prisma.campaign.count({ where })]);
+
+    const withDistance = candidates.map((campaign) => {
+      const { merchant, ...rest } = campaign;
+      const distanceMeters =
+        merchant.latitude !== null && merchant.longitude !== null
+          ? haversineDistanceMeters({ latitude, longitude }, { latitude: merchant.latitude, longitude: merchant.longitude })
+          : null;
+      return { ...rest, distanceMeters };
+    });
+
+    withDistance.sort((a, b) => {
+      if (a.distanceMeters === null && b.distanceMeters === null) return 0;
+      if (a.distanceMeters === null) return 1;
+      if (b.distanceMeters === null) return -1;
+      return a.distanceMeters - b.distanceMeters;
+    });
+
+    const data = withDistance.slice((page - 1) * limit, (page - 1) * limit + limit);
+
+    // Pagination only ever runs over the candidate batch, so `total` is capped to match — otherwise a page past the
+    // batch would look valid (a nonzero total) but always come back empty.
+    return { data, total: Math.min(total, NEAREST_SORT_CANDIDATE_LIMIT), page, limit };
   }
 
   /**

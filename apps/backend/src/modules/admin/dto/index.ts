@@ -12,3 +12,4 @@ export * from './update-platform-configuration.dto';
 export * from './kyc-review-query.dto';
 export * from './reject-kyc.dto';
 export * from './kyc-review-response.dto';
+export * from './city.dto';

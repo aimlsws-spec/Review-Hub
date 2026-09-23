@@ -56,12 +56,15 @@ export class SubmissionService {
     return this.finalizeRejection(submissionId, dto.rejectionReason, { actorId: reviewerId, actorType: 'ADMIN' });
   }
 
-  /** Same outcome as {@link approve}, but for the AI service's own auto-decision — no human reviewer to connect. */
+  /**
+   * Same outcome as {@link approve}, but for an automatic decision with no human reviewer to connect — the AI
+   * service's own verdict, or a deterministic QR/location check from TaskParticipationService.
+   */
   async aiApprove(submissionId: string) {
     return this.finalizeApproval(submissionId, { actorType: 'SYSTEM' });
   }
 
-  /** Same outcome as {@link reject}, but for the AI service's own auto-decision. */
+  /** Same outcome as {@link reject}, but for an automatic decision — see {@link aiApprove}. */
   async aiReject(submissionId: string, reason: string) {
     return this.finalizeRejection(submissionId, reason, { actorType: 'SYSTEM' });
   }

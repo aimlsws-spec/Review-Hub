@@ -19,7 +19,16 @@ import {
   TaskRecommendationRepository,
   TaskSubmissionRepository,
 } from './repositories';
-import { CampaignTaskService, SubmissionService, TaskParticipationService, TaskRecommendationService } from './services';
+import { DisputeRepository } from './repositories/dispute.repository';
+import {
+  CampaignTaskService,
+  LocationCheckinVerificationService,
+  QrScanVerificationService,
+  SubmissionService,
+  TaskParticipationService,
+  TaskRecommendationService,
+} from './services';
+import { DisputeService } from './services/dispute.service';
 
 @Module({
   imports: [CampaignModule, AuthModule, MerchantModule, AiAssistModule, RiskModule],
@@ -31,10 +40,14 @@ import { CampaignTaskService, SubmissionService, TaskParticipationService, TaskR
     SubmissionController,
   ],
   providers: [
+    DisputeService,
+    DisputeRepository,
     CampaignTaskService,
     TaskParticipationService,
     SubmissionService,
     TaskRecommendationService,
+    QrScanVerificationService,
+    LocationCheckinVerificationService,
     CampaignTaskRepository,
     CampaignParticipantRepository,
     TaskSubmissionRepository,
@@ -42,7 +55,15 @@ import { CampaignTaskService, SubmissionService, TaskParticipationService, TaskR
   ],
   // TaskSubmissionRepository is exported for the AI verification worker in JobsModule, which reads and updates
   // submissions directly. Without it the app fails to start with a dependency-injection error.
-  exports: [CampaignTaskService, TaskParticipationService, SubmissionService, TaskRecommendationService, TaskSubmissionRepository],
+  // DisputeService is exported for AdminModule's dispute review queue.
+  exports: [
+    DisputeService,
+    CampaignTaskService,
+    TaskParticipationService,
+    SubmissionService,
+    TaskRecommendationService,
+    TaskSubmissionRepository,
+  ],
 })
 export class TaskModule {
   private readonly logger = new Logger(TaskModule.name);

@@ -57,6 +57,11 @@ dependencies:
   package_info_plus: ^10.2.1
   url_launcher: ^6.3.2
   share_plus: ^13.3.0
+  geolocator: ^14.0.3
+  app_links: ^7.2.1
+  mobile_scanner: ^7.4.2
+  google_sign_in: ^7.2.0
+  sign_in_with_apple: ^8.2.0
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +74,8 @@ dev_dependencies:
   json_serializable: ^6.8.0
   change_app_package_name: ^1.5.0
   flutter_native_splash: ^2.4.3
+  geolocator_platform_interface: ^4.3.0
+  app_links_platform_interface: ^2.0.4
 
 flutter:
   uses-material-design: true

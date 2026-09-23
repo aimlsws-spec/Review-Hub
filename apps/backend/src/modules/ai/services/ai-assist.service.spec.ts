@@ -3,6 +3,19 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { of, throwError } from 'rxjs';
 
+import { LocalStorageService } from '../../../storage/storage.service';
+
+// composeStory's own logic (orchestration: draft captions, compose, save under a unique name) is what these
+// tests cover — actually decoding/compositing an image is sharp's job, not ours, and exercising the real
+// native binary in a unit test buys nothing but slowness and a real fixture image to maintain.
+const mockSharpChain = {
+  composite: jest.fn().mockReturnThis(),
+  jpeg: jest.fn().mockReturnThis(),
+  resize: jest.fn().mockReturnThis(),
+  toBuffer: jest.fn().mockResolvedValue(Buffer.from('fake-composed-image')),
+};
+jest.mock('sharp', () => ({ __esModule: true, default: jest.fn(() => mockSharpChain) }));
+
 import { AiAssistService } from './ai-assist.service';
 
 describe('AiAssistService', () => {
@@ -20,6 +33,7 @@ describe('AiAssistService', () => {
       return values[key];
     }),
   };
+  const mockStorageService = { saveFile: jest.fn() };
 
   const context = {
     taskType: 'TEXT',
@@ -36,6 +50,7 @@ describe('AiAssistService', () => {
         AiAssistService,
         { provide: HttpService, useValue: mockHttpService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: LocalStorageService, useValue: mockStorageService },
       ],
     }).compile();
 
@@ -165,6 +180,38 @@ describe('AiAssistService', () => {
       const result = await service.generateCaptions({ ...captionContext, campaignTitle: '!!!' });
 
       expect(result.hashtags).toEqual(['#ViralKar']);
+    });
+  });
+
+  describe('composeStory', () => {
+    const storyContext = { campaignTitle: 'Summer Launch', campaignDescription: 'A great new product.' };
+
+    function fakePhoto(): Express.Multer.File {
+      return { buffer: Buffer.from('not-a-real-image') } as Express.Multer.File;
+    }
+
+    it('saves a composed image and returns its URL with the first caption and hashtags', async () => {
+      mockHttpService.post.mockReturnValue(throwError(() => new Error('AI service down — falls back to templates')));
+      mockStorageService.saveFile.mockResolvedValue({ path: '/stories/abc123.jpg' });
+
+      const result = await service.composeStory(storyContext, await fakePhoto());
+
+      expect(result.imageUrl).toBe('/stories/abc123.jpg');
+      expect(result.caption).toContain('Summer Launch');
+      expect(result.hashtags).toEqual(['#SummerLaunch', '#ViralKar']);
+    });
+
+    it('saves under the stories folder with a unique filename each time, never overwriting the last one', async () => {
+      mockHttpService.post.mockReturnValue(throwError(() => new Error('down')));
+      mockStorageService.saveFile.mockResolvedValue({ path: '/stories/x.jpg' });
+
+      await service.composeStory(storyContext, await fakePhoto());
+      await service.composeStory(storyContext, await fakePhoto());
+
+      const [firstCall, secondCall] = mockStorageService.saveFile.mock.calls;
+      expect(firstCall[2]).toBe('stories');
+      expect(secondCall[2]).toBe('stories');
+      expect(firstCall[1]).not.toBe(secondCall[1]);
     });
   });
 });

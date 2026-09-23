@@ -21,6 +21,7 @@ _CampaignTaskModel _$CampaignTaskModelFromJson(Map<String, dynamic> json) =>
       minimumTimeSeconds: (json['minimumTimeSeconds'] as num?)?.toInt() ?? 0,
       proofRequired: json['proofRequired'] as bool? ?? true,
       proofType: json['proofType'] as String?,
+      configuration: json['configuration'] as Map<String, dynamic>?,
     );
 
 Map<String, dynamic> _$CampaignTaskModelToJson(_CampaignTaskModel instance) =>
@@ -38,4 +39,5 @@ Map<String, dynamic> _$CampaignTaskModelToJson(_CampaignTaskModel instance) =>
       'minimumTimeSeconds': instance.minimumTimeSeconds,
       'proofRequired': instance.proofRequired,
       'proofType': instance.proofType,
+      'configuration': instance.configuration,
     };

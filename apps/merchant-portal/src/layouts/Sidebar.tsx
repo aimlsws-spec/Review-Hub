@@ -121,6 +121,15 @@ const NAV_GROUPS: NavGroup[] = [
           </svg>
         ),
       },
+      {
+        label: 'Finance',
+        to: ROUTES.FINANCE,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2-2m2 2a2 2 0 002-2M9 7a2 2 0 00-2 2m2-2a2 2 0 012 2m4 8V7m0 10a2 2 0 01-2-2m2 2a2 2 0 002-2m-2-8a2 2 0 00-2 2m2-2a2 2 0 012 2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+        ),
+      },
     ],
   },
   {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/deep_link/pending_referral_code_provider.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
@@ -58,6 +59,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _referralCodeController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // A referral deep link (see DeepLinkController) leaves its code here for
+    // exactly this moment — read once and clear it so it can't resurface on
+    // a later, unrelated visit to this screen.
+    final pendingCode = ref.read(pendingReferralCodeProvider);
+    if (pendingCode != null) {
+      _referralCodeController.text = pendingCode;
+      ref.read(pendingReferralCodeProvider.notifier).state = null;
+    }
+  }
 
   @override
   void dispose() {

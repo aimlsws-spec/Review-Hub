@@ -4,3 +4,6 @@ export * from './submit-task.dto';
 export * from './submission-query.dto';
 export * from './reject-submission.dto';
 export * from './recommended-task.dto';
+export * from './create-dispute.dto';
+export * from './resolve-dispute.dto';
+export * from './dispute-query.dto';

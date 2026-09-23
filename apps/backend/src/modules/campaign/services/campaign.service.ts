@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Campaign, CampaignStatus, Prisma } from '@prisma/client';
 
+import { CampaignSort } from '@common/enums';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
@@ -104,12 +105,18 @@ export class CampaignService {
   }
 
   async listPublic(query: PublicCampaignQueryDto) {
+    if (query.sort === CampaignSort.Nearest && (query.latitude === undefined || query.longitude === undefined)) {
+      throw new BadRequestException('sort=nearest needs latitude and longitude');
+    }
+
     return this.campaignRepository.findPublic({
       page: query.page,
       limit: query.limit,
       campaignType: query.campaignType,
       search: query.search,
       sort: query.sort,
+      latitude: query.latitude,
+      longitude: query.longitude,
     });
   }
 

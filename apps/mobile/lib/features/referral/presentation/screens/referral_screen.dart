@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -113,7 +114,7 @@ class _ReferralCodeCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    if (code != null)
+                    if (code != null) ...[
                       InkWell(
                         onTap: () {
                           Clipboard.setData(ClipboardData(text: code!));
@@ -132,6 +133,26 @@ class _ReferralCodeCard extends StatelessWidget {
                           child: const Icon(Icons.copy_rounded, color: AppColors.navy900, size: 24),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => SharePlus.instance.share(
+                          ShareParams(
+                            text: 'Join VIRAL KAR and earn rewards! Use my code $code when you sign up: '
+                                'viralkar://referral?code=$code',
+                          ),
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+                          ),
+                          child: const Icon(Icons.share_rounded, color: AppColors.navy900, size: 24),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),

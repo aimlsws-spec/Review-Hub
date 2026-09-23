@@ -1,8 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, HttpStatus, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
-import { CaptionsDto, ReviewDraftsDto, SuggestTextDto } from '../dto';
+import { BadRequestException } from '@common/exceptions/domain.exceptions';
+
+import { CaptionsDto, ComposeStoryDto, ReviewDraftsDto, SuggestTextDto } from '../dto';
 import { AiAssistService } from '../services/ai-assist.service';
 
 /**
@@ -41,5 +44,27 @@ export class AiAssistController {
   @ApiOperation({ summary: 'Generate captions and hashtags for a campaign' })
   async captions(@Body() dto: CaptionsDto) {
     return this.aiAssistService.generateCaptions(dto);
+  }
+
+  @Post('story')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(AI_RATE_LIMIT)
+  @UseInterceptors(FileInterceptor('photo'))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        photo: { type: 'string', format: 'binary' },
+        campaignTitle: { type: 'string' },
+        campaignDescription: { type: 'string' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Compose a campaign photo into a story-ready image, with a caption and hashtags' })
+  async story(@Body() dto: ComposeStoryDto, @UploadedFile() photo?: Express.Multer.File) {
+    if (!photo) throw new BadRequestException('A photo is required to compose a story');
+    return this.aiAssistService.composeStory(dto, photo);
   }
 }

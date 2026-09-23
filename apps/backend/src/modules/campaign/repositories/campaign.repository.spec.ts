@@ -202,6 +202,52 @@ describe('CampaignRepository', () => {
         expect(args.where).toMatchObject({ campaignType: 'REVIEW', OR: [{ title: { contains: 'cafe' } }, { shortDescription: { contains: 'cafe' } }] });
         expect(args).toMatchObject({ skip: 10, take: 10 });
       });
+
+      describe('nearest', () => {
+        // Bangalore. `near` is a couple of km away; `far` is on the other side of the country.
+        const near = { id: 'near', merchant: { latitude: 12.98, longitude: 77.6 } };
+        const far = { id: 'far', merchant: { latitude: 28.7041, longitude: 77.1025 } };
+        const noLocation = { id: 'no-location', merchant: { latitude: null, longitude: null } };
+
+        it('falls back to the default order when latitude/longitude are missing', async () => {
+          mockPrisma.campaign.findMany.mockResolvedValue([]);
+          mockPrisma.campaign.count.mockResolvedValue(0);
+
+          await repository.findPublic({ page: 1, limit: 20, sort: CampaignSort.Nearest });
+
+          const args = mockPrisma.campaign.findMany.mock.calls.at(-1)[0];
+          expect(args.orderBy).toEqual([{ featured: 'desc' }, { createdAt: 'desc' }]);
+        });
+
+        it('sorts closest first and puts merchants with no location last', async () => {
+          mockPrisma.campaign.findMany.mockResolvedValue([far, noLocation, near]);
+          mockPrisma.campaign.count.mockResolvedValue(3);
+
+          const result = await repository.findPublic({ page: 1, limit: 20, sort: CampaignSort.Nearest, latitude: 12.9716, longitude: 77.5946 });
+
+          expect(result.data.map((c: { id: string }) => c.id)).toEqual(['near', 'far', 'no-location']);
+        });
+
+        it('never returns the merchant relation itself, only distance', async () => {
+          mockPrisma.campaign.findMany.mockResolvedValue([near]);
+          mockPrisma.campaign.count.mockResolvedValue(1);
+
+          const result = await repository.findPublic({ page: 1, limit: 20, sort: CampaignSort.Nearest, latitude: 12.9716, longitude: 77.5946 });
+
+          expect(result.data[0]).not.toHaveProperty('merchant');
+          expect(result.data[0]).toHaveProperty('distanceMeters');
+        });
+
+        it('paginates over the candidate batch and caps total to it', async () => {
+          mockPrisma.campaign.findMany.mockResolvedValue([near, far, noLocation]);
+          mockPrisma.campaign.count.mockResolvedValue(3);
+
+          const result = await repository.findPublic({ page: 2, limit: 1, sort: CampaignSort.Nearest, latitude: 12.9716, longitude: 77.5946 });
+
+          expect(result.data.map((c: { id: string }) => c.id)).toEqual(['far']);
+          expect(result.total).toBe(3);
+        });
+      });
     });
   });
 

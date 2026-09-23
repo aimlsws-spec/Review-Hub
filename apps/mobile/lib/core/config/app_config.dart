@@ -25,6 +25,15 @@ class AppConfig {
     defaultValue: true,
   );
 
+  /// From Google Cloud Console, against this app's package name + release SHA fingerprint.
+  /// Empty until that's set up — see auth.controller.ts's `/auth/google/mobile`.
+  static const String googleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+
+  /// Apple's Sign In only works directly on Apple platforms; Android and web need a Service ID
+  /// and a hosted redirect endpoint, neither of which exist here yet.
+  static const String appleServiceId = String.fromEnvironment('APPLE_SERVICE_ID');
+  static const String appleRedirectUri = String.fromEnvironment('APPLE_REDIRECT_URI');
+
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
 }

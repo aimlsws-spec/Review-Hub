@@ -1,13 +1,116 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../providers/auth_providers.dart';
+
+final _socialSignInProvider = AsyncNotifierProvider.autoDispose<_SocialSignInNotifier, void>(_SocialSignInNotifier.new);
+
+class _SocialSignInNotifier extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<bool> signInWithGoogle() async {
+    state = const AsyncLoading();
+    try {
+      final googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize(serverClientId: AppConfig.googleServerClientId.isEmpty ? null : AppConfig.googleServerClientId);
+      final account = await googleSignIn.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null) {
+        state = AsyncError('Google did not return a usable sign-in token.', StackTrace.current);
+        return false;
+      }
+      return _completeSocialLogin(
+        provider: 'google',
+        idToken: idToken,
+        firstName: account.displayName?.split(' ').firstOrNull,
+        lastName: account.displayName?.split(' ').skip(1).join(' '),
+        avatarUrl: account.photoUrl,
+      );
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        state = const AsyncData(null);
+        return false;
+      }
+      state = AsyncError('Could not sign in with Google. Please try again.', StackTrace.current);
+      return false;
+    } catch (_) {
+      state = AsyncError('Could not sign in with Google. Please try again.', StackTrace.current);
+      return false;
+    }
+  }
+
+  Future<bool> signInWithApple() async {
+    if (!kIsWeb && !Platform.isIOS && !Platform.isMacOS && AppConfig.appleServiceId.isEmpty) {
+      state = AsyncError('Apple sign-in is not set up on this platform yet.', StackTrace.current);
+      return false;
+    }
+
+    state = const AsyncLoading();
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+        webAuthenticationOptions: (!kIsWeb && (Platform.isIOS || Platform.isMacOS))
+            ? null
+            : WebAuthenticationOptions(clientId: AppConfig.appleServiceId, redirectUri: Uri.parse(AppConfig.appleRedirectUri)),
+      );
+      return _completeSocialLogin(
+        provider: 'apple',
+        idToken: credential.identityToken!,
+        firstName: credential.givenName,
+        lastName: credential.familyName,
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        state = const AsyncData(null);
+        return false;
+      }
+      state = AsyncError('Could not sign in with Apple. Please try again.', StackTrace.current);
+      return false;
+    } catch (_) {
+      state = AsyncError('Could not sign in with Apple. Please try again.', StackTrace.current);
+      return false;
+    }
+  }
+
+  Future<bool> _completeSocialLogin({
+    required String provider,
+    required String idToken,
+    String? firstName,
+    String? lastName,
+    String? avatarUrl,
+  }) async {
+    final result = await ref.read(authStateProvider.notifier).socialLogin(
+          provider: provider,
+          idToken: idToken,
+          firstName: firstName,
+          lastName: lastName,
+          avatarUrl: avatarUrl,
+        );
+    if (result.isFailure) {
+      state = AsyncError(result.failureOrNull?.message ?? 'Could not sign in — please try again.', StackTrace.current);
+      return false;
+    }
+    state = const AsyncData(null);
+    return true;
+  }
+}
+
+extension _FirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
+}
 
 final _obscurePasswordProvider = StateProvider.autoDispose<bool>((ref) => true);
 final _rememberMeProvider = StateProvider.autoDispose<bool>((ref) => false);
@@ -68,12 +171,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     context.go(RoutePaths.home);
   }
 
+  Future<void> _signInWithGoogle() async {
+    final success = await ref.read(_socialSignInProvider.notifier).signInWithGoogle();
+    if (!mounted || !success) return;
+    context.go(RoutePaths.home);
+  }
+
+  Future<void> _signInWithApple() async {
+    final success = await ref.read(_socialSignInProvider.notifier).signInWithApple();
+    if (!mounted || !success) return;
+    context.go(RoutePaths.home);
+  }
+
   @override
   Widget build(BuildContext context) {
     final submitState = ref.watch(_loginSubmitProvider);
+    final socialSignInState = ref.watch(_socialSignInProvider);
     final obscurePassword = ref.watch(_obscurePasswordProvider);
     final rememberMe = ref.watch(_rememberMeProvider);
-    final errorMessage = submitState.hasError ? submitState.error.toString() : null;
+    final errorMessage = submitState.hasError
+        ? submitState.error.toString()
+        : socialSignInState.hasError
+            ? socialSignInState.error.toString()
+            : null;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -167,6 +287,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   gradient: true,
                   onPressed: _submit,
                 ),
+
+                const SizedBox(height: 24),
+                const Row(
+                  children: [
+                    Expanded(child: Divider(color: AppColors.slate200)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('OR', style: TextStyle(color: AppColors.slate400, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ),
+                    Expanded(child: Divider(color: AppColors.slate200)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: socialSignInState.isLoading ? null : _signInWithApple,
+                  icon: const Icon(Icons.apple, color: AppColors.slate900),
+                  label: const Text('Sign in with Apple', style: TextStyle(color: AppColors.slate900)),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: socialSignInState.isLoading ? null : _signInWithGoogle,
+                  icon: const Icon(Icons.g_mobiledata, color: AppColors.slate900, size: 32),
+                  label: const Text('Sign in with Google', style: TextStyle(color: AppColors.slate900)),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+
                 const SizedBox(height: 24),
                 Center(
                   child: TextButton(

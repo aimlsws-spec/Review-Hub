@@ -7,6 +7,9 @@ import type {
   MerchantWallet,
   WalletTransaction,
   RefundRequest,
+  Settlement,
+  Invoice,
+  InvoiceNote,
   MerchantDocument,
   MerchantBankAccount,
   TeamMember,
@@ -156,6 +159,22 @@ export const merchantApi = {
 
   createRefund: (merchantId: string, data: CreateRefundInput) =>
     apiClient.post<ApiResponse<RefundRequest>>(`/merchants/${merchantId}/refunds`, data),
+
+  // Finance: settlements, GST invoices, credit/debit notes
+  getSettlements: (merchantId: string, params?: { page?: number; limit?: number }) =>
+    apiClient.get<ApiResponse<PaginatedResponse<Settlement>>>(`/merchants/${merchantId}/settlements`, { params }),
+
+  getInvoices: (merchantId: string, params?: { page?: number; limit?: number }) =>
+    apiClient.get<ApiResponse<PaginatedResponse<Invoice>>>(`/merchants/${merchantId}/invoices`, { params }),
+
+  getInvoiceNotes: (merchantId: string, params?: { page?: number; limit?: number }) =>
+    apiClient.get<ApiResponse<PaginatedResponse<InvoiceNote>>>(`/merchants/${merchantId}/invoices/notes`, { params }),
+
+  downloadInvoice: (merchantId: string, invoiceId: string) =>
+    apiClient.get<Blob>(`/merchants/${merchantId}/invoices/${invoiceId}/download`, { responseType: 'blob' }),
+
+  downloadInvoiceNote: (merchantId: string, noteId: string) =>
+    apiClient.get<Blob>(`/merchants/${merchantId}/invoices/notes/${noteId}/download`, { responseType: 'blob' }),
 
   // KYC documents
   getDocuments: (merchantId: string) =>

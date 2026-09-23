@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CampaignTaskModel {
 
- String get id; String get campaignId; String get title; String? get description; String? get instructions; String get taskType; String get verificationType; int get taskOrder; String? get rewardAmount; bool get required; int get minimumTimeSeconds; bool get proofRequired; String? get proofType;
+ String get id; String get campaignId; String get title; String? get description; String? get instructions; String get taskType; String get verificationType; int get taskOrder; String? get rewardAmount; bool get required; int get minimumTimeSeconds; bool get proofRequired; String? get proofType; Map<String, dynamic>? get configuration;
 /// Create a copy of CampaignTaskModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $CampaignTaskModelCopyWith<CampaignTaskModel> get copyWith => _$CampaignTaskMode
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CampaignTaskModel&&(identical(other.id, id) || other.id == id)&&(identical(other.campaignId, campaignId) || other.campaignId == campaignId)&&(identical(other.title, title) || other.title == title)&&(identical(other.description, description) || other.description == description)&&(identical(other.instructions, instructions) || other.instructions == instructions)&&(identical(other.taskType, taskType) || other.taskType == taskType)&&(identical(other.verificationType, verificationType) || other.verificationType == verificationType)&&(identical(other.taskOrder, taskOrder) || other.taskOrder == taskOrder)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.required, required) || other.required == required)&&(identical(other.minimumTimeSeconds, minimumTimeSeconds) || other.minimumTimeSeconds == minimumTimeSeconds)&&(identical(other.proofRequired, proofRequired) || other.proofRequired == proofRequired)&&(identical(other.proofType, proofType) || other.proofType == proofType));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CampaignTaskModel&&(identical(other.id, id) || other.id == id)&&(identical(other.campaignId, campaignId) || other.campaignId == campaignId)&&(identical(other.title, title) || other.title == title)&&(identical(other.description, description) || other.description == description)&&(identical(other.instructions, instructions) || other.instructions == instructions)&&(identical(other.taskType, taskType) || other.taskType == taskType)&&(identical(other.verificationType, verificationType) || other.verificationType == verificationType)&&(identical(other.taskOrder, taskOrder) || other.taskOrder == taskOrder)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.required, required) || other.required == required)&&(identical(other.minimumTimeSeconds, minimumTimeSeconds) || other.minimumTimeSeconds == minimumTimeSeconds)&&(identical(other.proofRequired, proofRequired) || other.proofRequired == proofRequired)&&(identical(other.proofType, proofType) || other.proofType == proofType)&&const DeepCollectionEquality().equals(other.configuration, configuration));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,campaignId,title,description,instructions,taskType,verificationType,taskOrder,rewardAmount,required,minimumTimeSeconds,proofRequired,proofType);
+int get hashCode => Object.hash(runtimeType,id,campaignId,title,description,instructions,taskType,verificationType,taskOrder,rewardAmount,required,minimumTimeSeconds,proofRequired,proofType,const DeepCollectionEquality().hash(configuration));
 
 @override
 String toString() {
-  return 'CampaignTaskModel(id: $id, campaignId: $campaignId, title: $title, description: $description, instructions: $instructions, taskType: $taskType, verificationType: $verificationType, taskOrder: $taskOrder, rewardAmount: $rewardAmount, required: $required, minimumTimeSeconds: $minimumTimeSeconds, proofRequired: $proofRequired, proofType: $proofType)';
+  return 'CampaignTaskModel(id: $id, campaignId: $campaignId, title: $title, description: $description, instructions: $instructions, taskType: $taskType, verificationType: $verificationType, taskOrder: $taskOrder, rewardAmount: $rewardAmount, required: $required, minimumTimeSeconds: $minimumTimeSeconds, proofRequired: $proofRequired, proofType: $proofType, configuration: $configuration)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $CampaignTaskModelCopyWith<$Res>  {
   factory $CampaignTaskModelCopyWith(CampaignTaskModel value, $Res Function(CampaignTaskModel) _then) = _$CampaignTaskModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String campaignId, String title, String? description, String? instructions, String taskType, String verificationType, int taskOrder, String? rewardAmount, bool required, int minimumTimeSeconds, bool proofRequired, String? proofType
+ String id, String campaignId, String title, String? description, String? instructions, String taskType, String verificationType, int taskOrder, String? rewardAmount, bool required, int minimumTimeSeconds, bool proofRequired, String? proofType, Map<String, dynamic>? configuration
 });
 
 
@@ -65,7 +65,7 @@ class _$CampaignTaskModelCopyWithImpl<$Res>
 
 /// Create a copy of CampaignTaskModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? campaignId = null,Object? title = null,Object? description = freezed,Object? instructions = freezed,Object? taskType = null,Object? verificationType = null,Object? taskOrder = null,Object? rewardAmount = freezed,Object? required = null,Object? minimumTimeSeconds = null,Object? proofRequired = null,Object? proofType = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? campaignId = null,Object? title = null,Object? description = freezed,Object? instructions = freezed,Object? taskType = null,Object? verificationType = null,Object? taskOrder = null,Object? rewardAmount = freezed,Object? required = null,Object? minimumTimeSeconds = null,Object? proofRequired = null,Object? proofType = freezed,Object? configuration = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,campaignId: null == campaignId ? _self.campaignId : campaignId // ignore: cast_nullable_to_non_nullable
@@ -80,7 +80,8 @@ as String?,required: null == required ? _self.required : required // ignore: cas
 as bool,minimumTimeSeconds: null == minimumTimeSeconds ? _self.minimumTimeSeconds : minimumTimeSeconds // ignore: cast_nullable_to_non_nullable
 as int,proofRequired: null == proofRequired ? _self.proofRequired : proofRequired // ignore: cast_nullable_to_non_nullable
 as bool,proofType: freezed == proofType ? _self.proofType : proofType // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,configuration: freezed == configuration ? _self.configuration : configuration // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 
@@ -165,10 +166,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String campaignId,  String title,  String? description,  String? instructions,  String taskType,  String verificationType,  int taskOrder,  String? rewardAmount,  bool required,  int minimumTimeSeconds,  bool proofRequired,  String? proofType)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String campaignId,  String title,  String? description,  String? instructions,  String taskType,  String verificationType,  int taskOrder,  String? rewardAmount,  bool required,  int minimumTimeSeconds,  bool proofRequired,  String? proofType,  Map<String, dynamic>? configuration)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CampaignTaskModel() when $default != null:
-return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.instructions,_that.taskType,_that.verificationType,_that.taskOrder,_that.rewardAmount,_that.required,_that.minimumTimeSeconds,_that.proofRequired,_that.proofType);case _:
+return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.instructions,_that.taskType,_that.verificationType,_that.taskOrder,_that.rewardAmount,_that.required,_that.minimumTimeSeconds,_that.proofRequired,_that.proofType,_that.configuration);case _:
   return orElse();
 
 }
@@ -186,10 +187,10 @@ return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.in
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String campaignId,  String title,  String? description,  String? instructions,  String taskType,  String verificationType,  int taskOrder,  String? rewardAmount,  bool required,  int minimumTimeSeconds,  bool proofRequired,  String? proofType)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String campaignId,  String title,  String? description,  String? instructions,  String taskType,  String verificationType,  int taskOrder,  String? rewardAmount,  bool required,  int minimumTimeSeconds,  bool proofRequired,  String? proofType,  Map<String, dynamic>? configuration)  $default,) {final _that = this;
 switch (_that) {
 case _CampaignTaskModel():
-return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.instructions,_that.taskType,_that.verificationType,_that.taskOrder,_that.rewardAmount,_that.required,_that.minimumTimeSeconds,_that.proofRequired,_that.proofType);case _:
+return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.instructions,_that.taskType,_that.verificationType,_that.taskOrder,_that.rewardAmount,_that.required,_that.minimumTimeSeconds,_that.proofRequired,_that.proofType,_that.configuration);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -206,10 +207,10 @@ return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.in
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String campaignId,  String title,  String? description,  String? instructions,  String taskType,  String verificationType,  int taskOrder,  String? rewardAmount,  bool required,  int minimumTimeSeconds,  bool proofRequired,  String? proofType)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String campaignId,  String title,  String? description,  String? instructions,  String taskType,  String verificationType,  int taskOrder,  String? rewardAmount,  bool required,  int minimumTimeSeconds,  bool proofRequired,  String? proofType,  Map<String, dynamic>? configuration)?  $default,) {final _that = this;
 switch (_that) {
 case _CampaignTaskModel() when $default != null:
-return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.instructions,_that.taskType,_that.verificationType,_that.taskOrder,_that.rewardAmount,_that.required,_that.minimumTimeSeconds,_that.proofRequired,_that.proofType);case _:
+return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.instructions,_that.taskType,_that.verificationType,_that.taskOrder,_that.rewardAmount,_that.required,_that.minimumTimeSeconds,_that.proofRequired,_that.proofType,_that.configuration);case _:
   return null;
 
 }
@@ -221,7 +222,7 @@ return $default(_that.id,_that.campaignId,_that.title,_that.description,_that.in
 @JsonSerializable()
 
 class _CampaignTaskModel implements CampaignTaskModel {
-  const _CampaignTaskModel({required this.id, required this.campaignId, required this.title, this.description, this.instructions, required this.taskType, required this.verificationType, this.taskOrder = 0, this.rewardAmount, this.required = true, this.minimumTimeSeconds = 0, this.proofRequired = true, this.proofType});
+  const _CampaignTaskModel({required this.id, required this.campaignId, required this.title, this.description, this.instructions, required this.taskType, required this.verificationType, this.taskOrder = 0, this.rewardAmount, this.required = true, this.minimumTimeSeconds = 0, this.proofRequired = true, this.proofType, final  Map<String, dynamic>? configuration}): _configuration = configuration;
   factory _CampaignTaskModel.fromJson(Map<String, dynamic> json) => _$CampaignTaskModelFromJson(json);
 
 @override final  String id;
@@ -237,6 +238,15 @@ class _CampaignTaskModel implements CampaignTaskModel {
 @override@JsonKey() final  int minimumTimeSeconds;
 @override@JsonKey() final  bool proofRequired;
 @override final  String? proofType;
+ final  Map<String, dynamic>? _configuration;
+@override Map<String, dynamic>? get configuration {
+  final value = _configuration;
+  if (value == null) return null;
+  if (_configuration is EqualUnmodifiableMapView) return _configuration;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
+}
+
 
 /// Create a copy of CampaignTaskModel
 /// with the given fields replaced by the non-null parameter values.
@@ -251,16 +261,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CampaignTaskModel&&(identical(other.id, id) || other.id == id)&&(identical(other.campaignId, campaignId) || other.campaignId == campaignId)&&(identical(other.title, title) || other.title == title)&&(identical(other.description, description) || other.description == description)&&(identical(other.instructions, instructions) || other.instructions == instructions)&&(identical(other.taskType, taskType) || other.taskType == taskType)&&(identical(other.verificationType, verificationType) || other.verificationType == verificationType)&&(identical(other.taskOrder, taskOrder) || other.taskOrder == taskOrder)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.required, required) || other.required == required)&&(identical(other.minimumTimeSeconds, minimumTimeSeconds) || other.minimumTimeSeconds == minimumTimeSeconds)&&(identical(other.proofRequired, proofRequired) || other.proofRequired == proofRequired)&&(identical(other.proofType, proofType) || other.proofType == proofType));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CampaignTaskModel&&(identical(other.id, id) || other.id == id)&&(identical(other.campaignId, campaignId) || other.campaignId == campaignId)&&(identical(other.title, title) || other.title == title)&&(identical(other.description, description) || other.description == description)&&(identical(other.instructions, instructions) || other.instructions == instructions)&&(identical(other.taskType, taskType) || other.taskType == taskType)&&(identical(other.verificationType, verificationType) || other.verificationType == verificationType)&&(identical(other.taskOrder, taskOrder) || other.taskOrder == taskOrder)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.required, required) || other.required == required)&&(identical(other.minimumTimeSeconds, minimumTimeSeconds) || other.minimumTimeSeconds == minimumTimeSeconds)&&(identical(other.proofRequired, proofRequired) || other.proofRequired == proofRequired)&&(identical(other.proofType, proofType) || other.proofType == proofType)&&const DeepCollectionEquality().equals(other._configuration, _configuration));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,campaignId,title,description,instructions,taskType,verificationType,taskOrder,rewardAmount,required,minimumTimeSeconds,proofRequired,proofType);
+int get hashCode => Object.hash(runtimeType,id,campaignId,title,description,instructions,taskType,verificationType,taskOrder,rewardAmount,required,minimumTimeSeconds,proofRequired,proofType,const DeepCollectionEquality().hash(_configuration));
 
 @override
 String toString() {
-  return 'CampaignTaskModel(id: $id, campaignId: $campaignId, title: $title, description: $description, instructions: $instructions, taskType: $taskType, verificationType: $verificationType, taskOrder: $taskOrder, rewardAmount: $rewardAmount, required: $required, minimumTimeSeconds: $minimumTimeSeconds, proofRequired: $proofRequired, proofType: $proofType)';
+  return 'CampaignTaskModel(id: $id, campaignId: $campaignId, title: $title, description: $description, instructions: $instructions, taskType: $taskType, verificationType: $verificationType, taskOrder: $taskOrder, rewardAmount: $rewardAmount, required: $required, minimumTimeSeconds: $minimumTimeSeconds, proofRequired: $proofRequired, proofType: $proofType, configuration: $configuration)';
 }
 
 
@@ -271,7 +281,7 @@ abstract mixin class _$CampaignTaskModelCopyWith<$Res> implements $CampaignTaskM
   factory _$CampaignTaskModelCopyWith(_CampaignTaskModel value, $Res Function(_CampaignTaskModel) _then) = __$CampaignTaskModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String campaignId, String title, String? description, String? instructions, String taskType, String verificationType, int taskOrder, String? rewardAmount, bool required, int minimumTimeSeconds, bool proofRequired, String? proofType
+ String id, String campaignId, String title, String? description, String? instructions, String taskType, String verificationType, int taskOrder, String? rewardAmount, bool required, int minimumTimeSeconds, bool proofRequired, String? proofType, Map<String, dynamic>? configuration
 });
 
 
@@ -288,7 +298,7 @@ class __$CampaignTaskModelCopyWithImpl<$Res>
 
 /// Create a copy of CampaignTaskModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? campaignId = null,Object? title = null,Object? description = freezed,Object? instructions = freezed,Object? taskType = null,Object? verificationType = null,Object? taskOrder = null,Object? rewardAmount = freezed,Object? required = null,Object? minimumTimeSeconds = null,Object? proofRequired = null,Object? proofType = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? campaignId = null,Object? title = null,Object? description = freezed,Object? instructions = freezed,Object? taskType = null,Object? verificationType = null,Object? taskOrder = null,Object? rewardAmount = freezed,Object? required = null,Object? minimumTimeSeconds = null,Object? proofRequired = null,Object? proofType = freezed,Object? configuration = freezed,}) {
   return _then(_CampaignTaskModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,campaignId: null == campaignId ? _self.campaignId : campaignId // ignore: cast_nullable_to_non_nullable
@@ -303,7 +313,8 @@ as String?,required: null == required ? _self.required : required // ignore: cas
 as bool,minimumTimeSeconds: null == minimumTimeSeconds ? _self.minimumTimeSeconds : minimumTimeSeconds // ignore: cast_nullable_to_non_nullable
 as int,proofRequired: null == proofRequired ? _self.proofRequired : proofRequired // ignore: cast_nullable_to_non_nullable
 as bool,proofType: freezed == proofType ? _self.proofType : proofType // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,configuration: freezed == configuration ? _self._configuration : configuration // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 

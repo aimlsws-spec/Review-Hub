@@ -159,6 +159,54 @@ export interface RefundRequest {
 }
 
 // ============================================================
+// FINANCE TYPES (settlements, GST invoices, credit/debit notes)
+// ============================================================
+
+export interface Settlement {
+  id: string
+  merchantId: string
+  periodStart: string
+  periodEnd: string
+  totalToppedUp: string
+  totalSpent: string
+  commissionRate: string
+  commissionAmount: string
+  generatedAt: string
+}
+
+export interface Invoice {
+  id: string
+  settlementId: string
+  merchantId: string
+  invoiceNumber: string
+  platformGstNumber: string | null
+  merchantGstNumber: string | null
+  taxableAmount: string
+  gstRate: string
+  gstAmount: string
+  totalAmount: string
+  pdfPath: string | null
+  generatedAt: string
+}
+
+export type InvoiceNoteType = 'CREDIT' | 'DEBIT'
+
+export interface InvoiceNote {
+  id: string
+  noteNumber: string
+  type: InvoiceNoteType
+  invoiceId: string
+  merchantId: string
+  reason: string
+  taxableAmount: string
+  gstRate: string
+  gstAmount: string
+  totalAmount: string
+  pdfPath: string | null
+  createdAt: string
+}
+
+// ============================================================
 // DOCUMENT TYPES
 // ============================================================
 

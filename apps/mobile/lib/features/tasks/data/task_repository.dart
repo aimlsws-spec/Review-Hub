@@ -28,12 +28,16 @@ class TaskRepository {
     String? filePath,
     String? externalUrl,
     String? textAnswer,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       final formData = FormData.fromMap({
         if (filePath != null) 'file': await MultipartFile.fromFile(filePath),
         if (externalUrl != null && externalUrl.isNotEmpty) 'externalUrl': externalUrl,
         if (textAnswer != null && textAnswer.isNotEmpty) 'textAnswer': textAnswer,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
       });
       final response = await _dio.post<Map<String, dynamic>>(
         ApiEndpoints.taskSubmit(taskId),
@@ -102,6 +106,15 @@ class TaskRepository {
       return Result.success(
         rawList.map((json) => RecommendedTaskModel.fromJson(json as Map<String, dynamic>)).toList(),
       );
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  Future<Result<void>> createDispute(String submissionId, String reason) async {
+    try {
+      await _dio.post<void>('${ApiEndpoints.submission(submissionId)}/dispute', data: {'reason': reason});
+      return const Result.success(null);
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));
     }

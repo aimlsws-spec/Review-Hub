@@ -67,3 +67,13 @@ class ServerFailure extends Failure {
 class UnknownFailure extends Failure {
   const UnknownFailure([super.message = 'An unexpected error occurred.']);
 }
+
+/// The device's location service (GPS) is turned off.
+class LocationServiceDisabledFailure extends Failure {
+  const LocationServiceDisabledFailure([super.message = 'Turn on location services to use this feature.']);
+}
+
+/// The location permission was refused, or permanently denied.
+class LocationPermissionDeniedFailure extends Failure {
+  const LocationPermissionDeniedFailure([super.message = 'Location permission is required for this feature.']);
+}

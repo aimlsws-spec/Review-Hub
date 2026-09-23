@@ -20,6 +20,7 @@ abstract class CampaignTaskModel with _$CampaignTaskModel {
     @Default(0) int minimumTimeSeconds,
     @Default(true) bool proofRequired,
     String? proofType,
+    Map<String, dynamic>? configuration,
   }) = _CampaignTaskModel;
 
   factory CampaignTaskModel.fromJson(Map<String, dynamic> json) => _$CampaignTaskModelFromJson(json);
@@ -50,4 +51,19 @@ extension CampaignTaskModelX on CampaignTaskModel {
         'INSTAGRAM_COMMENT',
         'TEXT',
       }.contains(taskType);
+
+  bool get isQrScanTask => taskType == 'QR_SCAN';
+
+  bool get isLocationCheckInTask => taskType == 'LOCATION_CHECKIN';
+
+  /// Where to check in. Never the expected QR code for a QR_SCAN task — the backend strips that out before this
+  /// model is ever built; see CampaignTaskService.redactForParticipant.
+  double? get targetLatitude => _configNumber('latitude');
+  double? get targetLongitude => _configNumber('longitude');
+  double get targetRadiusMeters => _configNumber('radiusMeters') ?? 200;
+
+  double? _configNumber(String key) {
+    final value = configuration?[key];
+    return value is num ? value.toDouble() : null;
+  }
 }

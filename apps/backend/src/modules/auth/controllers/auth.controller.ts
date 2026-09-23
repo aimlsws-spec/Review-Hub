@@ -5,18 +5,22 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Patch,
   Post,
   Req,
   UseGuards,
   UploadedFile,
   UseInterceptors,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import appleSignin from 'apple-signin-auth';
 import { Request } from 'express';
+import { OAuth2Client } from 'google-auth-library';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser, Public } from '@common/decorators';
@@ -34,6 +38,7 @@ import {
   UpdateProfileDto,
   UpdatePushTokenDto,
 } from '../dto';
+import { MobileSocialLoginDto } from '../dto/mobile-social-login.dto';
 import { AuthService } from '../services/auth.service';
 import { DeviceSignalsInput } from '../services/device.service';
 import { AppleProfile } from '../strategies/apple.strategy';
@@ -42,14 +47,18 @@ import { GoogleProfile } from '../strategies/google.strategy';
 @ApiTags(SWAGGER_TAGS.AUTH)
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+  private readonly googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
   constructor(private readonly authService: AuthService) {}
 
   /** What the request says about the device it came from. The install id is the app's stable X-Device-ID. */
-  private deviceSignals(req: Request, reported: { isRooted?: boolean; isEmulator?: boolean } = {}): DeviceSignalsInput {
+  private deviceSignals(req: Request, reported: { isRooted?: boolean; isEmulator?: boolean; isAutomationDetected?: boolean } = {}): DeviceSignalsInput {
     return {
       // Only these two, on purpose: the caller passes the whole request body, which holds the password.
       isRooted: reported.isRooted,
       isEmulator: reported.isEmulator,
+      isAutomationDetected: reported.isAutomationDetected,
       xForwardedFor: req.headers['x-forwarded-for'] as string | undefined,
       via: req.headers['via'] as string | undefined,
       installId: req.headers['x-device-id'] as string | undefined,
@@ -106,6 +115,39 @@ export class AuthController {
     });
   }
 
+
+  @Public()
+  @Post('google/mobile')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Google sign-in from mobile (ID token)' })
+  async googleMobileAuth(@Body() dto: MobileSocialLoginDto, @Req() req: Request) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: dto.idToken,
+        // Without this, verifyIdToken accepts a valid ID token issued to *any* Google OAuth client, not just
+        // this app's — an audience-confusion hole that would let a token from an unrelated app sign someone in.
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      if (!payload) throw new UnauthorizedException('Invalid Google token');
+
+      return this.authService.socialLogin({
+        provider: 'google',
+        providerId: payload.sub,
+        email: payload.email,
+        firstName: dto.firstName || payload.given_name || 'Google',
+        lastName: dto.lastName || payload.family_name || 'User',
+        avatarUrl: dto.avatarUrl || payload.picture,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        ...this.deviceSignals(req),
+      });
+    } catch (error) {
+      this.logger.warn(`Google mobile sign-in rejected: ${error instanceof Error ? error.message : String(error)}`);
+      throw new UnauthorizedException('Google authentication failed');
+    }
+  }
+
   @Public()
   @Get('apple')
   @UseGuards(AuthGuard('apple'))
@@ -133,6 +175,37 @@ export class AuthController {
       via: req.headers['via'] as string | undefined,
       installId: req.headers['x-device-id'] as string | undefined,
     });
+  }
+
+
+  @Public()
+  @Post('apple/mobile')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Apple sign-in from mobile (ID token)' })
+  async appleMobileAuth(@Body() dto: MobileSocialLoginDto, @Req() req: Request) {
+    try {
+      const payload = await appleSignin.verifyIdToken(dto.idToken, {
+        // Same reasoning as the Google audience check above: without this, any Apple ID token issued to a
+        // different app would still verify successfully.
+        audience: process.env.APPLE_CLIENT_ID,
+        ignoreExpiration: true,
+      });
+      if (!payload) throw new UnauthorizedException('Invalid Apple token');
+
+      return this.authService.socialLogin({
+        provider: 'apple',
+        providerId: payload.sub,
+        email: payload.email,
+        firstName: dto.firstName || 'Apple',
+        lastName: dto.lastName || 'User',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        ...this.deviceSignals(req),
+      });
+    } catch (error) {
+      this.logger.warn(`Apple mobile sign-in rejected: ${error instanceof Error ? error.message : String(error)}`);
+      throw new UnauthorizedException('Apple authentication failed');
+    }
   }
 
   @Patch('devices/push-token')

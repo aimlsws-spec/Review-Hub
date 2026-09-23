@@ -77,6 +77,19 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
     return _loadProfileAfterAuth(repo);
   }
 
+  Future<Result<UserModel?>> socialLogin({
+    required String provider,
+    required String idToken,
+    String? firstName,
+    String? lastName,
+    String? avatarUrl,
+  }) async {
+    final repo = ref.read(authRepositoryProvider);
+    final sessionResult = await repo.socialLogin(provider, idToken, firstName: firstName, lastName: lastName, avatarUrl: avatarUrl);
+    if (sessionResult.isFailure) return Result.failure(sessionResult.failureOrNull!);
+    return _loadProfileAfterAuth(repo);
+  }
+
   /// After a successful register/login, tokens are already saved — fetch the
   /// full profile (the login/register response only embeds a slim summary)
   /// and publish it as the new auth state.

@@ -25,6 +25,7 @@ export const ROUTES = {
   ANALYTICS: '/analytics',
   WALLET: '/wallet',
   REFUNDS: '/refunds',
+  FINANCE: '/finance',
   DOCUMENTS: '/documents',
   SETTINGS: '/settings',
   SUPPORT: '/support',
@@ -40,6 +41,9 @@ export const QUERY_KEYS = {
   WALLET: ['wallet'],
   TRANSACTIONS: ['transactions'],
   REFUNDS: ['refunds'],
+  SETTLEMENTS: ['settlements'],
+  INVOICES: ['invoices'],
+  INVOICE_NOTES: ['invoice-notes'],
   DOCUMENTS: ['documents'],
   BANK_ACCOUNTS: ['bank-accounts'],
   CAMPAIGNS: ['campaigns'],
@@ -88,6 +92,11 @@ export const TEAM_ROLE_LABELS: Record<string, string> = {
   MANAGER: 'Manager',
   ANALYST: 'Analyst',
   VIEWER: 'Viewer',
+}
+
+export const INVOICE_NOTE_TYPE_LABELS: Record<string, string> = {
+  CREDIT: 'Credit note',
+  DEBIT: 'Debit note',
 }
 
 export const DOCUMENT_TYPE_LABELS: Record<string, string> = {

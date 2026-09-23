@@ -167,6 +167,8 @@ enum VerificationType {
   AI
   MANUAL
   HYBRID
+  /// Decided by a deterministic rule (QR-code match, GPS-radius check) — no AI call and no human reviewer.
+  SYSTEM
 }
 
 enum CampaignVisibility {
@@ -227,6 +229,11 @@ enum TaskType {
   WATCH_VIDEO
   YOUTUBE_SUBSCRIBE
   TWITTER_FOLLOW
+  /// Verified by matching the scanned code against `CampaignTask.configuration.qrCode` — never sent to the app;
+  /// see CampaignTaskService.listPublic.
+  QR_SCAN
+  /// Verified by comparing the submitted device coordinates against `CampaignTask.configuration.{latitude,longitude,radiusMeters}`.
+  LOCATION_CHECKIN
 }
 
 enum ParticipantStatus {
@@ -254,6 +261,8 @@ enum EvidenceType {
   URL
   TEXT
   METADATA
+  QR_CODE
+  LOCATION
 }
 
 enum WalletTransactionType {
@@ -290,6 +299,8 @@ enum VerificationSource {
   AI
   MANUAL
   HYBRID
+  /// Decided by a deterministic rule (QR-code match, GPS-radius check) — no AI call and no human reviewer.
+  SYSTEM
 }
 
 enum AIJobStatus {
@@ -546,6 +557,8 @@ model User {
   badges                 UserBadge[]
   dailyRewardClaims      DailyRewardClaim[]
   redemptions            Redemption[]
+  disputes               Dispute[]
+  resolvedDisputes       Dispute[]                @relation("DisputeResolver")
 
   @@index([email])
   @@index([phone])
@@ -665,28 +678,29 @@ model Otp {
 }
 
 model Device {
-  id           String         @id @default(uuid())
-  userId       String
-  name         String?
-  platform     DevicePlatform
-  os           String?
-  appVersion   String?
-  pushToken    String?        @unique
-  fingerprint  String?
+  id                   String         @id @default(uuid())
+  userId               String
+  name                 String?
+  platform             DevicePlatform
+  os                   String?
+  appVersion           String?
+  pushToken            String?        @unique
+  fingerprint          String?
   /// SHA-256 of the stable install id the app sends in X-Device-ID. null until the app sends one.
-  installId    String?
-  isActive     Boolean        @default(true)
-  lastSeenAt   DateTime?
+  installId            String?
+  isActive             Boolean        @default(true)
+  lastSeenAt           DateTime?
   // Basic fraud-risk signals — isRooted/isEmulator are self-reported by the
   // client (a server can't reliably detect either from HTTP alone); vpnSuspected
   // is a lightweight server-side header heuristic, not a commercial IP-intel
   // lookup. riskScore is a simple weighted sum of the three, not a real model.
-  isRooted     Boolean        @default(false)
-  isEmulator   Boolean        @default(false)
-  vpnSuspected Boolean        @default(false)
-  riskScore    Int            @default(0)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  isRooted             Boolean        @default(false)
+  isEmulator           Boolean        @default(false)
+  vpnSuspected         Boolean        @default(false)
+  isAutomationDetected Boolean        @default(false)
+  riskScore            Int            @default(0)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   user         User           @relation(fields: [userId], references: [id])
   sessions     UserSession[]
@@ -784,6 +798,10 @@ model Merchant {
   stateId            String?
   cityId             String?
   postalCode         String?
+  /// The store's exact coordinates, set by the merchant separately from the state/city picker. Powers "nearest"
+  /// campaign sort — null until a merchant sets it, and campaigns for merchants without one simply sort last.
+  latitude           Float?
+  longitude          Float?
   logoUrl            String?
   description        String?                    @db.Text
   verificationStatus MerchantVerificationStatus @default(NOT_SUBMITTED)
@@ -1341,6 +1359,7 @@ model TaskSubmission {
   aiJob       AIVerificationJob?
   reward      Reward?
   fraudFlags  SubmissionFraudFlag[]
+  dispute     Dispute?
 
   @@unique([participantId, taskId, attemptNumber])
   @@index([userId])
@@ -2816,4 +2835,35 @@ model SystemMetric {
   @@index([timestamp])
   @@index([deletedAt])
   @@map("system_metrics")
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  UPHELD
+  REVERSED
+}
+
+model Dispute {
+  id           String        @id @default(uuid())
+  submissionId String        @unique
+  userId       String
+  reason       String        @db.Text
+  status       DisputeStatus @default(OPEN)
+  adminNotes   String?       @db.Text
+  resolvedBy   String?
+  resolvedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+
+  submission TaskSubmission @relation(fields: [submissionId], references: [id])
+  user       User           @relation(fields: [userId], references: [id])
+  resolver   User?          @relation("DisputeResolver", fields: [resolvedBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([resolvedBy])
+  @@index([deletedAt])
+  @@map("disputes")
 }

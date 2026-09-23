@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/location/location_coordinates.dart';
+import '../../../../core/location/location_providers.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
@@ -16,6 +18,24 @@ import '../../providers/task_providers.dart';
 import '../widgets/honest_feedback_notice.dart';
 
 final _pickedFileProvider = StateProvider.autoDispose<File?>((ref) => null);
+final _scannedCodeProvider = StateProvider.autoDispose<String?>((ref) => null);
+
+final _locationCheckProvider =
+    AsyncNotifierProvider.autoDispose<_LocationCheckNotifier, LocationCoordinates?>(_LocationCheckNotifier.new);
+
+class _LocationCheckNotifier extends AsyncNotifier<LocationCoordinates?> {
+  @override
+  Future<LocationCoordinates?> build() async => null;
+
+  Future<void> check() async {
+    state = const AsyncLoading();
+    final result = await ref.read(locationServiceProvider).getCurrentLocation();
+    state = result.when(
+      success: AsyncData.new,
+      failure: (failure) => AsyncError(failure.message, StackTrace.current),
+    );
+  }
+}
 
 final _suggestionProvider =
     AsyncNotifierProvider.autoDispose<_SuggestionNotifier, TextSuggestionModel?>(_SuggestionNotifier.new);
@@ -51,22 +71,36 @@ class _TaskSubmitNotifier extends AsyncNotifier<void> {
     required File? pickedFile,
     required String url,
     required String text,
+    required String? scannedCode,
+    required LocationCoordinates? location,
   }) async {
-    final needsFile = task.acceptsFile && task.proofRequired;
-    final needsUrl = task.acceptsUrl;
-    final needsText = task.acceptsText;
+    if (task.isQrScanTask) {
+      if (scannedCode == null || scannedCode.isEmpty) {
+        state = AsyncError('Please scan the QR code first.', StackTrace.current);
+        return false;
+      }
+    } else if (task.isLocationCheckInTask) {
+      if (location == null) {
+        state = AsyncError('Please check your location first.', StackTrace.current);
+        return false;
+      }
+    } else {
+      final needsFile = task.acceptsFile && task.proofRequired;
+      final needsUrl = task.acceptsUrl;
+      final needsText = task.acceptsText;
 
-    if (needsFile && pickedFile == null && url.isEmpty && text.isEmpty) {
-      state = AsyncError('Please attach evidence: a screenshot, a link, or a written answer.', StackTrace.current);
-      return false;
-    }
-    if (needsUrl && !needsFile && url.isEmpty) {
-      state = AsyncError('Please enter a link as evidence.', StackTrace.current);
-      return false;
-    }
-    if (needsText && !needsFile && !needsUrl && text.isEmpty) {
-      state = AsyncError('Please write your answer.', StackTrace.current);
-      return false;
+      if (needsFile && pickedFile == null && url.isEmpty && text.isEmpty) {
+        state = AsyncError('Please attach evidence: a screenshot, a link, or a written answer.', StackTrace.current);
+        return false;
+      }
+      if (needsUrl && !needsFile && url.isEmpty) {
+        state = AsyncError('Please enter a link as evidence.', StackTrace.current);
+        return false;
+      }
+      if (needsText && !needsFile && !needsUrl && text.isEmpty) {
+        state = AsyncError('Please write your answer.', StackTrace.current);
+        return false;
+      }
     }
 
     state = const AsyncLoading();
@@ -74,7 +108,9 @@ class _TaskSubmitNotifier extends AsyncNotifier<void> {
           taskId,
           filePath: pickedFile?.path,
           externalUrl: url,
-          textAnswer: text,
+          textAnswer: task.isQrScanTask ? scannedCode : text,
+          latitude: location?.latitude,
+          longitude: location?.longitude,
         );
 
     if (result.isFailure) {
@@ -139,6 +175,11 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
     if (picked != null) ref.read(_pickedFileProvider.notifier).state = File(picked.path);
   }
 
+  Future<void> _scanQrCode() async {
+    final code = await context.push<String>(RoutePaths.qrScanner);
+    if (code != null) ref.read(_scannedCodeProvider.notifier).state = code;
+  }
+
   Future<void> _submit() async {
     final success = await ref.read(_taskSubmitProvider.notifier).submit(
           task: widget.task,
@@ -146,6 +187,8 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
           pickedFile: ref.read(_pickedFileProvider),
           url: _urlController.text.trim(),
           text: _textController.text.trim(),
+          scannedCode: ref.read(_scannedCodeProvider),
+          location: ref.read(_locationCheckProvider).value,
         );
 
     if (!mounted || !success) return;
@@ -198,6 +241,21 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
                   onGenerate: () => ref.read(_suggestionProvider.notifier).generate(widget.taskId),
                   onCopy: () => _copySuggestion(suggestionState.value!),
                   onUse: () => _useSuggestion(suggestionState.value!),
+                ),
+                const SizedBox(height: 20),
+              ],
+              if (task.isQrScanTask) ...[
+                _QrScanCard(
+                  scannedCode: ref.watch(_scannedCodeProvider),
+                  onScan: _scanQrCode,
+                  onClear: () => ref.read(_scannedCodeProvider.notifier).state = null,
+                ),
+                const SizedBox(height: 20),
+              ],
+              if (task.isLocationCheckInTask) ...[
+                _LocationCheckInCard(
+                  state: ref.watch(_locationCheckProvider),
+                  onCheck: () => ref.read(_locationCheckProvider.notifier).check(),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -386,6 +444,108 @@ class _TextAssistCard extends StatelessWidget {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Either a "Scan QR code" button, or confirmation that one was scanned with a way to redo it.
+/// Never shows the expected code — the backend never sends it to the app either; see
+/// CampaignTaskService.redactForParticipant.
+class _QrScanCard extends StatelessWidget {
+  const _QrScanCard({required this.scannedCode, required this.onScan, required this.onClear});
+
+  final String? scannedCode;
+  final VoidCallback onScan;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    if (scannedCode == null) {
+      return OutlinedButton.icon(
+        onPressed: onScan,
+        icon: const Icon(Icons.qr_code_scanner, size: 18),
+        label: const Text('Scan QR code'),
+      );
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.successBg, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+          const SizedBox(width: 10),
+          const Expanded(child: Text('QR code scanned', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+          TextButton(onPressed: onClear, child: const Text('Scan again')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Captures the device's current position on demand — never automatically — for a LOCATION_CHECKIN task.
+/// The backend has the final say on whether it's close enough; this only gets a reading to send.
+class _LocationCheckInCard extends StatelessWidget {
+  const _LocationCheckInCard({required this.state, required this.onCheck});
+
+  final AsyncValue<LocationCoordinates?> state;
+  final VoidCallback onCheck;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.location_on_outlined, size: 18, color: AppColors.primary600),
+              SizedBox(width: 8),
+              Expanded(child: Text('Check in at this location', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+            ],
+          ),
+          const SizedBox(height: 10),
+          state.when(
+            data: (coordinates) => coordinates == null
+                ? OutlinedButton.icon(
+                    onPressed: onCheck,
+                    icon: const Icon(Icons.my_location, size: 18),
+                    label: const Text('Check my location'),
+                  )
+                : Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: AppColors.success, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(child: Text('Location captured', style: TextStyle(fontSize: 13))),
+                      TextButton(onPressed: onCheck, child: const Text('Recheck')),
+                    ],
+                  ),
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+            error: (error, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$error', style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: onCheck,
+                  icon: const Icon(Icons.my_location, size: 18),
+                  label: const Text('Try again'),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

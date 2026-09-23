@@ -10,3 +10,4 @@ export * from './resend-otp.dto';
 export * from './change-password.dto';
 export * from './update-profile.dto';
 export * from './update-push-token.dto';
+export * from './mobile-social-login.dto';

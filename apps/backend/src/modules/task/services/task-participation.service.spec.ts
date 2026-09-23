@@ -12,6 +12,9 @@ import { MerchantRepository } from '../../merchant/repositories';
 import { SubmissionRiskService } from '../../risk/services';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
+import { LocationCheckinVerificationService } from './location-checkin-verification.service';
+import { QrScanVerificationService } from './qr-scan-verification.service';
+import { SubmissionService } from './submission.service';
 import { TaskParticipationService } from './task-participation.service';
 
 describe('TaskParticipationService', () => {
@@ -56,6 +59,9 @@ describe('TaskParticipationService', () => {
 
   const mockSubmissionRisk = { assess: jest.fn() };
   const mockAiQueue = { add: jest.fn() };
+  const mockSubmissionService = { aiApprove: jest.fn(), aiReject: jest.fn() };
+  const mockQrScanVerification = { verify: jest.fn() };
+  const mockLocationCheckinVerification = { verify: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -70,6 +76,9 @@ describe('TaskParticipationService', () => {
         { provide: AiAssistService, useValue: mockAiAssistService },
         { provide: MerchantRepository, useValue: mockMerchantRepository },
         { provide: SubmissionRiskService, useValue: mockSubmissionRisk },
+        { provide: SubmissionService, useValue: mockSubmissionService },
+        { provide: QrScanVerificationService, useValue: mockQrScanVerification },
+        { provide: LocationCheckinVerificationService, useValue: mockLocationCheckinVerification },
         { provide: getQueueToken(QUEUE_NAMES.AI_VERIFICATION), useValue: mockAiQueue },
       ],
     }).compile();
@@ -379,6 +388,90 @@ describe('TaskParticipationService', () => {
       } as Express.Multer.File;
 
       await expect(service.submitTask('task-1', 'user-1', {}, file)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('submitTask — QR_SCAN and LOCATION_CHECKIN (deterministic, no AI queue)', () => {
+    const qrTask = { ...task, taskType: 'QR_SCAN', configuration: { qrCode: 'STORE-42' } };
+    const locationTask = { ...task, taskType: 'LOCATION_CHECKIN', configuration: { latitude: 12.9716, longitude: 77.5946, radiusMeters: 200 } };
+
+    beforeEach(() => {
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+      mockParticipantRepository.findByCampaignAndUser.mockResolvedValue(participant);
+      mockSubmissionRepository.findLatestAttempt.mockResolvedValue(null);
+      mockSubmissionRepository.create.mockResolvedValue({ id: 'submission-1' });
+      mockSubmissionRepository.findById.mockResolvedValue({ id: 'submission-1', status: 'APPROVED' });
+    });
+
+    it('skips the proof-required check, the AI queue, and the verification job for QR_SCAN', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(qrTask);
+      mockQrScanVerification.verify.mockReturnValue({ passed: true });
+
+      const result = await service.submitTask('task-1', 'user-1', {});
+
+      expect(result).toHaveProperty('id', 'submission-1');
+      expect(mockAiQueue.add).not.toHaveBeenCalled();
+      expect(mockSubmissionRepository.createVerificationJob).not.toHaveBeenCalled();
+      expect(mockSubmissionRepository.create).toHaveBeenCalledWith(expect.objectContaining({ verificationSource: 'SYSTEM' }));
+    });
+
+    it('approves a QR_SCAN submission immediately when the scanned code matches', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(qrTask);
+      mockQrScanVerification.verify.mockReturnValue({ passed: true });
+
+      await service.submitTask('task-1', 'user-1', { textAnswer: 'STORE-42' });
+
+      expect(mockQrScanVerification.verify).toHaveBeenCalledWith(qrTask.configuration, 'STORE-42');
+      expect(mockSubmissionService.aiApprove).toHaveBeenCalledWith('submission-1');
+      expect(mockSubmissionService.aiReject).not.toHaveBeenCalled();
+    });
+
+    it('rejects a QR_SCAN submission immediately when the scanned code does not match', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(qrTask);
+      mockQrScanVerification.verify.mockReturnValue({ passed: false, reason: 'That QR code does not match this task' });
+
+      await service.submitTask('task-1', 'user-1', { textAnswer: 'WRONG' });
+
+      expect(mockSubmissionService.aiReject).toHaveBeenCalledWith('submission-1', 'That QR code does not match this task');
+      expect(mockSubmissionService.aiApprove).not.toHaveBeenCalled();
+    });
+
+    it('approves a LOCATION_CHECKIN submission immediately when within radius', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(locationTask);
+      mockLocationCheckinVerification.verify.mockReturnValue({ passed: true, distanceMeters: 10 });
+
+      await service.submitTask('task-1', 'user-1', { latitude: 12.9716, longitude: 77.5946 });
+
+      expect(mockLocationCheckinVerification.verify).toHaveBeenCalledWith(locationTask.configuration, { latitude: 12.9716, longitude: 77.5946 });
+      expect(mockSubmissionRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ metadata: { latitude: 12.9716, longitude: 77.5946 } }),
+      );
+      expect(mockSubmissionService.aiApprove).toHaveBeenCalledWith('submission-1');
+    });
+
+    it('rejects a LOCATION_CHECKIN submission with no location sent, without throwing a generic proof error', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(locationTask);
+      mockLocationCheckinVerification.verify.mockReturnValue({ passed: false, reason: 'Your location is required for this task' });
+
+      const result = await service.submitTask('task-1', 'user-1', {});
+
+      expect(mockLocationCheckinVerification.verify).toHaveBeenCalledWith(locationTask.configuration, null);
+      expect(mockSubmissionService.aiReject).toHaveBeenCalledWith('submission-1', 'Your location is required for this task');
+      expect(result).toHaveProperty('id', 'submission-1');
+    });
+
+    it('still runs the risk check for a deterministic submission', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(qrTask);
+      mockQrScanVerification.verify.mockReturnValue({ passed: true });
+
+      await service.submitTask('task-1', 'user-1', { textAnswer: 'STORE-42' }, undefined, { ip: '203.0.113.9' });
+
+      expect(mockSubmissionRisk.assess).toHaveBeenCalledWith({
+        submissionId: 'submission-1',
+        userId: 'user-1',
+        campaignId: 'campaign-1',
+        ip: '203.0.113.9',
+      });
     });
   });
 });

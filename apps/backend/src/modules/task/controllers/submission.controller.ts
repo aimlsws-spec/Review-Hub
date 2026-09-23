@@ -7,13 +7,13 @@ import { SystemRole } from '@common/enums';
 
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
-import { RejectSubmissionDto, SubmissionQueryDto } from '../dto';
-import { SubmissionService } from '../services';
+import { CreateDisputeDto, RejectSubmissionDto, SubmissionQueryDto } from '../dto';
+import { DisputeService, SubmissionService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.SUBMISSIONS)
 @Controller({ path: 'submissions', version: '1' })
 export class SubmissionController {
-  constructor(private readonly submissionService: SubmissionService) {}
+  constructor(private readonly submissionService: SubmissionService, private readonly disputeService: DisputeService) {}
 
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -53,5 +53,17 @@ export class SubmissionController {
     @Body() dto: RejectSubmissionDto,
   ) {
     return this.submissionService.reject(submissionId, reviewerId, dto);
+  }
+
+  @Post(':submissionId/dispute')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Dispute a rejected submission' })
+  async dispute(
+    @Param('submissionId') submissionId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateDisputeDto,
+  ) {
+    return this.disputeService.createDispute(submissionId, userId, dto);
   }
 }
