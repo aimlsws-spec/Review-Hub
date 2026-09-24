@@ -1490,6 +1490,14 @@ model MerchantWallet {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  /// Auto-recharge: when availableBalance drops to/below autoRechargeThreshold, the scheduler
+  /// tops up by autoRechargeAmount. lastAutoRechargeAt gates re-triggering within the same
+  /// AUTO_RECHARGE_COOLDOWN_MINUTES window so an unconfirmed order isn't retried every sweep.
+  autoRechargeEnabled   Boolean   @default(false)
+  autoRechargeThreshold Decimal?  @db.Decimal(12, 2)
+  autoRechargeAmount    Decimal?  @db.Decimal(12, 2)
+  lastAutoRechargeAt    DateTime?
+
   merchant       Merchant                @relation(fields: [merchantId], references: [id], map: "merchant_wallet_merchant_fk")
   transactions   WalletTransaction[]
   refundRequests MerchantRefundRequest[]

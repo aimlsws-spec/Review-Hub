@@ -37,7 +37,7 @@ describe('TaskParticipationService', () => {
   };
   const mockStorageService = { saveFile: jest.fn() };
   const mockEventEmitter = { emit: jest.fn() };
-  const mockAiAssistService = { suggestText: jest.fn(), draftReviews: jest.fn(), generateCaptions: jest.fn() };
+  const mockAiAssistService = { suggestText: jest.fn(), draftReviews: jest.fn(), generateCaptions: jest.fn(), composeStory: jest.fn() };
   const mockMerchantRepository = { findById: jest.fn() };
 
   const activeCampaign = {
@@ -244,6 +244,30 @@ describe('TaskParticipationService', () => {
         campaignDescription: 'A great new product.',
       });
       expect(result.source).toBe('llm');
+    });
+  });
+
+  describe('composeStory', () => {
+    beforeEach(() => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(task);
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+    });
+
+    it('delegates to AiAssistService with the campaign context and the photo, for any task type', async () => {
+      const photo = { buffer: Buffer.from('fake-image'), mimetype: 'image/png', originalname: 'photo.png' } as Express.Multer.File;
+      mockAiAssistService.composeStory.mockResolvedValue({
+        imageUrl: '/stories/uuid.jpg',
+        caption: 'Summer Launch!',
+        hashtags: ['#SummerLaunch'],
+      });
+
+      const result = await service.composeStory('task-1', photo);
+
+      expect(mockAiAssistService.composeStory).toHaveBeenCalledWith(
+        { campaignTitle: 'Summer Launch', campaignDescription: 'A great new product.' },
+        photo,
+      );
+      expect(result.imageUrl).toBe('/stories/uuid.jpg');
     });
   });
 

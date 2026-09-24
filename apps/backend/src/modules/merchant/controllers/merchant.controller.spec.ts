@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { MerchantOwnershipGuard } from '../guards';
 import { MerchantRepository, MerchantTeamRepository } from '../repositories';
-import { MerchantService, KycService, TeamService, BankService, WalletService, DashboardService, RefundService } from '../services';
+import { AutoRechargeService, MerchantService, KycService, TeamService, BankService, WalletService, DashboardService, RefundService } from '../services';
 
 import { MerchantController } from './merchant.controller';
 
@@ -59,6 +59,11 @@ describe('MerchantController', () => {
     getMine: jest.fn(),
   };
 
+  const mockAutoRechargeService = {
+    getSettings: jest.fn(),
+    updateSettings: jest.fn(),
+  };
+
   const mockMerchantRepository = {};
   const mockTeamRepository = {};
 
@@ -73,6 +78,7 @@ describe('MerchantController', () => {
         { provide: WalletService, useValue: mockWalletService },
         { provide: DashboardService, useValue: mockDashboardService },
         { provide: RefundService, useValue: mockRefundService },
+        { provide: AutoRechargeService, useValue: mockAutoRechargeService },
         MerchantOwnershipGuard,
         // PaymentSimulationGuard (on the simulate route) needs ConfigService to be constructed.
         { provide: ConfigService, useValue: { get: jest.fn() } },
@@ -174,6 +180,23 @@ describe('MerchantController', () => {
       const dto = { razorpayOrderId: 'order_1', razorpayPaymentId: 'pay_1', razorpaySignature: 'sig_1' };
       await controller.verifyRecharge('merchant-1', dto as never);
       expect(mockWalletService.verifyRecharge).toHaveBeenCalledWith('merchant-1', dto);
+    });
+  });
+
+  describe('getAutoRechargeSettings', () => {
+    it('should call autoRechargeService.getSettings', async () => {
+      mockAutoRechargeService.getSettings.mockResolvedValue({ enabled: false, threshold: null, amount: null, lastTriggeredAt: null });
+      const result = await controller.getAutoRechargeSettings('merchant-1');
+      expect(mockAutoRechargeService.getSettings).toHaveBeenCalledWith('merchant-1');
+      expect(result.enabled).toBe(false);
+    });
+  });
+
+  describe('updateAutoRechargeSettings', () => {
+    it('should call autoRechargeService.updateSettings', async () => {
+      const dto = { enabled: true, threshold: 500, amount: 5000 };
+      await controller.updateAutoRechargeSettings('merchant-1', dto as never);
+      expect(mockAutoRechargeService.updateSettings).toHaveBeenCalledWith('merchant-1', dto);
     });
   });
 

@@ -170,6 +170,10 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
     }
   }
 
+  void _openAiStory() {
+    context.push(RoutePaths.aiStoryPath(widget.taskId));
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     final picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
     if (picked != null) ref.read(_pickedFileProvider.notifier).state = File(picked.path);
@@ -242,6 +246,10 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
                   onCopy: () => _copySuggestion(suggestionState.value!),
                   onUse: () => _useSuggestion(suggestionState.value!),
                 ),
+                const SizedBox(height: 20),
+              ],
+              if (task.isStoryTask) ...[
+                _StoryAssistCard(onOpen: _openAiStory),
                 const SizedBox(height: 20),
               ],
               if (task.isQrScanTask) ...[
@@ -355,6 +363,41 @@ class _ReviewAssistantCard extends StatelessWidget {
             ),
           ),
           TextButton(onPressed: onOpen, child: const Text('Help me write')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Opens the AI story composer — free to use, optional. Shown only for tasks where posting a story
+/// is the point (see [CampaignTaskModelX.isStoryTask]); independent of the review/text-assist cards
+/// above since a task can want both a caption suggestion and a composed story image.
+class _StoryAssistCard extends StatelessWidget {
+  const _StoryAssistCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary100),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary600),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Turn a photo into a ready-to-post story?',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(onPressed: onOpen, child: const Text('Create a story')),
         ],
       ),
     );

@@ -79,6 +79,11 @@ export function applyTestEnv(env: NodeJS.ProcessEnv = process.env): void {
   env.LOG_LEVEL = env.LOG_LEVEL ?? 'error';
   env.JWT_ACCESS_SECRET = env.JWT_ACCESS_SECRET ?? 'e2e-only-access-secret-at-least-32-characters';
   env.JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET ?? 'e2e-only-refresh-secret-at-least-32-characters';
+  // prisma/seed.ts generates a random admin password per run unless these are set. Pinned here — never in the seed
+  // itself — so e2e fixtures (test/utils/api.ts) can log in deterministically; this only ever runs against the
+  // throwaway _test database asserted below, so a fixed password here carries none of the production risk.
+  env.SEED_SUPER_ADMIN_PASSWORD = env.SEED_SUPER_ADMIN_PASSWORD ?? 'SuperAdmin@123';
+  env.SEED_ADMIN_PASSWORD = env.SEED_ADMIN_PASSWORD ?? 'Admin@123456';
 }
 
 /** Throws unless everything the run is about to touch is safe to change. */

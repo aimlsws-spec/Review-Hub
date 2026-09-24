@@ -27,6 +27,19 @@ export const validationSchema = Joi.object({
     then: Joi.string().valid('razorpay').allow(''),
     otherwise: Joi.string().valid('mock', 'razorpay').allow(''),
   }),
+  // enableCors() in main.ts always sets credentials: true. Paired with the app.corsOrigins
+  // fallback of '*' (see app.config.ts), an operator who forgets to set this in production would
+  // silently get a CORS setup that lets any website make authenticated requests against this API —
+  // browsers block a literal "*" alongside credentials, but the underlying cors package reflects
+  // the caller's Origin back verbatim in that case, which has the same effect. Fail loud instead.
+  CORS_ORIGINS: Joi.alternatives().conditional('NODE_ENV', {
+    is: 'production',
+    then: Joi.string().required().invalid('', '*').messages({
+      'any.invalid': 'CORS_ORIGINS must be a real comma-separated origin list in production, never "*" — credentials are always enabled',
+      'any.required': 'CORS_ORIGINS is required in production — credentials are always enabled, so the origin list must be explicit',
+    }),
+    otherwise: Joi.string().allow('', '*'),
+  }),
   DATABASE_URL: Joi.string().required(),
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),

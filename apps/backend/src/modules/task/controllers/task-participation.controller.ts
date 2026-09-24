@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 
 import { SWAGGER_TAGS } from '@common/constants';
@@ -9,6 +10,9 @@ import { CurrentUser } from '@common/decorators';
 import { DraftReviewDto } from '../../ai/dto';
 import { SubmitTaskDto } from '../dto';
 import { TaskParticipationService } from '../services';
+
+/** Runs a language model plus image composition — same cost profile as ai/assist's own routes, so the same limit. */
+const AI_STORY_RATE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
 
 @ApiTags(SWAGGER_TAGS.TASKS)
 @Controller({ path: 'tasks', version: '1' })
@@ -46,6 +50,19 @@ export class TaskParticipationController {
   @ApiOperation({ summary: "Get AI-generated social captions (short/long/professional/festival/emoji) for this task's campaign" })
   async captions(@Param('taskId') taskId: string) {
     return this.participationService.generateCaptions(taskId);
+  }
+
+  @Post(':taskId/story')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(AI_STORY_RATE_LIMIT)
+  @UseInterceptors(FileInterceptor('photo'))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { photo: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({ summary: "Compose a photo into a story-ready image with a caption, for this task's campaign" })
+  async story(@Param('taskId') taskId: string, @UploadedFile() photo?: Express.Multer.File) {
+    if (!photo) throw new BadRequestException('A photo is required to compose a story');
+    return this.participationService.composeStory(taskId, photo);
   }
 
   @Post(':taskId/submit')

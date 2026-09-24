@@ -32,6 +32,7 @@ import '../../features/support/presentation/screens/support_ticket_detail_screen
 import '../../features/support/presentation/screens/support_tickets_screen.dart';
 import '../../features/tasks/presentation/screens/my_submissions_screen.dart';
 import '../../features/tasks/presentation/screens/qr_scanner_screen.dart';
+import '../../features/tasks/presentation/screens/ai_story_screen.dart';
 import '../../features/tasks/presentation/screens/review_assistant_screen.dart';
 import '../../features/tasks/presentation/screens/task_detail_screen.dart';
 import '../../features/tasks/presentation/screens/task_submission_screen.dart';
@@ -169,6 +170,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.reviewAssistant,
         builder: (context, state) => ReviewAssistantScreen(taskId: state.pathParameters['taskId']!),
+      ),
+      GoRoute(
+        path: RoutePaths.aiStory,
+        builder: (context, state) => AiStoryScreen(taskId: state.pathParameters['taskId']!),
       ),
       GoRoute(path: RoutePaths.mySubmissions, builder: (context, state) => const MySubmissionsScreen()),
       GoRoute(path: RoutePaths.qrScanner, builder: (context, state) => const QrScannerScreen()),

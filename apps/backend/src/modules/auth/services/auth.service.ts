@@ -398,7 +398,7 @@ export class AuthService {
     const user = await this.userRepository.findByIdSimple(userId);
     if (!user) throw new NotFoundException('User');
 
-    const uploadResult = await this.storageService.saveFile(file.buffer, file.originalname, 'profile');
+    const uploadResult = await this.storageService.saveFile(file.buffer, file.originalname, 'profile', file.mimetype);
     
     // Optionally delete old avatar file if it's local (not an external URL)
     if (user.avatarUrl && !user.avatarUrl.startsWith('http')) {

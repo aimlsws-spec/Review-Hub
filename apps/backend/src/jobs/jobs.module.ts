@@ -8,13 +8,13 @@ import { SettlementModule } from '../modules/settlement/settlement.module';
 import { TaskModule } from '../modules/task/task.module';
 import { WalletModule } from '../modules/wallet/wallet.module';
 
-import { AiVerificationProcessor, EmailProcessor, NotificationProcessor, RewardProcessor, SettlementProcessor } from './processors';
+import { AiVerificationProcessor, EmailProcessor, NotificationProcessor, RewardProcessor, SettlementProcessor, WalletAutoRechargeProcessor } from './processors';
 
 
 /** Hosts the BullMQ workers for the queues registered in QueueModule — the actual work, as opposed to the producers that enqueue it. */
 @Module({
   imports: [MailModule, NotificationModule, WalletModule, MerchantModule, SettlementModule, AiModule, TaskModule],
-  providers: [EmailProcessor, NotificationProcessor, RewardProcessor, SettlementProcessor, AiVerificationProcessor],
+  providers: [EmailProcessor, NotificationProcessor, RewardProcessor, SettlementProcessor, AiVerificationProcessor, WalletAutoRechargeProcessor],
 })
 export class JobsModule {
   private readonly logger = new Logger(JobsModule.name);

@@ -9,3 +9,4 @@ export * from './manual-top-up.dto';
 export * from './review.dto';
 export * from './customer.dto';
 export * from './refund.dto';
+export * from './auto-recharge.dto';

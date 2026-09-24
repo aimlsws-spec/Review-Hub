@@ -61,6 +61,17 @@ import { StorageModule } from './storage/storage.module';
     // documents and task-submission proof are deliberately excluded since serve-static's
     // `exclude` option only skips the SPA fallback route, not the underlying static
     // middleware, so it cannot be used to gate access to sensitive uploads.
+    //
+    // SECURITY (fixed 23 Sep 2026, security review): `user` and `merchant` were mounted
+    // here too, contradicting this comment and the identical one in kyc.service.ts /
+    // user-kyc.service.ts. Every saveFile() call into either folder is a sensitive
+    // document — user PAN/KYC uploads (user/{userId}/documents), merchant KYC documents
+    // and GST invoices/credit-debit notes (merchant/{merchantId}/documents|invoices) —
+    // so both trees were reachable with a UUID filename and zero authentication, the
+    // exact thing this comment says never happens. Both already have a proper
+    // authenticated download path with an ownership check (see getDocumentFilePath in
+    // user-kyc.service.ts / kyc.service.ts, used by their controllers' res.sendFile()) —
+    // removing the static mount only closes the accidental duplicate, unauthenticated one.
     ServeStaticModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
@@ -69,8 +80,11 @@ import { StorageModule } from './storage/storage.module';
           { rootPath: path.join(uploadsRoot, 'profile'), serveRoot: '/uploads/profile' },
           { rootPath: path.join(uploadsRoot, 'campaign'), serveRoot: '/uploads/campaign' },
           { rootPath: path.join(uploadsRoot, 'cms'), serveRoot: '/uploads/cms' },
-          { rootPath: path.join(uploadsRoot, 'user'), serveRoot: '/uploads/user' },
-          { rootPath: path.join(uploadsRoot, 'merchant'), serveRoot: '/uploads/merchant' },
+          // AI-composed story images (ai-assist.service.ts composeStory) — marketing content meant
+          // to be shared/reposted, same public category as profile/campaign/cms above. Added
+          // 23 Sep 2026: without this the backend endpoint returned an imageUrl no client could
+          // ever load, since it was the one thing saveFile() wrote outside every mounted folder.
+          { rootPath: path.join(uploadsRoot, 'stories'), serveRoot: '/uploads/stories' },
         ];
       },
     }),

@@ -31,13 +31,14 @@ import {
   KycUploadDto,
   RegisterMerchantDto,
   SetDefaultBankDto,
+  UpdateAutoRechargeSettingsDto,
   UpdateBankDto,
   UpdateMerchantDto,
   UpdateTeamDto,
   VerifyRechargeDto,
 } from '../dto';
 import { MerchantOwnershipGuard } from '../guards';
-import { MerchantService, KycService, TeamService, BankService, WalletService, DashboardService, RefundService } from '../services';
+import { AutoRechargeService, MerchantService, KycService, TeamService, BankService, WalletService, DashboardService, RefundService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.MERCHANTS)
 @Controller({ path: 'merchants', version: '1' })
@@ -50,6 +51,7 @@ export class MerchantController {
     private readonly walletService: WalletService,
     private readonly dashboardService: DashboardService,
     private readonly refundService: RefundService,
+    private readonly autoRechargeService: AutoRechargeService,
   ) {}
 
   @Post('register')
@@ -331,6 +333,25 @@ export class MerchantController {
   @ApiBody({ type: CreateRechargeDto })
   async simulateRecharge(@Param('merchantId') merchantId: string, @Body() dto: CreateRechargeDto) {
     return this.walletService.simulateRecharge(merchantId, dto.amount);
+  }
+
+  @Get(':merchantId/wallet/auto-recharge')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(MerchantOwnershipGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the wallet auto-recharge settings' })
+  async getAutoRechargeSettings(@Param('merchantId') merchantId: string) {
+    return this.autoRechargeService.getSettings(merchantId);
+  }
+
+  @Patch(':merchantId/wallet/auto-recharge')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(MerchantOwnershipGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Enable/configure or disable wallet auto-recharge' })
+  @ApiBody({ type: UpdateAutoRechargeSettingsDto })
+  async updateAutoRechargeSettings(@Param('merchantId') merchantId: string, @Body() dto: UpdateAutoRechargeSettingsDto) {
+    return this.autoRechargeService.updateSettings(merchantId, dto);
   }
 
   @Post(':merchantId/refunds')

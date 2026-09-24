@@ -5,7 +5,12 @@ import { CampaignStatus } from '@prisma/client';
 import { CampaignStatusChangedEvent } from '../../campaign/events';
 import { BadgeEarnedEvent, LevelUpEvent } from '../../gamification/events';
 import { MarketplaceRedeemedEvent } from '../../marketplace/events';
-import { MerchantToppedUpEvent, MerchantTopUpReversedEvent } from '../../merchant/events';
+import {
+  MerchantAutoRechargePaymentDueEvent,
+  MerchantAutoRechargeTriggeredEvent,
+  MerchantToppedUpEvent,
+  MerchantTopUpReversedEvent,
+} from '../../merchant/events';
 import { MerchantRepository } from '../../merchant/repositories';
 import { DisputeResolvedEvent, SubmissionRejectedEvent } from '../../task/events';
 import { UserKycReviewedEvent } from '../../user-kyc/events';
@@ -107,6 +112,24 @@ export class NotificationListener {
       title: 'A wallet top-up was reversed',
       message: `₹${event.amount} was taken back out of your wallet: ${event.reason}. Your balance is now ₹${event.balanceAfter}. If you think this is a mistake, contact support.`,
       data: { amount: event.amount, reason: event.reason },
+    });
+  }
+
+  @OnEvent('merchant.wallet.auto_recharge_triggered')
+  async handleAutoRechargeTriggered(event: MerchantAutoRechargeTriggeredEvent) {
+    await this.notifyMerchantOwner(event.merchantId, {
+      title: 'Wallet auto-recharged',
+      message: `Your balance dropped to ₹${event.thresholdCrossed} or below, so we added ₹${event.amount} automatically. Your balance is now ₹${event.balanceAfter}.`,
+      data: { amount: event.amount, balanceAfter: event.balanceAfter },
+    });
+  }
+
+  @OnEvent('merchant.wallet.auto_recharge_payment_due')
+  async handleAutoRechargePaymentDue(event: MerchantAutoRechargePaymentDueEvent) {
+    await this.notifyMerchantOwner(event.merchantId, {
+      title: 'Complete your wallet auto-recharge',
+      message: `Your balance dropped to ₹${event.availableBalance}, at or below your ₹${event.thresholdCrossed} threshold. We've started a ₹${event.amount} top-up — complete the payment to keep your campaigns running.`,
+      data: { amount: event.amount, razorpayOrderId: event.razorpayOrderId },
     });
   }
 

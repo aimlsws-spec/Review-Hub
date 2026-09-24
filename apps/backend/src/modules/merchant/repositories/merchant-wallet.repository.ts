@@ -466,4 +466,42 @@ export class MerchantWalletRepository {
       });
     });
   }
+
+  /** Enable/configure or disable auto-recharge. Disabling clears threshold/amount rather than just flipping the flag, so a later re-enable never silently reuses a stale value. */
+  async updateAutoRechargeSettings(merchantId: string, settings: { enabled: boolean; threshold?: number; amount?: number }) {
+    const wallet = await this.getOrCreate(merchantId);
+    return this.prisma.merchantWallet.update({
+      where: { id: wallet.id },
+      data: {
+        autoRechargeEnabled: settings.enabled,
+        autoRechargeThreshold: settings.enabled ? settings.threshold : null,
+        autoRechargeAmount: settings.enabled ? settings.amount : null,
+      },
+    });
+  }
+
+  /**
+   * Wallets due for the auto-recharge sweep: enabled, at or below their threshold, and not
+   * recharged within the cooldown window. `availableBalance <= autoRechargeThreshold` compares
+   * two columns on the same row, which Prisma's query builder can't express — hence raw SQL.
+   */
+  async findWalletsDueForAutoRecharge(cooldownMinutes: number): Promise<{ id: string; merchantId: string; availableBalance: Prisma.Decimal; autoRechargeThreshold: Prisma.Decimal; autoRechargeAmount: Prisma.Decimal }[]> {
+    const cooldownCutoff = new Date(Date.now() - cooldownMinutes * 60 * 1000);
+    return this.prisma.$queryRaw(Prisma.sql`
+      SELECT id, merchantId, availableBalance, autoRechargeThreshold, autoRechargeAmount
+      FROM merchant_wallets
+      WHERE autoRechargeEnabled = 1
+        AND autoRechargeThreshold IS NOT NULL
+        AND autoRechargeAmount IS NOT NULL
+        AND availableBalance <= autoRechargeThreshold
+        AND (lastAutoRechargeAt IS NULL OR lastAutoRechargeAt < ${cooldownCutoff})
+    `);
+  }
+
+  async markAutoRechargeAttempted(merchantWalletId: string) {
+    await this.prisma.merchantWallet.update({
+      where: { id: merchantWalletId },
+      data: { lastAutoRechargeAt: new Date() },
+    });
+  }
 }

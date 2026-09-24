@@ -130,6 +130,20 @@ export class TaskParticipationService {
     });
   }
 
+  /**
+   * Same compliance scope as captions — any active task's campaign can compose a story, no task-type
+   * restriction. Kept as its own method (rather than folded into generateCaptions) because it also
+   * needs a photo, which the other AI-assist calls above don't take.
+   */
+  async composeStory(taskId: string, photo: Express.Multer.File) {
+    const { campaign } = await this.getActiveTask(taskId);
+
+    return this.aiAssistService.composeStory(
+      { campaignTitle: campaign.title, campaignDescription: campaign.description },
+      photo,
+    );
+  }
+
   async submitTask(taskId: string, userId: string, dto: SubmitTaskDto, file?: Express.Multer.File, context: { ip?: string } = {}) {
     const { task, campaign } = await this.getActiveTask(taskId);
 
@@ -164,6 +178,7 @@ export class TaskParticipationService {
         file.buffer,
         file.originalname,
         `${SUBMISSION_STORAGE.FOLDER}/${campaign.id}/${taskId}`,
+        file.mimetype,
       );
       fileUrl = upload.path;
     }

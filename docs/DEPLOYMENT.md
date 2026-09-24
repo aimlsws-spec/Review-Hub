@@ -38,7 +38,12 @@ This is for whoever deploys the backend to the cPanel server. The portals and th
 5. **Connect the repository** in cPanel's Git Version Control, so `.cpanel.yml` is picked up.
 6. **First database content.** After the first deploy, seed the roles, permissions and locations once, from `apps/backend`:
    `npx ts-node prisma/seed.ts`
-   The seed creates an administrator with a well-known development password. **Change that password immediately**, or remove the account, before the site is reachable.
+   The seed no longer creates admin accounts with a fixed password — it generates a strong random
+   one per account on first run and prints it to the terminal exactly once (or, for a scripted/CI
+   seed, set `SEED_SUPER_ADMIN_PASSWORD` / `SEED_ADMIN_PASSWORD` beforehand to pin it). **Capture
+   that output immediately** — it is not logged anywhere else — store it in a password manager, and
+   rotate it from the admin portal before the site is reachable. Re-running the seed against an
+   already-seeded database never touches an existing admin's password.
 
 ## Deploying
 
@@ -69,6 +74,40 @@ Deploy the previous commit: check it out or revert on the branch, push, and depl
 - Take a database backup.
 - Read the new migrations in `apps/backend/prisma/migrations/`. A migration that drops or rewrites a column can lose data.
 - Deploy to staging first.
+
+## Backup and restore
+
+**Tested 23 Sep 2026, against a real MySQL instance — not a dry run.** At the data volume that
+existed at the time (7 users, 1 merchant, 1 campaign, ~255 KB dump): a `mysqldump` took **1
+second** and a full restore into a separate database took **4 seconds**, both comfortably inside
+the spec's RPO ≤ 15 min / RTO ≤ 2 h targets. Restoring the dump was verified to reproduce the
+original exactly — row counts and a sensitive field (an admin's password hash) were byte-identical
+between the original and the restored copy, not just "the restore command exited 0."
+
+**These absolute numbers do not extrapolate to production scale** (the platform's own roadmap
+projects 600 GB by Year 3, 3 TB by Year 5) — a multi-GB dump takes meaningfully longer to both
+produce and restore. Re-run this drill against a realistic data volume before trusting the RPO/RTO
+targets at production scale; what this proves today is that the *mechanism* is sound, not that the
+*timing* holds at any size.
+
+Backup (add `--set-gtid-purged=OFF` if restoring onto the *same* server the backup came from — a
+GTID-enabled server otherwise refuses the restore with "the added gtid set must not overlap"):
+
+```
+mysqldump -u <user> -p --single-transaction --routines --triggers --set-gtid-purged=OFF \
+  --databases viral_kar > viral_kar_backup.sql
+```
+
+Restore, into a **different** database name first to verify before ever touching production data:
+
+```
+sed 's/viral_kar/viral_kar_restore_drill/g' viral_kar_backup.sql > viral_kar_restore_drill.sql
+mysql -u <user> -p < viral_kar_restore_drill.sql
+```
+
+Then compare row counts and a spot-checked field between the two databases before trusting the
+backup, and drop the drill database afterward — never restore straight over a live database
+without a verified copy to fall back to.
 
 ## Portals
 

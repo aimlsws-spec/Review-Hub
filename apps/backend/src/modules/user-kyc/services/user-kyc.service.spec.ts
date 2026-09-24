@@ -68,7 +68,7 @@ describe('UserKycService', () => {
       const result = await service.uploadDocument('user-1', dto as never, mockFile);
 
       expect(result).toEqual(mockDocument);
-      expect(mockStorageService.saveFile).toHaveBeenCalledWith(mockFile.buffer, mockFile.originalname, 'user/user-1/documents');
+      expect(mockStorageService.saveFile).toHaveBeenCalledWith(mockFile.buffer, mockFile.originalname, 'user/user-1/documents', mockFile.mimetype);
     });
 
     it('should throw BadRequestException for unsupported file type', async () => {

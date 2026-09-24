@@ -36,4 +36,16 @@ class AppConfig {
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
+
+  /// Uploaded/generated files (avatars, AI story images, campaign media) come back from the API
+  /// as a path relative to the server root, e.g. `/stories/<uuid>.jpg` — never a full URL. They're
+  /// served at the root (`ServeStaticModule` in app.module.ts), not under [apiBaseUrl]'s `/api/v1`
+  /// prefix, so that prefix has to be stripped before appending the path, not just prepended to it.
+  static String resolveUploadUrl(String relativePath) {
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) return relativePath;
+    final uri = Uri.parse(apiBaseUrl);
+    final origin = '${uri.scheme}://${uri.authority}';
+    final path = relativePath.startsWith('/') ? relativePath : '/$relativePath';
+    return '$origin/uploads$path';
+  }
 }

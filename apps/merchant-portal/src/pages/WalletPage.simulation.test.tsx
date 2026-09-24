@@ -4,13 +4,19 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useTransactionsQuery, useWalletMutations, useWalletQuery } from '@/hooks/useWallet'
+import { useAutoRechargeMutation, useAutoRechargeQuery, useTransactionsQuery, useWalletMutations, useWalletQuery } from '@/hooks/useWallet'
 import { useAuthStore } from '@/stores/auth.store'
 
 import WalletPage from './WalletPage'
 
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
-vi.mock('@/hooks/useWallet', () => ({ useWalletQuery: vi.fn(), useTransactionsQuery: vi.fn(), useWalletMutations: vi.fn() }))
+vi.mock('@/hooks/useWallet', () => ({
+  useWalletQuery: vi.fn(),
+  useTransactionsQuery: vi.fn(),
+  useWalletMutations: vi.fn(),
+  useAutoRechargeQuery: vi.fn(),
+  useAutoRechargeMutation: vi.fn(),
+}))
 // Simulates a production build, where the dev-only simulation button must not exist.
 vi.mock('@/constants', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/constants')>()),
@@ -38,6 +44,10 @@ describe('WalletPage when payment simulation is disabled', () => {
       simulateMutation: { mutate: vi.fn(), isPending: false },
       refreshWallet: vi.fn(),
     } as never)
+    vi.mocked(useAutoRechargeQuery).mockReturnValue({
+      data: { data: { data: { enabled: false, threshold: null, amount: null, lastTriggeredAt: null } } },
+    } as never)
+    vi.mocked(useAutoRechargeMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
   })
 
   it('does not offer "Simulate Payment" in the add-funds dialog', async () => {

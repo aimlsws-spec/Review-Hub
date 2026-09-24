@@ -19,6 +19,7 @@ export const MERCHANT_ERRORS = {
   DUPLICATE_ACCOUNT: 'DUPLICATE_ACCOUNT',
   REFUND_NOT_FOUND: 'REFUND_NOT_FOUND',
   REFUND_NOT_REVIEWABLE: 'REFUND_NOT_REVIEWABLE',
+  AUTO_RECHARGE_THRESHOLD_NOT_BELOW_AMOUNT: 'AUTO_RECHARGE_THRESHOLD_NOT_BELOW_AMOUNT',
 } as const;
 
 export const MERCHANT_TEAM_ROLES_KEY = 'merchantTeamRoles';
@@ -36,6 +37,8 @@ export const MERCHANT_EVENTS = {
   REFUND_REQUESTED: 'merchant.refund.requested',
   REFUND_APPROVED: 'merchant.refund.approved',
   REFUND_REJECTED: 'merchant.refund.rejected',
+  AUTO_RECHARGE_TRIGGERED: 'merchant.wallet.auto_recharge_triggered',
+  AUTO_RECHARGE_PAYMENT_DUE: 'merchant.wallet.auto_recharge_payment_due',
 } as const;
 
 /** Refund statuses a reviewer can still act on. */
@@ -69,3 +72,24 @@ export const MERCHANT_CONSTANTS = {
   MAX_TEAM_MEMBERS: 20,
   INVITATION_EXPIRY_HOURS: 48,
 } as const;
+
+/**
+ * Wallet auto-recharge: the merchant sets a minimum balance threshold and a top-up amount; a
+ * scheduled sweep (AutoRechargeSchedulerService) tops the wallet up once availableBalance drops
+ * to or below the threshold.
+ */
+export const MERCHANT_WALLET_CONSTANTS = {
+  MIN_AUTO_RECHARGE_THRESHOLD: 1,
+  MIN_AUTO_RECHARGE_AMOUNT: 100,
+  /**
+   * A wallet already recharged within this window is skipped by the sweep even if it's still at
+   * or below threshold — the recharge just triggered may not have credited yet (real Razorpay:
+   * awaiting the merchant completing checkout), and re-triggering every sweep would spam a
+   * pending order/notification rather than waiting for the first one to resolve.
+   */
+  RECHARGE_COOLDOWN_MINUTES: 60,
+} as const;
+
+export const AUTO_RECHARGE_CRON_PATTERN = '*/15 * * * *';
+export const AUTO_RECHARGE_JOB_NAME = 'sweep';
+export const AUTO_RECHARGE_REPEAT_JOB_ID = 'wallet-auto-recharge-sweep';

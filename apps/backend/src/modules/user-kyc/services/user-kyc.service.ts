@@ -32,7 +32,7 @@ export class UserKycService {
       throw new BadRequestException('Document already verified');
     }
 
-    const uploadResult = await this.storageService.saveFile(file.buffer, file.originalname, `user/${userId}/documents`);
+    const uploadResult = await this.storageService.saveFile(file.buffer, file.originalname, `user/${userId}/documents`, file.mimetype);
 
     const document = await this.documentRepository.create({
       user: { connect: { id: userId } },

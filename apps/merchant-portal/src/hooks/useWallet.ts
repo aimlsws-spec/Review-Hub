@@ -23,6 +23,29 @@ export function useTransactionsQuery(merchantId: string | undefined, page: numbe
   })
 }
 
+export function useAutoRechargeQuery(merchantId: string | undefined) {
+  return useQuery({
+    queryKey: QUERY_KEYS.AUTO_RECHARGE,
+    queryFn: () => merchantApi.getAutoRechargeSettings(requireValue(merchantId, 'merchantId')),
+    enabled: !!merchantId,
+  })
+}
+
+export function useAutoRechargeMutation(merchantId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: { enabled: boolean; threshold?: number; amount?: number }) =>
+      merchantApi.updateAutoRechargeSettings(requireValue(merchantId, 'merchantId'), data),
+    onSuccess: (_res, variables) => {
+      toast.success(variables.enabled ? 'Auto-recharge turned on' : 'Auto-recharge turned off')
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUTO_RECHARGE })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WALLET })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
+  })
+}
+
 interface RechargeVerifyInput {
   razorpayOrderId: string
   razorpayPaymentId: string

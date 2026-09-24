@@ -4,13 +4,19 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useTransactionsQuery, useWalletMutations, useWalletQuery } from '@/hooks/useWallet'
+import { useAutoRechargeMutation, useAutoRechargeQuery, useTransactionsQuery, useWalletMutations, useWalletQuery } from '@/hooks/useWallet'
 import { useAuthStore } from '@/stores/auth.store'
 
 import WalletPage from './WalletPage'
 
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
-vi.mock('@/hooks/useWallet', () => ({ useWalletQuery: vi.fn(), useTransactionsQuery: vi.fn(), useWalletMutations: vi.fn() }))
+vi.mock('@/hooks/useWallet', () => ({
+  useWalletQuery: vi.fn(),
+  useTransactionsQuery: vi.fn(),
+  useWalletMutations: vi.fn(),
+  useAutoRechargeQuery: vi.fn(),
+  useAutoRechargeMutation: vi.fn(),
+}))
 
 const wallet = { availableBalance: '5000', reservedBalance: '1000', totalTopUp: '10000', totalSpent: '4000' }
 const rechargeMutateMock = vi.fn()
@@ -49,6 +55,10 @@ describe('WalletPage', () => {
       simulateMutation: { mutate: vi.fn(), isPending: false },
       refreshWallet: vi.fn(),
     } as never)
+    vi.mocked(useAutoRechargeQuery).mockReturnValue({
+      data: { data: { data: { enabled: false, threshold: null, amount: null, lastTriggeredAt: null } } },
+    } as never)
+    vi.mocked(useAutoRechargeMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
     rechargeMutateMock.mockReset()
   })
 

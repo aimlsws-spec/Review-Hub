@@ -3,3 +3,4 @@ export * from './notification.processor';
 export * from './reward.processor';
 export * from './settlement.processor';
 export * from './ai-verification.processor';
+export * from './wallet-auto-recharge.processor';

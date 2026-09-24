@@ -12,6 +12,7 @@ describe('TaskParticipationController', () => {
     submitTask: jest.fn(),
     draftReviews: jest.fn(),
     generateCaptions: jest.fn(),
+    composeStory: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -55,6 +56,27 @@ describe('TaskParticipationController', () => {
 
       expect(mockParticipationService.generateCaptions).toHaveBeenCalledWith('task-1');
       expect(result.source).toBe('template');
+    });
+  });
+
+  describe('story', () => {
+    it('should call participationService.composeStory with the taskId and photo', async () => {
+      const photo = { originalname: 'photo.png', mimetype: 'image/png' } as Express.Multer.File;
+      mockParticipationService.composeStory.mockResolvedValue({
+        imageUrl: '/stories/uuid.jpg',
+        caption: 'Great!',
+        hashtags: ['#ViralKar'],
+      });
+
+      const result = await controller.story('task-1', photo);
+
+      expect(mockParticipationService.composeStory).toHaveBeenCalledWith('task-1', photo);
+      expect(result.imageUrl).toBe('/stories/uuid.jpg');
+    });
+
+    it('should reject when no photo is uploaded', async () => {
+      await expect(controller.story('task-1', undefined)).rejects.toThrow('A photo is required to compose a story');
+      expect(mockParticipationService.composeStory).not.toHaveBeenCalled();
     });
   });
 

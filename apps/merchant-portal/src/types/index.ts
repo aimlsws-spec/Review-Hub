@@ -126,6 +126,13 @@ export interface MerchantWallet {
   updatedAt: string
 }
 
+export interface AutoRechargeSettings {
+  enabled: boolean
+  threshold: string | null
+  amount: string | null
+  lastTriggeredAt: string | null
+}
+
 export interface WalletTransaction {
   id: string
   type: WalletTransactionType

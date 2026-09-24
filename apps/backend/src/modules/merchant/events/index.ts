@@ -91,3 +91,24 @@ export class MerchantTopUpReversedEvent {
     public readonly balanceAfter: number,
   ) {}
 }
+
+/** Auto-recharge triggered and completed immediately (mock gateway, or a future saved-payment-method charge). */
+export class MerchantAutoRechargeTriggeredEvent {
+  constructor(
+    public readonly merchantId: string,
+    public readonly amount: number,
+    public readonly balanceAfter: number,
+    public readonly thresholdCrossed: number,
+  ) {}
+}
+
+/** Auto-recharge triggered but needs the merchant to complete payment (real Razorpay, no saved payment method yet). */
+export class MerchantAutoRechargePaymentDueEvent {
+  constructor(
+    public readonly merchantId: string,
+    public readonly amount: number,
+    public readonly availableBalance: number,
+    public readonly thresholdCrossed: number,
+    public readonly razorpayOrderId: string,
+  ) {}
+}

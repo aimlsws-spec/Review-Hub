@@ -68,6 +68,9 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  // Was relying on the global default (100/min) — generous enough for automated mass account
+  // creation (referral/promo farming). Matches login's own rate below.
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiBody({ type: RegisterDto })
@@ -291,6 +294,10 @@ export class AuthController {
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
+  // OtpService already exhausts a code after OTP_MAX_ATTEMPTS (default 5) wrong guesses, so this
+  // is defense-in-depth, not the primary control — it was the one OTP endpoint relying on the
+  // global 100/min default instead of its own limit, unlike send-otp/resend-otp beside it.
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Verify OTP code' })
   @ApiBody({ type: VerifyOtpDto })
   async verifyOtp(@CurrentUser('id') userId: string, @Body() dto: VerifyOtpDto) {
@@ -360,6 +367,7 @@ export class AuthController {
   @Post('2fa/enable')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Enable two-factor authentication' })
   @ApiOkResponse({ description: 'Two-factor authentication enabled' })
   @ApiBody({ schema: { properties: { code: { type: 'string', example: '123456' } } } })
@@ -370,6 +378,7 @@ export class AuthController {
   @Post('2fa/disable')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Disable two-factor authentication' })
   @ApiOkResponse({ description: 'Two-factor authentication disabled' })
   @ApiBody({ schema: { properties: { code: { type: 'string', example: '123456' } } } })
@@ -380,6 +389,7 @@ export class AuthController {
   @Post('2fa/verify')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Verify two-factor authentication code' })
   @ApiOkResponse({ description: 'Two-factor authentication verified' })
   @ApiBody({ schema: { properties: { code: { type: 'string', example: '123456' } } } })

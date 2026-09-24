@@ -6,6 +6,7 @@ import '../../../core/network/failure_mapper.dart';
 import '../../../shared/models/api_response.dart';
 import 'models/recommended_task_model.dart';
 import 'models/review_draft_models.dart';
+import 'models/story_result_model.dart';
 import 'models/task_submission_model.dart';
 import 'models/text_suggestion_model.dart';
 
@@ -115,6 +116,18 @@ class TaskRepository {
     try {
       await _dio.post<void>('${ApiEndpoints.submission(submissionId)}/dispute', data: {'reason': reason});
       return const Result.success(null);
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  /// Composes [photoPath] into a story-ready image for this task's campaign, with a caption and hashtags.
+  /// The campaign context is resolved server-side from the task — nothing about it is sent here.
+  Future<Result<StoryResultModel>> composeStory(String taskId, String photoPath) async {
+    try {
+      final formData = FormData.fromMap({'photo': await MultipartFile.fromFile(photoPath)});
+      final response = await _dio.post<Map<String, dynamic>>(ApiEndpoints.taskStory(taskId), data: formData);
+      return Result.success(StoryResultModel.fromJson(response.data!['data'] as Map<String, dynamic>));
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));
     }

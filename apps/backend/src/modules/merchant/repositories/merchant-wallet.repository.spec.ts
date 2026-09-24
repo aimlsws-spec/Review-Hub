@@ -22,6 +22,7 @@ describe('MerchantWalletRepository', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       findUniqueOrThrow: jest.fn(),
+      update: jest.fn(),
     },
     walletTransaction: {
       findMany: jest.fn(),
@@ -31,6 +32,7 @@ describe('MerchantWalletRepository', () => {
       findFirst: jest.fn(),
     },
     transaction: jest.fn((fn: (tx: typeof mockTx) => unknown) => fn(mockTx)),
+    $queryRaw: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -437,6 +439,60 @@ describe('MerchantWalletRepository', () => {
       expect(mockTx.merchantWallet.update).toHaveBeenCalledTimes(1);
       expect(mockTx.campaign.update).toHaveBeenCalledTimes(1);
       expect(mockTx.walletTransaction.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('updateAutoRechargeSettings', () => {
+    it('saves the threshold and amount when enabling', async () => {
+      mockPrisma.merchantWallet.findUnique.mockResolvedValue({ id: 'wallet-1' });
+      mockPrisma.merchantWallet.update.mockResolvedValue({ id: 'wallet-1', autoRechargeEnabled: true });
+
+      await repository.updateAutoRechargeSettings('merchant-1', { enabled: true, threshold: 500, amount: 5000 });
+
+      expect(mockPrisma.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { autoRechargeEnabled: true, autoRechargeThreshold: 500, autoRechargeAmount: 5000 },
+      });
+    });
+
+    it('clears the threshold and amount when disabling, rather than leaving a stale value', async () => {
+      mockPrisma.merchantWallet.findUnique.mockResolvedValue({ id: 'wallet-1' });
+      mockPrisma.merchantWallet.update.mockResolvedValue({ id: 'wallet-1', autoRechargeEnabled: false });
+
+      await repository.updateAutoRechargeSettings('merchant-1', { enabled: false, threshold: 500, amount: 5000 });
+
+      expect(mockPrisma.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { autoRechargeEnabled: false, autoRechargeThreshold: null, autoRechargeAmount: null },
+      });
+    });
+  });
+
+  describe('findWalletsDueForAutoRecharge', () => {
+    it('queries with the raw SQL comparing availableBalance to autoRechargeThreshold', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([{ id: 'wallet-1' }]);
+
+      const result = await repository.findWalletsDueForAutoRecharge(60);
+
+      expect(result).toEqual([{ id: 'wallet-1' }]);
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1);
+      const [sql] = mockPrisma.$queryRaw.mock.calls[0][0].strings ?? mockPrisma.$queryRaw.mock.calls[0];
+      const asString = Array.isArray(sql) ? sql.join('?') : String(sql);
+      expect(asString).toContain('merchant_wallets');
+      expect(asString).toContain('availableBalance <= autoRechargeThreshold');
+    });
+  });
+
+  describe('markAutoRechargeAttempted', () => {
+    it('sets lastAutoRechargeAt to now', async () => {
+      mockPrisma.merchantWallet.update.mockResolvedValue({ id: 'wallet-1' });
+
+      await repository.markAutoRechargeAttempted('wallet-1');
+
+      expect(mockPrisma.merchantWallet.update).toHaveBeenCalledWith({
+        where: { id: 'wallet-1' },
+        data: { lastAutoRechargeAt: expect.any(Date) },
+      });
     });
   });
 });

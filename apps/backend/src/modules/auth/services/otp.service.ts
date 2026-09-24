@@ -122,9 +122,13 @@ export class OtpService {
       throw new BadRequestException(AUTH_ERRORS.OTP_EXPIRED);
     }
 
-    await this.otpRepository.incrementAttempts(otp.id);
+    // Bug fixed 23 Sep 2026 (security review): this used to compare the *stale* `otp.attempts`
+    // fetched before the increment, which exhausted the OTP one guess early — the maxAttempts-th
+    // attempt was always rejected as "too many attempts" without ever checking whether the code
+    // was actually right, even when it was. Use the row the increment itself returns instead.
+    const updated = await this.otpRepository.incrementAttempts(otp.id);
 
-    if (otp.attempts + 1 >= otp.maxAttempts) {
+    if (updated.attempts > otp.maxAttempts) {
       await this.otpRepository.markExhausted(otp.id);
       throw new BadRequestException(AUTH_ERRORS.OTP_MAX_ATTEMPTS);
     }

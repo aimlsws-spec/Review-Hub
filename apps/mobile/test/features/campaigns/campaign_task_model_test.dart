@@ -27,6 +27,19 @@ void main() {
     });
   });
 
+  group('CampaignTaskModelX — isStoryTask', () {
+    test('is true for the two share-a-story task types', () {
+      expect(_task(taskType: 'INSTAGRAM_STORY_SHARE').isStoryTask, isTrue);
+      expect(_task(taskType: 'FACEBOOK_SHARE').isStoryTask, isTrue);
+    });
+
+    test('is false for unrelated task types', () {
+      expect(_task(taskType: 'GOOGLE_REVIEW').isStoryTask, isFalse);
+      expect(_task(taskType: 'WEBSITE_VISIT').isStoryTask, isFalse);
+      expect(_task(taskType: 'QR_SCAN').isStoryTask, isFalse);
+    });
+  });
+
   group('CampaignTaskModelX — LOCATION_CHECKIN', () {
     test('isLocationCheckInTask is true only for that task type', () {
       expect(_task(taskType: 'LOCATION_CHECKIN').isLocationCheckInTask, isTrue);

@@ -132,6 +132,37 @@ describe('NotificationListener', () => {
       await expect(listener.handleMerchantToppedUp({ merchantId: 'gone', amount: 1, bankReference: 'UTR000001', balanceAfter: 1 })).resolves.toBeUndefined();
       expect(mockNotificationQueue.enqueue).not.toHaveBeenCalled();
     });
+
+    it('tells the owner when auto-recharge completed, with the threshold, amount and new balance', async () => {
+      await listener.handleAutoRechargeTriggered({ merchantId: 'merchant-1', amount: 5000, balanceAfter: 5400, thresholdCrossed: 500 });
+
+      expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-9',
+          title: 'Wallet auto-recharged',
+          message: expect.stringMatching(/₹500.*₹5000.*₹5400/),
+        }),
+      );
+    });
+
+    it('tells the owner to complete payment when auto-recharge only created an order (real Razorpay)', async () => {
+      await listener.handleAutoRechargePaymentDue({
+        merchantId: 'merchant-1',
+        amount: 5000,
+        availableBalance: 400,
+        thresholdCrossed: 500,
+        razorpayOrderId: 'order_123',
+      });
+
+      expect(mockNotificationQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-9',
+          title: 'Complete your wallet auto-recharge',
+          message: expect.stringMatching(/₹400.*₹500.*₹5000/),
+          data: expect.objectContaining({ razorpayOrderId: 'order_123' }),
+        }),
+      );
+    });
   });
 
   describe('handleCampaignStatusChanged', () => {

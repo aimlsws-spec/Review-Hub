@@ -5,6 +5,7 @@ import type {
   MerchantInsights,
   Merchant,
   MerchantWallet,
+  AutoRechargeSettings,
   WalletTransaction,
   RefundRequest,
   Settlement,
@@ -152,6 +153,12 @@ export const merchantApi = {
 
   verifyRecharge: (merchantId: string, data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) =>
     apiClient.post<ApiResponse<WalletTransaction>>(`/merchants/${merchantId}/wallet/recharge/verify`, data),
+
+  getAutoRechargeSettings: (merchantId: string) =>
+    apiClient.get<ApiResponse<AutoRechargeSettings>>(`/merchants/${merchantId}/wallet/auto-recharge`),
+
+  updateAutoRechargeSettings: (merchantId: string, data: { enabled: boolean; threshold?: number; amount?: number }) =>
+    apiClient.patch<ApiResponse<MerchantWallet>>(`/merchants/${merchantId}/wallet/auto-recharge`, data),
 
   // Refunds
   getRefunds: (merchantId: string, params?: { page?: number; limit?: number }) =>

@@ -5,7 +5,9 @@ exists, and exactly where to find it in the code. For *system* architecture (how
 pieces fit together, the request/queue/AI flow), see `docs/architecture/README.md` — this
 document is the complement to it, organized by feature instead of by layer.
 
-Written against the codebase as it actually is on 22 September 2026. Where a feature is
+Written against the codebase as it actually is on 22 September 2026, updated 24 September
+2026 (AI Story mobile screen, full city import, wallet auto-recharge — see the dated notes
+inline and the "Known gaps" list at the end). Where a feature is
 partial or has a known limitation, that's called out under **Status** rather than left
 implicit — this file is meant to be trusted, not aspirational.
 
@@ -405,12 +407,14 @@ user's flow on an AI outage.
 | Text suggestion | A short suggested caption for a task | `ai-assist.service.ts`'s `suggestText` |
 | Review drafts | Guided, honest review options (see §4) | `draftReviews` |
 | Captions | Short/long/professional/festival/emoji captions + hashtags for a campaign | `generateCaptions` |
-| Story composition | Composes a campaign photo into a story-ready image, reusing the caption logic above | `composeStory`, endpoint `POST /ai/assist/story` |
+| Story composition | Composes a campaign photo into a story-ready image, reusing the caption logic above | `composeStory`, task-scoped endpoint `POST /tasks/:taskId/story` |
 | Chatbot | 24×7 support chatbot over a knowledge base (BM25 text search) with an LLM fallback | `support/services/chatbot.service.ts`, `knowledge-base.service.ts` |
 
-**Status on Story**: the backend endpoint (added 22 Sep 2026) is real and tested, but
-there is **no mobile screen calling it yet** — the one piece of the original AI-content
-plan that's still just a backend capability with no UI.
+**Status on Story**: has a mobile screen as of 24 Sep 2026 —
+`mobile/lib/features/tasks/presentation/screens/ai_story_screen.dart`, reachable from the
+task submission screen for `INSTAGRAM_STORY_SHARE`/`FACEBOOK_SHARE` tasks. Composed images
+are served from `/uploads/stories` (added to the public static mount the same day — before
+that, the backend returned an `imageUrl` no client could ever load).
 
 ---
 
@@ -430,10 +434,14 @@ cities — used by every location picker in every app (sign-up, campaign targeti
 merchant address).
 **Where**: `apps/backend/src/modules/location`. Seed data:
 `prisma/seed-data/india-locations.ts`.
-**Status**: States are a complete list. Cities are a **starter set** (~217 cities) —
-an admin screen to manage the list was added 22 Sep 2026
-(`admin/controllers/city.controller.ts`, admin portal `pages/CitiesPage.tsx`), but the
-underlying list itself still needs filling out before launch.
+**Status**: States are a complete list. Cities were a starter set (~217 cities) until
+24 Sep 2026, when they were replaced with a comprehensive import — 4,217 cities/towns
+across all 36 states and union territories (source: dr5hn/countries-states-cities-database,
+MIT-licensed; a few upstream data-quality issues fixed and ~11 well-known cities added back
+under their modern/common name during import — see the comment at the top of
+`prisma/seed-data/india-locations.ts` for specifics). An admin screen to manage the list
+(add/edit individual cities going forward) was added 22 Sep 2026:
+`admin/controllers/city.controller.ts`, admin portal `pages/CitiesPage.tsx`.
 
 ### Device location (mobile)
 **What**: On-demand GPS position, never fetched automatically on app launch — only
@@ -477,6 +485,30 @@ releases budget from it.
 **Where**: `merchant/repositories/merchant-wallet.repository.ts`,
 `merchant/services/manual-top-up.service.ts` (for the manual/bank-transfer path, with
 its own approval + reversal flow). Merchant portal: `pages/WalletPage.tsx`.
+
+### Wallet auto-recharge
+**What**: A merchant sets a minimum balance and a top-up amount; a BullMQ sweep
+(`AutoRechargeSchedulerService`, every 15 minutes) tops the wallet back up once
+`availableBalance` drops to or below the threshold, so a campaign doesn't stall on an
+empty wallet. A cooldown (1 hour) stops the same wallet being re-triggered before its
+last attempt has resolved.
+**Why**: In the original spec ("merchant sets a minimum wallet, wallet reaches
+threshold, auto recharge"); added 24 Sep 2026.
+**Where**: `merchant/services/auto-recharge.service.ts` (settings + sweep logic),
+`merchant/services/auto-recharge-scheduler.service.ts` (registers the repeatable job),
+`jobs/processors/wallet-auto-recharge.processor.ts` (runs it). Merchant portal: the
+"Auto-recharge" card on `pages/WalletPage.tsx`. Endpoints: `GET`/`PATCH
+/merchants/:id/wallet/auto-recharge`.
+**Status — read before relying on this in production**: what "automatic" means
+depends on the payment gateway. On the **mock** gateway (local/test), the recharge
+completes synchronously, same as a manual simulated top-up — the whole feature is
+testable end to end today (`test/wallet-auto-recharge.e2e-spec.ts`). On **live
+Razorpay**, there is no saved-payment-method/e-mandate flow in this codebase — the
+sweep creates the top-up order and notifies the merchant to complete it, same as a
+manual recharge, rather than silently charging a card. Building genuine unattended
+charging needs Razorpay's separate recurring-payments product (its own consent UI,
+saved-token storage, webhook handling) — a deliberate scope boundary, not an oversight;
+see the module-level comment on `AutoRechargeService`.
 
 ### Settlements & GST invoices
 **What**: A nightly job (`SettlementSchedulerService`) generates a settlement (what was
@@ -595,15 +627,21 @@ what used to be four separate round-trips from the mobile home screen.
   choice (this happened once, 22 Sep 2026, and broke the entire Dispute feature until
   fixed).
 
-## Known gaps (as of 22 Sep 2026)
+## Known gaps (as of 24 Sep 2026)
 
 - Razorpay is test-mode only — see §15.
-- Referral program is single-level, not the 3-tier structure in the original spec — see §6.
-- AI Story has no mobile UI yet — see §10.
+- Referral program is single-level, not the 3-tier structure in the original spec — see §6
+  and `docs/architecture/decisions/0001-referral-structure.md`.
 - Native Google/Apple mobile sign-in is code-complete but needs real OAuth credentials — see §1.
 - Marketplace redemption has no live gift-card vendor integration — see §8.
-- City list is a starter set, needs filling out before launch — see §12.
+- Merchant wallet auto-recharge only completes unattended on the mock payment gateway; on
+  live Razorpay it creates the order and asks the merchant to complete it, since there's no
+  saved-payment-method flow yet — see §14.
 - No dispute workflow existed before 22 Sep 2026 (now built — see §4) for merchant-side
   disputes (fraud-flag/clawback disputes) — only the user-submission dispute path exists.
-- No merchant auto-recharge, no social features (friends/chat/groups), no merchant
-  CRM/loyalty, no agency/multi-tenant dashboards — all explicitly deferred, not started.
+- No social features (friends/chat/groups), no merchant CRM/loyalty, no agency/multi-tenant
+  dashboards — all explicitly deferred, not started.
+
+Closed since the list above was last this short: AI Story now has a mobile screen (§10); the
+city list (§12) was replaced with a comprehensive 4,200+ city import (24 Sep 2026, see
+`prisma/seed-data/india-locations.ts`), no longer a starter set.

@@ -154,6 +154,7 @@ describe('OtpService', () => {
       const hashedCode = crypto.createHash('sha256').update('123456').digest('hex');
       const otp = { id: 'otp-1', status: 'PENDING', expiresAt: new Date(Date.now() + 60000), attempts: 0, maxAttempts: 5, code: hashedCode };
       mockOtpRepository.findLatestByUserAndType.mockResolvedValue(otp);
+      mockOtpRepository.incrementAttempts.mockResolvedValue({ ...otp, attempts: 1 });
 
       const result = await service.verifyOtp('user-1', OtpType.EMAIL_VERIFICATION, '123456');
 
@@ -163,12 +164,30 @@ describe('OtpService', () => {
       expect(result).toBe(true);
     });
 
-    it('should throw if OTP is exhausted', async () => {
-      const otp = { id: 'otp-1', status: 'PENDING', expiresAt: new Date(Date.now() + 60000), attempts: 4, maxAttempts: 5, code: 'wrong' };
+    it('should throw if OTP is exhausted (all maxAttempts guesses already used)', async () => {
+      const otp = { id: 'otp-1', status: 'PENDING', expiresAt: new Date(Date.now() + 60000), attempts: 5, maxAttempts: 5, code: 'wrong' };
       mockOtpRepository.findLatestByUserAndType.mockResolvedValue(otp);
+      mockOtpRepository.incrementAttempts.mockResolvedValue({ ...otp, attempts: 6 });
 
       await expect(service.verifyOtp('user-1', OtpType.REGISTRATION, 'wrong')).rejects.toThrow(BadRequestException);
       expect(mockOtpRepository.markExhausted).toHaveBeenCalledWith('otp-1');
+    });
+
+    // Regression test for a bug fixed 23 Sep 2026: comparing the stale pre-increment `attempts`
+    // exhausted the OTP one guess early, so the maxAttempts-th attempt was rejected as "too many
+    // attempts" without the code ever being checked — even when it was the right code.
+    it('checks the code on the maxAttempts-th guess instead of exhausting one attempt early', async () => {
+      const hashedCode = crypto.createHash('sha256').update('123456').digest('hex');
+      // 4 wrong guesses already made; this is the 5th (== maxAttempts) — must still be checked.
+      const otp = { id: 'otp-1', status: 'PENDING', expiresAt: new Date(Date.now() + 60000), attempts: 4, maxAttempts: 5, code: hashedCode };
+      mockOtpRepository.findLatestByUserAndType.mockResolvedValue(otp);
+      mockOtpRepository.incrementAttempts.mockResolvedValue({ ...otp, attempts: 5 });
+
+      const result = await service.verifyOtp('user-1', OtpType.REGISTRATION, '123456');
+
+      expect(result).toBe(true);
+      expect(mockOtpRepository.markExhausted).not.toHaveBeenCalled();
+      expect(mockOtpRepository.markVerified).toHaveBeenCalledWith('otp-1');
     });
   });
 

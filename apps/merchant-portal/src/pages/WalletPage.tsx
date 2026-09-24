@@ -4,11 +4,16 @@ import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 
 import { TRANSACTION_TYPE_LABELS, ITEMS_PER_PAGE, ROUTES, PAYMENT_SIMULATION_ENABLED } from '@/constants'
-import { useWalletQuery, useTransactionsQuery, useWalletMutations } from '@/hooks/useWallet'
+import { useAutoRechargeMutation, useAutoRechargeQuery, useWalletQuery, useTransactionsQuery, useWalletMutations } from '@/hooks/useWallet'
 import { useAuthStore } from '@/stores/auth.store'
 import { formatCurrency, formatDateTime , cn } from '@/utils'
 
 interface RechargeFormValues {
+  amount: number
+}
+
+interface AutoRechargeFormValues {
+  threshold: number
   amount: number
 }
 
@@ -39,6 +44,37 @@ export default function WalletPage() {
 
   const onSubmitRecharge = (values: RechargeFormValues) => {
     rechargeMutation.mutate(Number(values.amount))
+  }
+
+  const [autoRechargeOpen, setAutoRechargeOpen] = useState(false)
+  const { data: autoRechargeData } = useAutoRechargeQuery(merchantId)
+  const autoRecharge = autoRechargeData?.data?.data
+  const autoRechargeMutation = useAutoRechargeMutation(merchantId)
+
+  const {
+    register: registerAutoRecharge,
+    handleSubmit: handleSubmitAutoRecharge,
+    reset: resetAutoRecharge,
+    formState: { errors: autoRechargeErrors },
+  } = useForm<AutoRechargeFormValues>({ defaultValues: { threshold: 500, amount: 5000 } })
+
+  const openAutoRechargeModal = () => {
+    resetAutoRecharge({
+      threshold: autoRecharge?.threshold ? Number(autoRecharge.threshold) : 500,
+      amount: autoRecharge?.amount ? Number(autoRecharge.amount) : 5000,
+    })
+    setAutoRechargeOpen(true)
+  }
+
+  const onSubmitAutoRecharge = (values: AutoRechargeFormValues) => {
+    autoRechargeMutation.mutate(
+      { enabled: true, threshold: Number(values.threshold), amount: Number(values.amount) },
+      { onSuccess: () => setAutoRechargeOpen(false) },
+    )
+  }
+
+  const onDisableAutoRecharge = () => {
+    autoRechargeMutation.mutate({ enabled: false }, { onSuccess: () => setAutoRechargeOpen(false) })
   }
 
   if (!merchantId) {
@@ -160,6 +196,105 @@ export default function WalletPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Auto-recharge */}
+      <div className="card p-5 mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-900">Auto-recharge</p>
+            {autoRecharge?.enabled ? (
+              <p className="mt-1 text-sm text-gray-500">
+                Tops up <span className="font-medium text-gray-700">{formatCurrency(autoRecharge.amount ?? '0')}</span> whenever your balance drops to{' '}
+                <span className="font-medium text-gray-700">{formatCurrency(autoRecharge.threshold ?? '0')}</span> or below.
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-gray-500">
+                Off — top up manually with “Add Funds”, or turn this on so your balance never runs out mid-campaign.
+              </p>
+            )}
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-3">
+            <button
+              role="switch"
+              aria-checked={!!autoRecharge?.enabled}
+              onClick={() => (autoRecharge?.enabled ? onDisableAutoRecharge() : openAutoRechargeModal())}
+              disabled={autoRechargeMutation.isPending}
+              className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${autoRecharge?.enabled ? 'bg-primary-600' : 'bg-gray-200'}`}
+            >
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${autoRecharge?.enabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+            </button>
+            {autoRecharge?.enabled && (
+              <button type="button" className="btn-secondary btn-sm" onClick={openAutoRechargeModal}>
+                Edit
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Modal
+        open={autoRechargeOpen}
+        onClose={() => setAutoRechargeOpen(false)}
+        title="Auto-recharge settings"
+        footer={
+          <div className="w-full flex justify-between">
+            {autoRecharge?.enabled && (
+              <button
+                className="btn-ghost text-red-600 font-medium"
+                onClick={onDisableAutoRecharge}
+                disabled={autoRechargeMutation.isPending}
+              >
+                Turn off
+              </button>
+            )}
+            <div className="ml-auto space-x-2">
+              <button className="btn-secondary" onClick={() => setAutoRechargeOpen(false)} disabled={autoRechargeMutation.isPending}>
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleSubmitAutoRecharge(onSubmitAutoRecharge)}
+                disabled={autoRechargeMutation.isPending}
+              >
+                {autoRechargeMutation.isPending && <Spinner size="sm" className="text-white" />}
+                {autoRechargeMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+          <Input
+            label="Minimum balance (₹)"
+            type="number"
+            required
+            error={autoRechargeErrors.threshold?.message}
+            {...registerAutoRecharge('threshold', {
+              required: 'Minimum balance is required',
+              valueAsNumber: true,
+              min: { value: 1, message: 'Must be at least ₹1' },
+            })}
+          />
+          <Input
+            label="Recharge amount (₹)"
+            type="number"
+            required
+            error={autoRechargeErrors.amount?.message}
+            {...registerAutoRecharge('amount', {
+              required: 'Recharge amount is required',
+              valueAsNumber: true,
+              min: { value: 100, message: 'Minimum recharge amount is ₹100' },
+              validate: (value, formValues) =>
+                Number(value) > Number(formValues.threshold) || 'Must be greater than the minimum balance',
+            })}
+          />
+          <p className="text-sm text-gray-500">
+            When your available balance drops to the minimum or below, we'll top it up by the recharge amount
+            automatically. On the live payment gateway this creates the payment for you to complete — we never
+            charge a card without your say-so.
+          </p>
+        </form>
+      </Modal>
 
       {/* Transactions */}
       <div>

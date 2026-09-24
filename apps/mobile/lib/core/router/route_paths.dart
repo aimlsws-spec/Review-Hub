@@ -30,6 +30,9 @@ class RoutePaths {
   static const String reviewAssistant = '/tasks/:taskId/review-assistant';
   static String reviewAssistantPath(String taskId) => '/tasks/$taskId/review-assistant';
 
+  static const String aiStory = '/tasks/:taskId/story';
+  static String aiStoryPath(String taskId) => '/tasks/$taskId/story';
+
   static const String mySubmissions = '/tasks/my-submissions';
 
   static const String walletTransactions = '/wallet/transactions';

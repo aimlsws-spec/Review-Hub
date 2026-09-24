@@ -39,7 +39,7 @@ export class KycService {
       throw new BadRequestException('Document already verified');
     }
 
-    const uploadResult = await this.storageService.saveFile(file.buffer, file.originalname, `merchant/${merchantId}/documents`);
+    const uploadResult = await this.storageService.saveFile(file.buffer, file.originalname, `merchant/${merchantId}/documents`, file.mimetype);
 
     const document = await this.documentRepository.create({
       merchant: { connect: { id: merchantId } },

@@ -90,3 +90,23 @@ npm run test:e2e          # End-to-end tests
 npx prisma studio         # Prisma database GUI
 npx prisma migrate dev    # Run migrations
 ```
+
+### Running e2e/load tests without Docker
+
+The e2e suite (`npm run test:e2e`) defaults to the docker-compose MySQL on port 3307 (see
+`test/setup/safety.ts`). If you're working against a native MySQL install instead (no Docker),
+point it there explicitly — it still refuses to run against anything whose database name doesn't
+end in `_test` (`assertSafeTestEnvironment`), so this is exactly as safe as the docker-compose path:
+
+```bash
+# One-time: create the throwaway database (adjust user/password/port for your install)
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS viral_kar_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# Every run: point TEST_DATABASE_URL at it (URL-encode special characters in the password, e.g. @ -> %40)
+TEST_DATABASE_URL='mysql://root:yourpassword@localhost:3306/viral_kar_test' npm run test:e2e
+```
+
+`test/load/money-paths.load-e2e-spec.ts` runs as part of that suite and logs real throughput
+numbers (req/s, rewards/s) for the wallet/withdrawal/reward-crediting paths under concurrent load —
+look for `[load]` lines in the output. It also respects `DATABASE_POOL_MAX` if you want to see the
+effect of a larger connection pool (`DATABASE_POOL_MAX=30 npm run test:e2e`).

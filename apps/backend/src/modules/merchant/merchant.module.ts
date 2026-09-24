@@ -26,6 +26,8 @@ import {
 } from './repositories';
 import {
   AdminService,
+  AutoRechargeSchedulerService,
+  AutoRechargeService,
   BankService,
   CustomerService,
   DashboardService,
@@ -59,6 +61,8 @@ import {
     ReviewService,
     CustomerService,
     RefundService,
+    AutoRechargeService,
+    AutoRechargeSchedulerService,
     MerchantRepository,
     MerchantDocumentRepository,
     MerchantTeamRepository,
@@ -79,6 +83,7 @@ import {
     MerchantRepository,
     MerchantTeamRepository,
     MerchantWalletRepository,
+    AutoRechargeService,
   ],
 })
 export class MerchantModule {

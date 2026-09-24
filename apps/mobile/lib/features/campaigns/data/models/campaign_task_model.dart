@@ -52,6 +52,11 @@ extension CampaignTaskModelX on CampaignTaskModel {
         'TEXT',
       }.contains(taskType);
 
+  /// Where the AI story composer (a photo turned into a ready-to-post story image + caption) is
+  /// actually useful. The backend endpoint itself has no task-type restriction — same as
+  /// generateCaptions — this is a mobile-side UX choice about where it's worth showing the option.
+  bool get isStoryTask => const {'INSTAGRAM_STORY_SHARE', 'FACEBOOK_SHARE'}.contains(taskType);
+
   bool get isQrScanTask => taskType == 'QR_SCAN';
 
   bool get isLocationCheckInTask => taskType == 'LOCATION_CHECKIN';

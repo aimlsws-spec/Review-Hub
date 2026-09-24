@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -7,6 +9,23 @@ import { HELP_FAQS, HELP_PAGES } from './seed-data/help-content';
 import { INDIA_LOCATIONS } from './seed-data/india-locations';
 
 const prisma = new PrismaClient();
+
+// No admin account is ever seeded with a fixed, well-known password (that was
+// a real gap — anyone who'd read this file knew every admin's login). Set
+// SEED_SUPER_ADMIN_PASSWORD / SEED_ADMIN_PASSWORD to pin a password for
+// scripted/CI environments; otherwise a strong one is generated per run and
+// printed once below, and only for accounts this seed is actually creating —
+// re-running against an already-seeded database never touches an existing
+// admin's password (`update: {}` on the upsert), so a real deployment can
+// re-seed safely without silently resetting whatever the admin changed it to.
+function resolveSeedPassword(envVar: string): { password: string; generated: boolean } {
+  const fromEnv = process.env[envVar];
+  if (fromEnv && fromEnv.length >= 12) {
+    return { password: fromEnv, generated: false };
+  }
+  const password = `${crypto.randomBytes(12).toString('base64url')}!Aa1`;
+  return { password, generated: true };
+}
 
 async function main() {
   console.log('🌱 Seeding database...');
@@ -87,6 +106,8 @@ async function main() {
   console.log('✅ Role permissions seeded');
 
   // ── Super Admin User ───────────────────────────────────────
+  const existingSuperAdmin = await prisma.user.findUnique({ where: { email: 'superadmin@reviewhub.com' } });
+  const superAdminSeed = resolveSeedPassword('SEED_SUPER_ADMIN_PASSWORD');
   const superAdminUser = await prisma.user.upsert({
     where: { email: 'superadmin@reviewhub.com' },
     update: {},
@@ -94,7 +115,7 @@ async function main() {
       firstName: 'Super',
       lastName: 'Admin',
       email: 'superadmin@reviewhub.com',
-      passwordHash: await bcrypt.hash('SuperAdmin@123', 12),
+      passwordHash: await bcrypt.hash(superAdminSeed.password, 12),
       status: 'ACTIVE',
       emailVerifiedAt: new Date(),
     },
@@ -106,6 +127,8 @@ async function main() {
   });
 
   // ── Default Admin User ─────────────────────────────────────
+  const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@reviewhub.com' } });
+  const adminSeed = resolveSeedPassword('SEED_ADMIN_PASSWORD');
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@reviewhub.com' },
     update: {},
@@ -113,7 +136,7 @@ async function main() {
       firstName: 'Platform',
       lastName: 'Admin',
       email: 'admin@reviewhub.com',
-      passwordHash: await bcrypt.hash('Admin@123456', 12),
+      passwordHash: await bcrypt.hash(adminSeed.password, 12),
       status: 'ACTIVE',
       emailVerifiedAt: new Date(),
     },
@@ -124,6 +147,19 @@ async function main() {
     create: { userId: adminUser.id, roleId: adminRole.id },
   });
   console.log('✅ Admin users seeded');
+
+  if (!existingSuperAdmin || !existingAdmin) {
+    console.log('\n🔐 New admin credentials generated this run — capture these now, they are never logged again:');
+    if (!existingSuperAdmin) {
+      console.log(`   superadmin@reviewhub.com / ${superAdminSeed.password}${superAdminSeed.generated ? '' : '  (from SEED_SUPER_ADMIN_PASSWORD)'}`);
+    }
+    if (!existingAdmin) {
+      console.log(`   admin@reviewhub.com / ${adminSeed.password}${adminSeed.generated ? '' : '  (from SEED_ADMIN_PASSWORD)'}`);
+    }
+    console.log('   Store these in a password manager, then rotate them from the admin portal before the site is public.\n');
+  } else {
+    console.log('✅ Admin users already existed — passwords left untouched');
+  }
 
   // ── Countries ──────────────────────────────────────────────
   const india = await prisma.country.upsert({ where: { code: 'IN' }, update: {}, create: { name: 'India', code: 'IN', dialCode: '+91' } });

@@ -40,6 +40,7 @@ export const QUERY_KEYS = {
   INVITATIONS: ['invitations'],
   WALLET: ['wallet'],
   TRANSACTIONS: ['transactions'],
+  AUTO_RECHARGE: ['wallet', 'auto-recharge'],
   REFUNDS: ['refunds'],
   SETTLEMENTS: ['settlements'],
   INVOICES: ['invoices'],

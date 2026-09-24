@@ -41,6 +41,7 @@ class ApiEndpoints {
   static String taskSubmit(String taskId) => '/tasks/$taskId/submit';
   static String taskTextSuggestion(String taskId) => '/tasks/$taskId/text-suggestion';
   static String taskReviewDrafts(String taskId) => '/tasks/$taskId/review-drafts';
+  static String taskStory(String taskId) => '/tasks/$taskId/story';
   static const String tasksRecommended = '/tasks/recommended';
 
   // Submissions — task/controllers/submission.controller.ts
