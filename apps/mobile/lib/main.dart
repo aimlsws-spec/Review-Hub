@@ -15,6 +15,7 @@ import 'features/auth/data/models/user_model.dart';
 import 'features/app_lock/presentation/widgets/app_lock_gate.dart';
 import 'features/app_status/presentation/widgets/app_status_gate.dart';
 import 'features/auth/providers/auth_providers.dart';
+import 'features/notifications/providers/notification_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,8 @@ Future<void> main() async {
           await ref.read(authRepositoryProvider).updatePushToken(token);
         };
       }),
+      // A push that arrives while the app is open means there is something new in the notifications list.
+      pushReceivedHookProvider.overrideWith((ref) => () => ref.invalidate(unreadCountProvider)),
     ],
   );
   await container.read(pushNotificationControllerProvider).start();
@@ -88,6 +91,7 @@ class _ViralKarAppState extends ConsumerState<ViralKarApp> {
       builder: (context, child) => MaterialApp.router(
         title: 'VIRAL KAR',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: rootScaffoldMessengerKey,
         theme: AppTheme.light,
         routerConfig: router,
         // The status page (maintenance, update) goes over everything, and the lock goes over the app: a locked phone

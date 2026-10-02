@@ -100,8 +100,16 @@ export class MerchantAnalyticsService {
     };
   }
 
-  /** All of a merchant's campaigns together, each one, and day by day for the last `days` days. */
-  async overview(merchantId: string, days: number, now: Date = new Date()): Promise<MerchantAnalyticsOverview> {
+  /**
+   * All of a merchant's campaigns together, each one, and day by day for the last `days` days. The analytics page
+   * shows the top `campaignLimit` campaigns; a report export passes Infinity to list every one.
+   */
+  async overview(
+    merchantId: string,
+    days: number,
+    now: Date = new Date(),
+    campaignLimit: number = CAMPAIGN_TABLE_LIMIT,
+  ): Promise<MerchantAnalyticsOverview> {
     const campaigns = await this.prisma.campaign.findMany({
       where: { merchantId, deletedAt: null },
       select: { id: true, title: true, status: true, totalBudget: true, spentBudget: true },
@@ -147,7 +155,7 @@ export class MerchantAnalyticsService {
         budgetSpent: round2(sum((row) => row.spentBudget)),
         costPerCompletion: completions > 0 ? round2(rewardsPaid / completions) : null,
       },
-      campaigns: [...rows].sort((a, b) => b.rewardsPaid - a.rewardsPaid || b.joins - a.joins).slice(0, CAMPAIGN_TABLE_LIMIT),
+      campaigns: [...rows].sort((a, b) => b.rewardsPaid - a.rewardsPaid || b.joins - a.joins).slice(0, campaignLimit),
       daily: await this.daily(merchantId, period),
     };
   }

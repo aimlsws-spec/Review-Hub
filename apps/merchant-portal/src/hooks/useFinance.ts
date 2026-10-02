@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast'
 
 import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
-import { getApiErrorMessage, requireValue } from '@/utils'
+import { downloadBlob, getApiErrorMessage, requireValue } from '@/utils'
 
 export function useSettlementsQuery(merchantId: string | undefined, params: { page: number; limit: number }) {
   return useQuery({
@@ -27,15 +27,6 @@ export function useInvoiceNotesQuery(merchantId: string | undefined, params: { p
     queryFn: () => merchantApi.getInvoiceNotes(requireValue(merchantId, 'merchantId'), params),
     enabled: !!merchantId,
   })
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 /** Downloads an invoice PDF. It needs the auth header, so it is not a plain link. */

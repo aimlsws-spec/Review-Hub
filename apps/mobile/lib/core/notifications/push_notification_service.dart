@@ -26,6 +26,11 @@ class PushNotificationService {
     if (_initialized) return;
     _initialized = true;
 
+    if (!_hasRealFirebaseConfig()) {
+      _logger.w('lib/firebase_options.dart still has placeholder values — push notifications disabled until it is configured.');
+      return;
+    }
+
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -54,6 +59,19 @@ class PushNotificationService {
   /// Fires whenever FCM rotates the device token — the backend's copy must be
   /// re-registered or it'll keep sending push to a dead token.
   Stream<String> get onTokenRefresh => isEnabled ? FirebaseMessaging.instance.onTokenRefresh : const Stream.empty();
+
+  /// Messages that arrive while the app is open. Android does not put these in the notification tray on its own,
+  /// so the app shows them itself (see PushNotificationController).
+  Stream<RemoteMessage> get onForegroundMessage => isEnabled ? FirebaseMessaging.onMessage : const Stream.empty();
+
+  /// Placeholder options can make `initializeApp` succeed and every later call fail, so they are caught up front.
+  static bool _hasRealFirebaseConfig() {
+    try {
+      return !DefaultFirebaseOptions.currentPlatform.projectId.startsWith('PLACEHOLDER');
+    } catch (_) {
+      return false; // web and desktop have no options at all
+    }
+  }
 
   /// Fires when the user taps a notification while the app is running (foreground or background).
   Stream<RemoteMessage> get onNotificationTap =>

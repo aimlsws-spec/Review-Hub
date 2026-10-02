@@ -46,6 +46,30 @@ export class DeviceRepository {
     });
   }
 
+  /** Stops push notifications to one device, e.g. when its user signs out on it. */
+  async clearPushToken(id: string) {
+    return this.prisma.device.update({ where: { id }, data: { pushToken: null } });
+  }
+
+  /** Stops push notifications to every device of a user, e.g. "sign out everywhere". */
+  async clearPushTokensForUser(userId: string) {
+    return this.prisma.device.updateMany({ where: { userId, pushToken: { not: null } }, data: { pushToken: null } });
+  }
+
+  /**
+   * Removes a token from every device row except `keepDeviceId`. One phone has one token, but it gets a separate
+   * device row for each account that signs in on it; without this, the previous account keeps getting pushes there.
+   */
+  async clearPushTokenElsewhere(pushToken: string, keepDeviceId: string) {
+    return this.prisma.device.updateMany({ where: { pushToken, id: { not: keepDeviceId } }, data: { pushToken: null } });
+  }
+
+  /** Forgets tokens Firebase reported as no longer valid (app uninstalled, token rotated). */
+  async clearPushTokens(pushTokens: string[]) {
+    if (pushTokens.length === 0) return { count: 0 };
+    return this.prisma.device.updateMany({ where: { pushToken: { in: pushTokens } }, data: { pushToken: null } });
+  }
+
   async deactivateAllByUserId(userId: string, excludeId?: string) {
     const where: Prisma.DeviceWhereInput = { userId, isActive: true };
     if (excludeId) where.id = { not: excludeId };

@@ -74,13 +74,15 @@ export class NotificationService {
       if (tokens.length > 0) {
         const notification = await this.notificationRepository.create({ ...record, channel: 'PUSH', status: 'SENT', sentAt: new Date() });
 
-        await this.pushService.sendToTokens(tokens, {
+        const deadTokens = await this.pushService.sendToTokens(tokens, {
           title: payload.title,
           body: payload.message,
           // `type` rides along in `data` (not just the stored row) so the client can
           // deep-link a tap without a round-trip — e.g. REWARD -> wallet screen.
           data: stringifyPushData({ ...payload.data, type: payload.type }),
         });
+        // Uninstalled apps and replaced tokens are forgotten, so later notifications stop trying them.
+        if (deadTokens.length > 0) await this.deviceRepository.clearPushTokens(deadTokens);
 
         created.push(notification);
       }

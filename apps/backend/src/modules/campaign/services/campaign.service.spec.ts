@@ -20,6 +20,7 @@ describe('CampaignService', () => {
     create: jest.fn(),
     findById: jest.fn(),
     findBySlug: jest.fn(),
+    findForDuplication: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
     findByMerchant: jest.fn(),
@@ -103,6 +104,89 @@ describe('CampaignService', () => {
         }),
       );
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('campaign.created', expect.any(Object));
+    });
+  });
+
+  describe('duplicate', () => {
+    const original = {
+      ...draftCampaign,
+      id: 'campaign-1',
+      merchantId: 'merchant-1',
+      title: 'Summer menu',
+      status: 'COMPLETED',
+      totalBudget: 5000,
+      reservedBudget: 5000,
+      spentBudget: 4200,
+      currentParticipants: 84,
+      startAt: new Date('2026-06-01'),
+      endAt: new Date('2026-06-30'),
+      approvedAt: new Date('2026-05-30'),
+      featured: true,
+      targetCountries: null,
+      targetStates: ['GJ'],
+      targetCities: null,
+      metadata: { somethingInternal: true },
+      tasks: [{ title: 'Scan at the counter', taskType: 'QR_SCAN', taskOrder: 0, configuration: { qrCode: 'STORE-42' } }],
+      media: [{ type: 'IMAGE', url: '/uploads/campaigns/a.jpg', thumbnail: null, displayOrder: 0, metadata: null }],
+      targets: [{ countryId: null, stateId: 'state-gj', cityId: null, minimumAge: 18, maximumAge: null, minimumFollowers: 0, minimumLevel: 0, gender: 'ALL' }],
+      categories: [{ categoryId: 'cat-food' }],
+      tags: [{ tagId: 'tag-summer' }],
+    };
+
+    beforeEach(() => {
+      mockCampaignRepository.findForDuplication.mockResolvedValue(original);
+      mockCampaignRepository.findBySlug.mockResolvedValue(null);
+      mockCampaignRepository.create.mockResolvedValue({ id: 'campaign-2', title: 'Summer menu (copy)' });
+      mockCampaignRepository.findById.mockResolvedValue({ id: 'campaign-2', status: 'DRAFT' });
+    });
+
+    it('creates a fresh DRAFT that copies the setup but none of what happened to the original', async () => {
+      await service.duplicate('campaign-1', 'user-1');
+
+      const data = mockCampaignRepository.create.mock.calls[0][0];
+      expect(data).toMatchObject({
+        merchant: { connect: { id: 'merchant-1' } },
+        title: 'Summer menu (copy)',
+        status: 'DRAFT',
+        totalBudget: 5000,
+        remainingBudget: 5000,
+        targetStates: ['GJ'],
+        createdBy: 'user-1',
+        metadata: { duplicatedFromCampaignId: 'campaign-1' },
+      });
+      expect(data.slug).toMatch(/^summer-menu-copy-[0-9a-f]{6}$/);
+      // Budget use, participants, approval, featuring and dates stay with the original.
+      for (const field of ['reservedBudget', 'spentBudget', 'currentParticipants', 'approvedAt', 'publishedAt', 'featured', 'startAt', 'endAt']) {
+        expect(data).not.toHaveProperty(field);
+      }
+      // A null JSON column is left out rather than passed as null, which Prisma would reject.
+      expect(data.targetCountries).toBeUndefined();
+    });
+
+    it('copies tasks (QR code included), media, targets, categories and tags', async () => {
+      await service.duplicate('campaign-1', 'user-1');
+
+      const data = mockCampaignRepository.create.mock.calls[0][0];
+      expect(data.tasks.create).toEqual([expect.objectContaining({ taskType: 'QR_SCAN', configuration: { qrCode: 'STORE-42' } })]);
+      expect(data.media.create).toEqual([expect.objectContaining({ url: '/uploads/campaigns/a.jpg' })]);
+      expect(data.targets.create).toEqual([expect.objectContaining({ stateId: 'state-gj', minimumAge: 18 })]);
+      expect(data.categories.create).toEqual([{ category: { connect: { id: 'cat-food' } } }]);
+      expect(data.tags.create).toEqual([{ tag: { connect: { id: 'tag-summer' } } }]);
+    });
+
+    it('announces and audits the new campaign', async () => {
+      await service.duplicate('campaign-1', 'user-1');
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('campaign.created', expect.objectContaining({ campaignId: 'campaign-2' }));
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ entityId: 'campaign-2', action: 'CREATE', after: { duplicatedFromCampaignId: 'campaign-1' } }),
+      );
+    });
+
+    it('refuses a campaign that does not exist or was deleted', async () => {
+      mockCampaignRepository.findForDuplication.mockResolvedValue(null);
+      await expect(service.duplicate('missing', 'user-1')).rejects.toThrow(NotFoundException);
+      expect(mockCampaignRepository.create).not.toHaveBeenCalled();
     });
   });
 

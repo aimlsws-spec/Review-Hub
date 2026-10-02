@@ -12,12 +12,13 @@ import {
   CampaignService,
   MerchantAnalyticsService,
   MerchantInsightsService,
+  MerchantReportExportService,
 } from './services';
 
 @Module({
   imports: [MerchantModule],
   controllers: [MerchantCampaignController, CampaignController, PublicCampaignController, UserCampaignController],
-  providers: [CampaignService, CampaignBuilderService, CampaignPerformanceService, CampaignPolicyService, MerchantAnalyticsService, MerchantInsightsService, CampaignRepository, CampaignOwnershipGuard],
+  providers: [CampaignService, CampaignBuilderService, CampaignPerformanceService, CampaignPolicyService, MerchantAnalyticsService, MerchantInsightsService, MerchantReportExportService, CampaignRepository, CampaignOwnershipGuard],
   exports: [CampaignService, CampaignPolicyService, CampaignRepository, CampaignOwnershipGuard],
 })
 export class CampaignModule {

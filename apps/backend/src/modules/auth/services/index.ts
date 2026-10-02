@@ -3,3 +3,4 @@ export * from './demographics.service';
 export * from './session.service';
 export * from './password.service';
 export * from './otp.service';
+export * from './password-history.service';

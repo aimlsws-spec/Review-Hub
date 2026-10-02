@@ -4,3 +4,4 @@ export * from './campaign-policy.service';
 export * from './merchant-insights.service';
 export * from './campaign.service';
 export * from './merchant-analytics.service';
+export * from './merchant-report-export.service';

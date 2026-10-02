@@ -30,9 +30,12 @@ Failure _mapResponse(DioException error) {
 
   String message = 'Something went wrong. Please try again.';
   Map<String, List<String>> fieldErrors = const {};
+  // The backend's machine-readable reason (e.g. EMAIL_NOT_VERIFIED), so a screen can offer the right fix.
+  String? code;
 
   if (body is Map<String, dynamic>) {
     message = body['message'] as String? ?? message;
+    code = body['code'] as String?;
     final details = body['details'];
     if (details is Map) {
       fieldErrors = details.map(
@@ -47,7 +50,7 @@ Failure _mapResponse(DioException error) {
   switch (statusCode) {
     case 400:
     case 422:
-      return ValidationFailure(message, fieldErrors: fieldErrors);
+      return ValidationFailure(message, fieldErrors: fieldErrors, code: code);
     case 401:
       return UnauthorizedFailure(message);
     case 403:

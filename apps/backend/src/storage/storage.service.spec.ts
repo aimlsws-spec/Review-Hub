@@ -5,19 +5,28 @@ import * as path from 'path';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { ServiceUnavailableException } from '@common/exceptions/domain.exceptions';
+
 import { LocalStorageService } from './storage.service';
+import { VirusScanService } from './virus-scan.service';
 
 describe('LocalStorageService', () => {
   let service: LocalStorageService;
   let tempRoot: string;
 
+  // Scanning is off unless a test says otherwise, as it is on a machine without ClamAV.
+  const virusScan = { scan: jest.fn(), failOpen: false };
+
   beforeEach(async () => {
+    virusScan.scan.mockReset().mockResolvedValue({ status: 'skipped' });
+    virusScan.failOpen = false;
     tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'storage-service-spec-'));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LocalStorageService,
         { provide: ConfigService, useValue: { get: () => tempRoot } },
+        { provide: VirusScanService, useValue: virusScan },
       ],
     }).compile();
 
@@ -81,6 +90,38 @@ describe('LocalStorageService', () => {
 
     it('deleteFile rejects a traversal attempt rather than touching anything outside the root', async () => {
       await expect(service.deleteFile('../../../../etc/passwd')).rejects.toThrow(/outside the uploads root/);
+    });
+  });
+
+  describe('saveFile — virus scan of user uploads', () => {
+    const filesIn = async (folder: string) => fs.readdir(path.join(tempRoot, folder)).catch(() => [] as string[]);
+
+    it('scans a user upload before writing it, and stores it when clean', async () => {
+      virusScan.scan.mockResolvedValue({ status: 'clean' });
+      await service.saveFile(Buffer.from('%PDF-1.4'), 'pan.pdf', 'kyc', 'application/pdf');
+
+      expect(virusScan.scan).toHaveBeenCalledWith(Buffer.from('%PDF-1.4'));
+      expect(await filesIn('kyc')).toHaveLength(1);
+    });
+
+    it('refuses an infected upload and writes nothing', async () => {
+      virusScan.scan.mockResolvedValue({ status: 'infected', signature: 'Eicar-Test-Signature' });
+
+      await expect(service.saveFile(Buffer.from('X5O!P%'), 'pan.pdf', 'kyc', 'application/pdf')).rejects.toMatchObject({ code: 'FILE_INFECTED' });
+      expect(await filesIn('kyc')).toHaveLength(0);
+    });
+
+    it('refuses the upload when the scanner is down, unless told to fail open', async () => {
+      virusScan.scan.mockResolvedValue({ status: 'error', reason: 'connect ECONNREFUSED' });
+      await expect(service.saveFile(Buffer.from('x'), 'a.png', 'profile', 'image/png')).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+      virusScan.failOpen = true;
+      await expect(service.saveFile(Buffer.from('x'), 'a.png', 'profile', 'image/png')).resolves.toMatchObject({ mimeType: 'image/png' });
+    });
+
+    it('does not scan files the server generated itself (no MIME type from a request)', async () => {
+      await service.saveFile(Buffer.from('%PDF-1.4'), 'invoice-2026.pdf', 'merchant/m1/invoices');
+      expect(virusScan.scan).not.toHaveBeenCalled();
     });
   });
 });

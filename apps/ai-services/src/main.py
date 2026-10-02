@@ -18,7 +18,7 @@ from .core.models import (
     ReviewDraftResponse,
 )
 from .core.security import verify_backend_credentials
-from .engines import CaptionEngine, ReviewAssistantEngine, TextAssistEngine, VerificationEngine
+from .engines import CaptionEngine, KycDocumentEngine, ReviewAssistantEngine, TextAssistEngine, VerificationEngine
 from .services import BackendClient, OcrService, OllamaService
 from .workers import VerificationWorker
 
@@ -33,6 +33,7 @@ engine = VerificationEngine(settings, ocr_service, ollama_service)
 text_assist_engine = TextAssistEngine(ollama_service)
 review_assistant_engine = ReviewAssistantEngine(ollama_service)
 caption_engine = CaptionEngine(ollama_service)
+kyc_document_engine = KycDocumentEngine(ocr_service)
 
 
 @asynccontextmanager
@@ -99,3 +100,15 @@ async def verify_submission_direct(
         "perceptualHash": outcome.perceptual_hash,
         "evidenceText": outcome.evidence_text,
     }
+
+
+@app.post("/v1/kyc/read", dependencies=[Depends(verify_backend_credentials)])
+async def read_kyc_document(
+    documentType: str = Form(...),
+    documentNumber: str = Form(None),
+    fullName: str = Form(None),
+    file: UploadFile = File(...),
+):
+    """Checks a KYC image against the typed number and the account holder's name. Returns only match flags."""
+    image_bytes = await file.read()
+    return kyc_document_engine.read(documentType, documentNumber, fullName, image_bytes).to_dict()

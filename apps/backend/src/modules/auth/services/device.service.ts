@@ -172,8 +172,19 @@ export class DeviceService {
    * or refreshes its token, separately from login (the token isn't always ready
    * at auth time).
    */
+  /** Registers this device's push token, taking it away from any other account's row for the same phone. */
   async updatePushToken(deviceId: string, pushToken: string) {
+    await this.deviceRepository.clearPushTokenElsewhere(pushToken, deviceId);
     return this.deviceRepository.update(deviceId, { pushToken });
+  }
+
+  /** Stops push to a device, so a signed-out phone no longer shows the previous user's notifications. */
+  async clearPushToken(deviceId: string) {
+    return this.deviceRepository.clearPushToken(deviceId);
+  }
+
+  async clearPushTokensForUser(userId: string) {
+    return this.deviceRepository.clearPushTokensForUser(userId);
   }
 
   /**

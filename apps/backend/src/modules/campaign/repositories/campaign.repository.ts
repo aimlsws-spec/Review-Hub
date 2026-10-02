@@ -24,6 +24,20 @@ export class CampaignRepository {
     });
   }
 
+  /** A campaign with everything a copy of it carries over: its live tasks, media, targets, categories and tags. */
+  async findForDuplication(id: string) {
+    return this.prisma.campaign.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        tasks: { where: { deletedAt: null }, orderBy: { taskOrder: 'asc' } },
+        media: { where: { deletedAt: null }, orderBy: { displayOrder: 'asc' } },
+        targets: { where: { deletedAt: null } },
+        categories: { select: { categoryId: true } },
+        tags: { select: { tagId: true } },
+      },
+    });
+  }
+
   async findBySlug(slug: string) {
     return this.prisma.campaign.findUnique({ where: { slug } });
   }

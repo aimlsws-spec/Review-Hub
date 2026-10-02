@@ -45,6 +45,7 @@ class ValidationFailure extends Failure {
   const ValidationFailure(
     super.message, {
     this.fieldErrors = const {},
+    super.code,
   });
 
   final Map<String, List<String>> fieldErrors;

@@ -2,12 +2,14 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useAnalyticsOverviewQuery } from '@/hooks/useAnalytics'
+import { useAnalyticsOverviewQuery, useDownloadCampaignReportMutation } from '@/hooks/useAnalytics'
 import { useAuthStore } from '@/stores/auth.store'
 
 import AnalyticsPage from './AnalyticsPage'
 
-vi.mock('@/hooks/useAnalytics', () => ({ useAnalyticsOverviewQuery: vi.fn() }))
+vi.mock('@/hooks/useAnalytics', () => ({ useAnalyticsOverviewQuery: vi.fn(), useDownloadCampaignReportMutation: vi.fn() }))
+
+const downloadMock = vi.fn()
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
 
 const overview = (overrides: Record<string, unknown> = {}) => ({
@@ -34,6 +36,21 @@ describe('AnalyticsPage', () => {
     vi.mocked(useAnalyticsOverviewQuery).mockReset()
     vi.mocked(useAuthStore).mockImplementation(((selector: (s: unknown) => unknown) => selector({ merchant: { id: 'merchant-1' } })) as never)
     returns(overview())
+    downloadMock.mockReset()
+    vi.mocked(useDownloadCampaignReportMutation).mockReturnValue({ mutate: downloadMock, isPending: false } as never)
+  })
+
+  it('downloads the report for the chosen period as CSV, Excel or PDF', async () => {
+    const user = userEvent.setup()
+    render(<AnalyticsPage />)
+
+    await user.click(screen.getByRole('button', { name: 'Download Excel' }))
+    expect(downloadMock).toHaveBeenCalledWith({ days: 30, format: 'xlsx' })
+
+    await user.selectOptions(screen.getByLabelText('Period'), '7')
+    await user.click(screen.getByRole('button', { name: 'Download PDF' }))
+    expect(downloadMock).toHaveBeenLastCalledWith({ days: 7, format: 'pdf' })
+    expect(screen.getByRole('button', { name: 'Download CSV' })).toBeInTheDocument()
   })
 
   it('shows the totals: who joined, who finished, what was paid, and what each task cost', () => {

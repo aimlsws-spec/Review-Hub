@@ -15,6 +15,7 @@ export const AUTH_ERRORS = {
   OTP_RESEND_COOLDOWN: 'OTP_RESEND_COOLDOWN',
   PASSWORD_MISMATCH: 'PASSWORD_MISMATCH',
   PASSWORD_SAME_AS_OLD: 'PASSWORD_SAME_AS_OLD',
+  PASSWORD_RECENTLY_USED: 'PASSWORD_RECENTLY_USED',
   EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
   PHONE_NOT_VERIFIED: 'PHONE_NOT_VERIFIED',
   INVALID_RESET_TOKEN: 'INVALID_RESET_TOKEN',
@@ -51,6 +52,8 @@ export const PASSWORD_POLICY = {
   REQUIRE_LOWERCASE: true,
   REQUIRE_NUMBER: true,
   REQUIRE_SPECIAL: true,
+  /** A new password may not match any of this many most recent ones, the current one included (spec: last 5). */
+  HISTORY_DEPTH: 5,
 } as const;
 
 export const TOKEN_CONFIG = {

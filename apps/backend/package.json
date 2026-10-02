@@ -45,6 +45,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "compression": "^1.7.4",
+    "exceljs": "^4.4.0",
     "express": "^4.22.2",
     "firebase-admin": "^12.7.0",
     "google-auth-library": "^9.15.1",

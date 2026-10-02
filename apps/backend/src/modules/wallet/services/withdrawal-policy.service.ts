@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PayoutMode } from '@prisma/client';
 
+import { ERROR_CODES } from '@common/constants';
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
@@ -79,6 +80,22 @@ export class WithdrawalPolicyService {
     }
     if (amount > settings.maximum) {
       throw new BadRequestException(`Maximum withdrawal amount is ${rupees(settings.maximum)} at a time`);
+    }
+  }
+
+  /**
+   * A withdrawal needs a verified email address (spec FR-003: optional at sign-up, required before withdrawing).
+   * Payout receipts, TDS notices and "a withdrawal was requested" alerts go to that address, so an unverified or
+   * missing one means the account holder could not find out about money leaving their wallet. Google sign-in and
+   * the email OTP both set `emailVerifiedAt`. The error code lets the app send the user straight to verification.
+   */
+  async assertEmailVerified(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerifiedAt: true } });
+    if (!user?.email) {
+      throw new BadRequestException('Add an email address to your profile and verify it before you can withdraw.', ERROR_CODES.EMAIL_NOT_VERIFIED);
+    }
+    if (!user.emailVerifiedAt) {
+      throw new BadRequestException('Verify your email address before you can withdraw.', ERROR_CODES.EMAIL_NOT_VERIFIED);
     }
   }
 

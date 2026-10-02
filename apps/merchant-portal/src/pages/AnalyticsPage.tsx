@@ -1,10 +1,17 @@
 import { EmptyState, ErrorState, PageHeader, Select, Skeleton, StatusBadge } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 
-import { useAnalyticsOverviewQuery } from '@/hooks/useAnalytics'
+import { useAnalyticsOverviewQuery, useDownloadCampaignReportMutation, type ReportFormat } from '@/hooks/useAnalytics'
 import { useAuthStore } from '@/stores/auth.store'
 import type { AnalyticsOverview } from '@/types'
 import { cn, formatCurrency } from '@/utils'
+
+/** Spec 9.7: the report can be taken away as CSV, Excel or PDF. */
+const EXPORT_FORMATS: { format: ReportFormat; label: string }[] = [
+  { format: 'csv', label: 'CSV' },
+  { format: 'xlsx', label: 'Excel' },
+  { format: 'pdf', label: 'PDF' },
+]
 
 const PERIOD_OPTIONS = [
   { value: '7', label: 'Last 7 days' },
@@ -64,12 +71,28 @@ export default function AnalyticsPage() {
   const [metric, setMetric] = useState<Metric>('joins')
 
   const { data, isLoading, isError, refetch } = useAnalyticsOverviewQuery(merchantId, days)
+  const downloadReport = useDownloadCampaignReportMutation(merchantId)
 
   return (
     <div>
       <PageHeader
         title="Analytics"
         subtitle="How your campaigns are doing, counted from the people who joined and the rewards actually paid."
+        secondaryAction={
+          <div className="flex items-end gap-1.5" role="group" aria-label="Download report">
+            {EXPORT_FORMATS.map(({ format, label }) => (
+              <button
+                key={format}
+                type="button"
+                className="btn-secondary btn-sm"
+                disabled={downloadReport.isPending || !merchantId}
+                onClick={() => downloadReport.mutate({ days, format })}
+              >
+                Download {label}
+              </button>
+            ))}
+          </div>
+        }
         primaryAction={
           <div className="w-44">
             <Select label="Period" options={PERIOD_OPTIONS} value={String(days)} onChange={(e) => setDays(Number(e.target.value))} />

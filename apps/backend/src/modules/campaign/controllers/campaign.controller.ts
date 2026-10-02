@@ -34,6 +34,19 @@ export class CampaignController {
     return this.campaignService.update(campaignId, userId, dto);
   }
 
+  @Post(':campaignId/duplicate')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Duplicate a campaign as a new draft',
+    description:
+      'Copies content, reward, budget, targeting, tasks, media, categories and tags into a new DRAFT titled "<title> (copy)". ' +
+      'Dates, participants, spend and approval are not copied. The copy needs approval like any new campaign.',
+  })
+  async duplicate(@Param('campaignId') campaignId: string, @CurrentUser('id') userId: string) {
+    return this.campaignService.duplicate(campaignId, userId);
+  }
+
   @Post(':campaignId/submit')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()

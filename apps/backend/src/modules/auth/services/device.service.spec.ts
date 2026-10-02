@@ -16,6 +16,8 @@ describe('DeviceService', () => {
     updateLastSeen: jest.fn(),
     deactivate: jest.fn(),
     deactivateAllByUserId: jest.fn(),
+    clearPushTokenElsewhere: jest.fn(),
+    clearPushToken: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -264,6 +266,21 @@ describe('DeviceService', () => {
       await service.registerDevice('user-1', { platform: DevicePlatform.ANDROID, fingerprint: 'fp-1' });
 
       expect(mockDeviceRepository.update).toHaveBeenCalledWith('device-1', expect.objectContaining({ installId: 'old-hash' }));
+    });
+  });
+
+  describe('push tokens', () => {
+    it('takes a token away from other accounts on the same phone before giving it to this device', async () => {
+      await service.updatePushToken('device-2', 'fcm-token');
+
+      expect(mockDeviceRepository.clearPushTokenElsewhere).toHaveBeenCalledWith('fcm-token', 'device-2');
+      expect(mockDeviceRepository.update).toHaveBeenCalledWith('device-2', { pushToken: 'fcm-token' });
+      expect(mockDeviceRepository.clearPushTokenElsewhere.mock.invocationCallOrder[0]).toBeLessThan(mockDeviceRepository.update.mock.invocationCallOrder[0]);
+    });
+
+    it('clears a device token on sign-out', async () => {
+      await service.clearPushToken('device-1');
+      expect(mockDeviceRepository.clearPushToken).toHaveBeenCalledWith('device-1');
     });
   });
 });

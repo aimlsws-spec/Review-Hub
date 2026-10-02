@@ -45,6 +45,7 @@ export class WithdrawalService {
     if (!panVerified) {
       throw new BadRequestException('PAN verification is required before you can withdraw. Upload and verify your PAN in KYC settings first.');
     }
+    await this.policyService.assertEmailVerified(userId);
 
     const bankAccount = await this.bankRepository.findById(dto.bankAccountId);
     if (!bankAccount || bankAccount.userId !== userId) {

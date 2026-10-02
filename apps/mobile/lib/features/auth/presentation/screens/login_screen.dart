@@ -32,7 +32,7 @@ class _SocialSignInNotifier extends AsyncNotifier<void> {
         state = AsyncError('Google did not return a usable sign-in token.', StackTrace.current);
         return false;
       }
-      return _completeSocialLogin(
+      return await _completeSocialLogin(
         provider: 'google',
         idToken: idToken,
         firstName: account.displayName?.split(' ').firstOrNull,
@@ -66,7 +66,7 @@ class _SocialSignInNotifier extends AsyncNotifier<void> {
             ? null
             : WebAuthenticationOptions(clientId: AppConfig.appleServiceId, redirectUri: Uri.parse(AppConfig.appleRedirectUri)),
       );
-      return _completeSocialLogin(
+      return await _completeSocialLogin(
         provider: 'apple',
         idToken: credential.identityToken!,
         firstName: credential.givenName,
@@ -300,16 +300,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                OutlinedButton.icon(
-                  onPressed: socialSignInState.isLoading ? null : _signInWithApple,
-                  icon: const Icon(Icons.apple, color: AppColors.slate900),
-                  label: const Text('Sign in with Apple', style: TextStyle(color: AppColors.slate900)),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                if (AppConfig.isAppleSignInAvailable) ...[
+                  OutlinedButton.icon(
+                    onPressed: socialSignInState.isLoading ? null : _signInWithApple,
+                    icon: const Icon(Icons.apple, color: AppColors.slate900),
+                    label: const Text('Sign in with Apple', style: TextStyle(color: AppColors.slate900)),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                ],
                 OutlinedButton.icon(
                   onPressed: socialSignInState.isLoading ? null : _signInWithGoogle,
                   icon: const Icon(Icons.g_mobiledata, color: AppColors.slate900, size: 32),

@@ -1,12 +1,14 @@
+import { HttpModule } from '@nestjs/axios';
 import { Logger, Module } from '@nestjs/common';
 
 import { UserKycController } from './controllers';
 import { UserKycDocumentRepository } from './repositories';
-import { UserKycService } from './services';
+import { KycOcrService, UserKycService } from './services';
 
 @Module({
+  imports: [HttpModule],
   controllers: [UserKycController],
-  providers: [UserKycService, UserKycDocumentRepository],
+  providers: [UserKycService, KycOcrService, UserKycDocumentRepository],
   exports: [UserKycService, UserKycDocumentRepository],
 })
 export class UserKycModule {

@@ -15,6 +15,7 @@ import { UserRepository } from '../repositories/user.repository';
 import { DemographicsService } from './demographics.service';
 import { DeviceMetadata, DeviceService, DeviceSignalsInput } from './device.service';
 import { OtpService } from './otp.service';
+import { PasswordHistoryService } from './password-history.service';
 import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
 
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly deviceService: DeviceService,
     private readonly passwordService: PasswordService,
+    private readonly passwordHistoryService: PasswordHistoryService,
     private readonly otpService: OtpService,
     private readonly loginHistoryRepository: LoginHistoryRepository,
     private readonly demographicsService: DemographicsService,
@@ -293,15 +295,20 @@ export class AuthService {
   }
 
   async logout(userId: string, sessionId?: string): Promise<void> {
+    // Push stops with the session: a signed-out phone must not keep showing this user's notifications.
     if (sessionId) {
+      const session = await this.sessionService.getSessionById(sessionId);
+      if (session?.deviceId) await this.deviceService.clearPushToken(session.deviceId);
       await this.sessionService.revokeSession(sessionId);
     } else {
+      await this.deviceService.clearPushTokensForUser(userId);
       await this.sessionService.revokeAllUserSessions(userId);
     }
     this.eventEmitter.emit(AUTH_EVENTS.USER_LOGGED_OUT, { userId, sessionId });
   }
 
   async logoutAllDevices(userId: string): Promise<void> {
+    await this.deviceService.clearPushTokensForUser(userId);
     await this.sessionService.revokeAllUserSessions(userId);
     this.eventEmitter.emit(AUTH_EVENTS.USER_LOGGED_OUT, { userId });
   }
@@ -337,8 +344,11 @@ export class AuthService {
     const verified = await this.otpService.verifyOtp(user.id, OtpType.PASSWORD_RESET, code);
     if (!verified) throw new BadRequestException('Unable to reset password. Invalid code.');
 
+    await this.passwordHistoryService.assertNotRecentlyUsed(user.id, newPassword, user.passwordHash);
+
     const passwordHash = await this.passwordService.hash(newPassword);
     await this.userRepository.update(user.id, { passwordHash });
+    await this.passwordHistoryService.remember(user.id, user.passwordHash);
 
     await this.sessionService.revokeAllUserSessions(user.id);
     this.eventEmitter.emit(AUTH_EVENTS.PASSWORD_RESET, { userId: user.id });
@@ -417,11 +427,12 @@ export class AuthService {
     const isValid = await this.passwordService.verify(currentPassword, user.passwordHash);
     if (!isValid) throw new BadRequestException('Current password is incorrect');
 
-    const isSame = await this.passwordService.verify(newPassword, user.passwordHash);
-    if (isSame) throw new BadRequestException('New password must be different from current password');
+    // Covers "same as the current password" as well as the last few before it.
+    await this.passwordHistoryService.assertNotRecentlyUsed(userId, newPassword, user.passwordHash);
 
     const passwordHash = await this.passwordService.hash(newPassword);
     await this.userRepository.update(userId, { passwordHash });
+    await this.passwordHistoryService.remember(userId, user.passwordHash);
 
     await this.sessionService.revokeAllUserSessions(userId);
     this.eventEmitter.emit(AUTH_EVENTS.PASSWORD_CHANGED, { userId });

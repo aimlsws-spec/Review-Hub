@@ -4,11 +4,38 @@ import { useState } from 'react'
 import { KycReviewModal } from '@/components/KycReviewModal'
 import { ITEMS_PER_PAGE, KYC_DOCUMENT_TYPE_LABELS, KYC_STATUS_LABELS } from '@/constants'
 import { useKycDocumentsQuery } from '@/hooks/useKyc'
-import type { KycDocumentType, KycStatus } from '@/types'
+import type { KycDocumentType, KycOcrCheck, KycStatus } from '@/types'
 import { formatDate } from '@/utils'
 
 const STATUS_OPTIONS = Object.entries(KYC_STATUS_LABELS).map(([value, label]) => ({ value, label }))
 const TYPE_OPTIONS = Object.entries(KYC_DOCUMENT_TYPE_LABELS).map(([value, label]) => ({ value, label }))
+
+const OCR_LABELS: Record<KycOcrCheck['status'], { label: string; className: string }> = {
+  MATCH: { label: 'Number and name found', className: 'bg-green-50 text-green-700' },
+  PARTIAL: { label: 'Partly matches', className: 'bg-amber-50 text-amber-700' },
+  MISMATCH: { label: 'Does not match', className: 'bg-red-50 text-red-700' },
+  UNREADABLE: { label: 'Could not read', className: 'bg-gray-100 text-gray-600' },
+  UNAVAILABLE: { label: 'Not checked', className: 'bg-gray-100 text-gray-600' },
+  NOT_AN_IMAGE: { label: 'PDF, not checked', className: 'bg-gray-100 text-gray-600' },
+}
+
+/**
+ * The automatic OCR comparison, as a hint only: it can not tell a real card from an edited image, so the reviewer
+ * still decides. What is shown is whether the typed number and the user's name were found, never text read from it.
+ */
+function OcrCheckBadge({ check }: { check: KycOcrCheck | null }) {
+  if (!check) return <span className="text-xs text-gray-400">Checking…</span>
+  const { label, className } = OCR_LABELS[check.status] ?? OCR_LABELS.UNAVAILABLE
+  const details = [
+    check.numberMatches === null ? null : `Number ${check.numberMatches ? 'found' : 'not found'}`,
+    check.nameMatches === null ? null : `Name ${check.nameMatches ? 'found' : 'not found'}`,
+  ].filter(Boolean)
+  return (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${className}`} title={details.join(', ') || undefined}>
+      {label}
+    </span>
+  )
+}
 
 export default function UserKycPage() {
   const [page, setPage] = useState(1)
@@ -106,6 +133,7 @@ export default function UserKycPage() {
               <tr>
                 <th className="table-th">User</th>
                 <th className="table-th">Document</th>
+                <th className="table-th">Auto-check</th>
                 <th className="table-th">Submitted</th>
                 <th className="table-th">Status</th>
                 <th className="table-th text-right">Actions</th>
@@ -122,6 +150,7 @@ export default function UserKycPage() {
                     <p className="text-gray-900">{KYC_DOCUMENT_TYPE_LABELS[doc.documentType] ?? doc.documentType}</p>
                     <p className="font-mono text-xs text-gray-500">{doc.documentNumber ?? '—'}</p>
                   </td>
+                  <td className="table-td"><OcrCheckBadge check={doc.ocrCheck ?? null} /></td>
                   <td className="table-td text-gray-500">{formatDate(doc.submittedAt)}</td>
                   <td className="table-td">
                     <StatusBadge status={doc.status} label={KYC_STATUS_LABELS[doc.status]} />

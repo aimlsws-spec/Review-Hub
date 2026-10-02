@@ -13,6 +13,7 @@ import { AuthService } from './auth.service';
 import { DemographicsService } from './demographics.service';
 import { DeviceService } from './device.service';
 import { OtpService } from './otp.service';
+import { PasswordHistoryService } from './password-history.service';
 import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
 
@@ -57,11 +58,15 @@ describe('AuthService', () => {
     deactivateAllDevices: jest.fn().mockResolvedValue(undefined),
     getUserDevices: jest.fn().mockResolvedValue([]),
     updatePushToken: jest.fn().mockResolvedValue(undefined),
+    clearPushToken: jest.fn().mockResolvedValue(undefined),
+    clearPushTokensForUser: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockDemographicsService = { resolve: jest.fn() };
   const mockIpReputation = { isAnonymizer: jest.fn() };
   const mockConfig = { get: jest.fn() };
+
+  const mockPasswordHistoryService = { assertNotRecentlyUsed: jest.fn(), remember: jest.fn() };
 
   const mockPasswordService = {
     hash: jest.fn(),
@@ -117,6 +122,7 @@ describe('AuthService', () => {
         { provide: SessionService, useValue: mockSessionService },
         { provide: DeviceService, useValue: mockDeviceService },
         { provide: PasswordService, useValue: mockPasswordService },
+        { provide: PasswordHistoryService, useValue: mockPasswordHistoryService },
         { provide: OtpService, useValue: mockOtpService },
         { provide: LoginHistoryRepository, useValue: mockLoginHistoryRepository },
         { provide: DemographicsService, useValue: mockDemographicsService },
@@ -267,6 +273,16 @@ describe('AuthService', () => {
       await service.logout('user-1');
 
       expect(mockSessionService.revokeAllUserSessions).toHaveBeenCalledWith('user-1');
+      expect(mockDeviceService.clearPushTokensForUser).toHaveBeenCalledWith('user-1');
+    });
+
+    it('stops push to the signed-out device, so it no longer shows notifications for this user', async () => {
+      mockSessionService.getSessionById.mockResolvedValue({ id: 'session-1', deviceId: 'device-1' });
+
+      await service.logout('user-1', 'session-1');
+
+      expect(mockDeviceService.clearPushToken).toHaveBeenCalledWith('device-1');
+      expect(mockSessionService.revokeSession).toHaveBeenCalledWith('session-1');
     });
   });
 
@@ -315,15 +331,25 @@ describe('AuthService', () => {
   describe('changePassword', () => {
     it('should change password and revoke sessions', async () => {
       mockUserRepository.findByIdSimple.mockResolvedValue(mockUser);
-      mockPasswordService.verify
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false);
+      mockPasswordService.verify.mockResolvedValueOnce(true);
       mockPasswordService.hash.mockResolvedValue('new-hash');
 
       await service.changePassword('user-1', 'OldPass@123', 'NewPass@456');
 
       expect(mockUserRepository.update).toHaveBeenCalledWith('user-1', { passwordHash: 'new-hash' });
       expect(mockSessionService.revokeAllUserSessions).toHaveBeenCalledWith('user-1');
+      // The password being replaced goes into the history, so it can not be set again next time.
+      expect(mockPasswordHistoryService.remember).toHaveBeenCalledWith('user-1', mockUser.passwordHash);
+    });
+
+    it('refuses a password used recently, before changing anything', async () => {
+      mockUserRepository.findByIdSimple.mockResolvedValue(mockUser);
+      mockPasswordService.verify.mockResolvedValue(true);
+      mockPasswordHistoryService.assertNotRecentlyUsed.mockRejectedValueOnce(new BadRequestException('You have used this password recently.'));
+
+      await expect(service.changePassword('user-1', 'OldPass@123', 'Reused@123')).rejects.toThrow(/used this password recently/);
+      expect(mockUserRepository.update).not.toHaveBeenCalled();
+      expect(mockPasswordHistoryService.remember).not.toHaveBeenCalled();
     });
 
     it('should throw if current password is incorrect', async () => {

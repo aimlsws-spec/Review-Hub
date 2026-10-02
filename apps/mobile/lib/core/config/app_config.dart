@@ -25,14 +25,29 @@ class AppConfig {
     defaultValue: true,
   );
 
-  /// From Google Cloud Console, against this app's package name + release SHA fingerprint.
-  /// Empty until that's set up — see auth.controller.ts's `/auth/google/mobile`.
-  static const String googleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+  /// The *Web* OAuth client ID from Google Cloud Console (project "VIRAL KAR"). It must be the same
+  /// value as the backend's GOOGLE_CLIENT_ID, because the backend checks that every ID token was issued
+  /// for this audience (see auth.controller.ts's `/auth/google/mobile`). Client IDs are public
+  /// identifiers, not secrets, so a default is safe here; override with
+  /// `--dart-define=GOOGLE_SERVER_CLIENT_ID=...` for another Google project.
+  static const String googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: '403662087440-jr70qsh92l0cicmfipdqpfvpmn76vgds.apps.googleusercontent.com',
+  );
 
   /// Apple's Sign In only works directly on Apple platforms; Android and web need a Service ID
   /// and a hosted redirect endpoint, neither of which exist here yet.
   static const String appleServiceId = String.fromEnvironment('APPLE_SERVICE_ID');
   static const String appleRedirectUri = String.fromEnvironment('APPLE_REDIRECT_URI');
+
+  /// Apple sign-in is out of scope for now (it needs a paid Apple Developer membership), so the
+  /// button is only offered where it can actually work: natively on Apple platforms, or elsewhere
+  /// once a Service ID has been configured.
+  static bool get isAppleSignInAvailable {
+    if (appleServiceId.isNotEmpty) return true;
+    if (kIsWeb) return false;
+    return Platform.isIOS || Platform.isMacOS;
+  }
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);

@@ -25,6 +25,7 @@ const pendingDoc = {
   reviewedAt: null,
   reviewedBy: null,
   user: { id: 'user-1', name: 'Priya Sharma', email: 'priya@example.com', phone: '9876543210' },
+  ocrCheck: null,
 }
 
 const listResult = (docs: unknown[]) =>
@@ -54,6 +55,22 @@ describe('UserKycPage', () => {
     expect(table.getByText('****234F')).toBeInTheDocument()
     expect(table.getByText('Pending')).toBeInTheDocument()
     expect(table.getByRole('button', { name: 'Review' })).toBeInTheDocument()
+  })
+
+  it('shows the automatic check as a hint, with what was and was not found', () => {
+    vi.mocked(useKycDocumentsQuery).mockReturnValue(
+      listResult([
+        { ...pendingDoc, id: 'doc-1', ocrCheck: { status: 'MISMATCH', numberMatches: false, nameMatches: false, confidence: 0 } },
+        { ...pendingDoc, id: 'doc-2', ocrCheck: { status: 'PARTIAL', numberMatches: true, nameMatches: false, confidence: 0.5 } },
+        { ...pendingDoc, id: 'doc-3', ocrCheck: null },
+      ]),
+    )
+    render(<UserKycPage />)
+
+    const table = within(screen.getByRole('table'))
+    expect(table.getByText('Does not match')).toBeInTheDocument()
+    expect(table.getByText('Partly matches')).toHaveAttribute('title', 'Number found, Name not found')
+    expect(table.getByText('Checking…')).toBeInTheDocument()
   })
 
   it('offers View, not Review, for a document that was already decided', () => {

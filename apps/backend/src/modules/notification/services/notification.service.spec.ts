@@ -27,7 +27,7 @@ describe('NotificationService', () => {
   };
   const mockUserRepository = { findByIdSimple: jest.fn() };
   const mockEmailQueueService = { enqueue: jest.fn() };
-  const mockDeviceRepository = { findByUserId: jest.fn() };
+  const mockDeviceRepository = { findByUserId: jest.fn(), clearPushTokens: jest.fn() };
   const mockPushService = { sendToTokens: jest.fn() };
 
   beforeEach(async () => {
@@ -105,6 +105,7 @@ describe('NotificationService', () => {
         { id: 'device-2', pushToken: null },
       ]);
       mockNotificationRepository.create.mockResolvedValue({ id: 'notif-3' });
+      mockPushService.sendToTokens.mockResolvedValue([]);
 
       const result = await service.dispatch({ ...basePayload, channels: ['PUSH'] });
 
@@ -120,6 +121,17 @@ describe('NotificationService', () => {
           data: expect.objectContaining({ type: basePayload.type }),
         }),
       );
+    });
+
+    it('forgets tokens Firebase reported as gone, so later notifications stop trying them', async () => {
+      mockPreferenceRepository.getOrCreate.mockResolvedValue({ inAppEnabled: false, emailEnabled: false, pushEnabled: true });
+      mockDeviceRepository.findByUserId.mockResolvedValue([{ id: 'device-1', pushToken: 'token-1' }, { id: 'device-2', pushToken: 'token-2' }]);
+      mockNotificationRepository.create.mockResolvedValue({ id: 'notif-4' });
+      mockPushService.sendToTokens.mockResolvedValue(['token-2']);
+
+      await service.dispatch({ ...basePayload, channels: ['PUSH'] });
+
+      expect(mockDeviceRepository.clearPushTokens).toHaveBeenCalledWith(['token-2']);
     });
 
     it('should skip PUSH silently when the user has no registered device tokens', async () => {

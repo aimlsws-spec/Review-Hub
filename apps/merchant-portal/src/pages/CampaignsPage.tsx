@@ -103,7 +103,7 @@ export default function CampaignsPage() {
     setEditing(null)
   }
 
-  const { saveMutation, actionMutation, deleteMutation } = useCampaignMutations(merchantId, {
+  const { saveMutation, actionMutation, deleteMutation, duplicateMutation } = useCampaignMutations(merchantId, {
     editingId: editing?.id,
     onSaveSuccess: closeEditor,
     onActionSuccess: () => setCancelTarget(null),
@@ -229,6 +229,14 @@ export default function CampaignsPage() {
                           Cancel
                         </button>
                       )}
+                      <button
+                        className="btn-ghost btn-sm"
+                        title="Copy this campaign into a new draft"
+                        disabled={duplicateMutation.isPending}
+                        onClick={() => duplicateMutation.mutate(campaign.id)}
+                      >
+                        Duplicate
+                      </button>
                       {DELETABLE_STATUSES.includes(campaign.status) && (
                         <button className="btn-ghost btn-sm text-red-600 hover:bg-red-50" onClick={() => setDeleteTarget(campaign)}>
                           Delete

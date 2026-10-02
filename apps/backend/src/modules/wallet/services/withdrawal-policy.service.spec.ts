@@ -5,7 +5,7 @@ import { WITHDRAWAL_DEFAULTS } from '../constants';
 import { WithdrawalPolicyService, WithdrawalSettings } from './withdrawal-policy.service';
 
 describe('WithdrawalPolicyService', () => {
-  const prisma = { platformConfiguration: { findFirst: jest.fn() } };
+  const prisma = { platformConfiguration: { findFirst: jest.fn() }, user: { findUnique: jest.fn() } };
   let service: WithdrawalPolicyService;
 
   const settings: WithdrawalSettings = {
@@ -137,6 +137,24 @@ describe('WithdrawalPolicyService', () => {
     it('follows the number of hours an admin sets', () => {
       expect(() => service.assertBankReady(bank(5), { ...settings, bankCoolingHours: 4 }, now)).not.toThrow();
       expect(() => service.assertBankReady(bank(5), { ...settings, bankCoolingHours: 6 }, now)).toThrow(BadRequestException);
+    });
+  });
+
+  describe('assertEmailVerified', () => {
+    it('allows a user whose email address is verified', async () => {
+      prisma.user.findUnique.mockResolvedValue({ email: 'a@example.com', emailVerifiedAt: new Date() });
+      await expect(service.assertEmailVerified('user-1')).resolves.toBeUndefined();
+    });
+
+    it('refuses a user whose email address is not verified yet, with a code the app can act on', async () => {
+      prisma.user.findUnique.mockResolvedValue({ email: 'a@example.com', emailVerifiedAt: null });
+      await expect(service.assertEmailVerified('user-1')).rejects.toMatchObject({ code: 'EMAIL_NOT_VERIFIED' });
+      await expect(service.assertEmailVerified('user-1')).rejects.toThrow(/Verify your email address/);
+    });
+
+    it('refuses a phone-only account, asking for an email address to be added first', async () => {
+      prisma.user.findUnique.mockResolvedValue({ email: null, emailVerifiedAt: null });
+      await expect(service.assertEmailVerified('user-1')).rejects.toThrow(/Add an email address/);
     });
   });
 });

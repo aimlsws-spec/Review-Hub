@@ -60,7 +60,7 @@ export class ValidationException extends AppException {
 }
 
 export class BadRequestException extends AppException {
-  constructor(message: string, code = ERROR_CODES.BAD_REQUEST) {
+  constructor(message: string, code: string = ERROR_CODES.BAD_REQUEST) {
     super({
       code,
       message,

@@ -9,7 +9,7 @@ import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { UserKycReviewedEvent } from '../../user-kyc/events';
 import { KycDocumentWithUser, UserKycDocumentRepository } from '../../user-kyc/repositories';
 import { UserKycService } from '../../user-kyc/services';
-import { KycReviewItemDto, KycReviewQueryDto } from '../dto';
+import { KycOcrCheckDto, KycReviewItemDto, KycReviewQueryDto } from '../dto';
 
 /** Statuses in which a document is still waiting for a human decision. */
 const AWAITING_DECISION: DocumentVerificationStatus[] = ['PENDING', 'UNDER_REVIEW'];
@@ -165,6 +165,7 @@ export class KycManagementService {
       reviewedAt: document.verifiedAt,
       reviewedBy: document.verifiedBy,
       user: { id: user.id, name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone },
+      ocrCheck: (document.ocrCheck as KycOcrCheckDto | null) ?? null,
     };
   }
 }

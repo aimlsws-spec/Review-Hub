@@ -7,12 +7,29 @@ import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../auth/data/otp_type.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../data/models/bank_account_model.dart';
 import '../../data/models/wallet_summary_model.dart';
 import '../../providers/wallet_providers.dart';
 
 /// Mirrors `WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT` on the backend.
 const _minWithdrawalAmount = 1000;
+
+/// The backend's code for "verify your email before withdrawing" (spec FR-003).
+const _emailNotVerifiedCode = 'EMAIL_NOT_VERIFIED';
+
+/// A refused withdrawal. [needsEmailVerification] lets the screen offer the fix
+/// right there instead of only showing the message.
+class _WithdrawError {
+  const _WithdrawError(this.message, {this.needsEmailVerification = false});
+
+  final String message;
+  final bool needsEmailVerification;
+
+  @override
+  String toString() => message;
+}
 
 /// Null until the user explicitly taps an account; the primary (or first)
 /// account is used as the effective default without ever being written back
@@ -48,7 +65,14 @@ class _WithdrawSubmitNotifier extends AsyncNotifier<void> {
     final result = await ref.read(walletRepositoryProvider).requestWithdrawal(amount: amount, bankAccountId: bankAccountId);
 
     if (result.isFailure) {
-      state = AsyncError(result.failureOrNull?.message ?? 'Could not submit the withdrawal request.', StackTrace.current);
+      final failure = result.failureOrNull;
+      state = AsyncError(
+        _WithdrawError(
+          failure?.message ?? 'Could not submit the withdrawal request.',
+          needsEmailVerification: failure?.code == _emailNotVerifiedCode,
+        ),
+        StackTrace.current,
+      );
       return false;
     }
     state = const AsyncData(null);
@@ -96,6 +120,9 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     final submitState = ref.watch(_withdrawSubmitProvider);
     final selectedBankAccountId = ref.watch(_selectedBankAccountIdProvider);
     final errorMessage = submitState.hasError ? submitState.error.toString() : null;
+    final submitError = submitState.error;
+    final needsEmailVerification = submitError is _WithdrawError && submitError.needsEmailVerification;
+    final hasEmail = ref.watch(authStateProvider).value?.email != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Withdraw')),
@@ -122,7 +149,21 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
-                        child: Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(errorMessage, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                            if (needsEmailVerification)
+                              TextButton(
+                                style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                                // A phone-only account has no address to verify yet, so it is sent to add one first.
+                                onPressed: () => hasEmail
+                                    ? context.push(RoutePaths.otpVerification, extra: OtpType.emailVerification)
+                                    : context.push(RoutePaths.editProfile),
+                                child: Text(hasEmail ? 'Verify email now' : 'Add an email address'),
+                              ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                     ],

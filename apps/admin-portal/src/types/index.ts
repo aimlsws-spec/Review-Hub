@@ -369,6 +369,15 @@ export interface KycDocument {
   reviewedAt: string | null
   reviewedBy: string | null
   user: { id: string; name: string; email: string | null; phone: string | null }
+  /** Automatic OCR comparison with the typed number and the user's name. A hint for the reviewer, never a decision. */
+  ocrCheck: KycOcrCheck | null
+}
+
+export interface KycOcrCheck {
+  status: 'MATCH' | 'PARTIAL' | 'MISMATCH' | 'UNREADABLE' | 'UNAVAILABLE' | 'NOT_AN_IMAGE'
+  numberMatches: boolean | null
+  nameMatches: boolean | null
+  confidence: number
 }
 
 export interface WithdrawalRequest {

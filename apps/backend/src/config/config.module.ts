@@ -14,6 +14,7 @@ import { redisConfig } from './envs/redis.config';
 import { riskConfig } from './envs/risk.config';
 import { smtpConfig } from './envs/smtp.config';
 import { storageConfig } from './envs/storage.config';
+import { virusScanConfig } from './envs/virus-scan.config';
 import { throttleConfig } from './envs/throttle.config';
 import { twilioConfig } from './envs/twilio.config';
 
@@ -65,6 +66,7 @@ export const validationSchema = Joi.object({
         redisConfig,
         smtpConfig,
         storageConfig,
+        virusScanConfig,
         throttleConfig,
         aiConfig,
         paymentConfig,

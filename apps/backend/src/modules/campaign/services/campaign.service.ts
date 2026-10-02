@@ -82,6 +82,107 @@ export class CampaignService {
     return this.getById(campaign.id);
   }
 
+  /**
+   * Copies a campaign into a new DRAFT (spec §9.4 "Duplicate Campaign"): content, reward, budget, targeting, tasks,
+   * media, categories and tags. Everything that describes what already *happened* to the original is not copied:
+   * budget reserved or spent, participants, approval, publishing, featuring and its dates. Dates are cleared because
+   * the original's are usually in the past; the merchant sets new ones before submitting. The copy goes through the
+   * normal approval flow like any new campaign, and no money moves until it is activated.
+   */
+  async duplicate(campaignId: string, userId: string) {
+    const source = await this.campaignRepository.findForDuplication(campaignId);
+    if (!source) throw new NotFoundException('Campaign');
+
+    const title = `${source.title} (copy)`.slice(0, 200);
+    const slug = await this.generateUniqueSlug(title);
+    // Prisma rejects a plain `null` for a JSON column; leaving the field out stores NULL just the same.
+    const json = (value: Prisma.JsonValue | null) => (value === null ? undefined : (value as Prisma.InputJsonValue));
+
+    const copy = await this.campaignRepository.create({
+      merchant: { connect: { id: source.merchantId } },
+      title,
+      slug,
+      shortDescription: source.shortDescription,
+      description: source.description,
+      thumbnailUrl: source.thumbnailUrl,
+      bannerUrl: source.bannerUrl,
+      campaignType: source.campaignType,
+      visibility: source.visibility,
+      priority: source.priority,
+      rewardType: source.rewardType,
+      rewardAmount: source.rewardAmount,
+      totalBudget: source.totalBudget,
+      remainingBudget: source.totalBudget,
+      maxParticipants: source.maxParticipants,
+      minimumUserLevel: source.minimumUserLevel,
+      minimumFollowers: source.minimumFollowers,
+      minimumAge: source.minimumAge,
+      maximumAge: source.maximumAge,
+      targetGender: source.targetGender,
+      targetCountries: json(source.targetCountries),
+      targetStates: json(source.targetStates),
+      targetCities: json(source.targetCities),
+      autoApprove: source.autoApprove,
+      aiThreshold: source.aiThreshold,
+      status: 'DRAFT',
+      metadata: { duplicatedFromCampaignId: source.id },
+      createdBy: userId,
+      tasks: {
+        create: source.tasks.map((task) => ({
+          title: task.title,
+          description: task.description,
+          instructions: task.instructions,
+          taskType: task.taskType,
+          verificationType: task.verificationType,
+          taskOrder: task.taskOrder,
+          rewardAmount: task.rewardAmount,
+          required: task.required,
+          minimumTimeSeconds: task.minimumTimeSeconds,
+          proofRequired: task.proofRequired,
+          proofType: task.proofType,
+          // A QR_SCAN task keeps its code: a copy is usually the same store with the same printed QR. The merchant
+          // can change it while the copy is a draft.
+          configuration: json(task.configuration),
+        })),
+      },
+      media: {
+        create: source.media.map((item) => ({
+          type: item.type,
+          url: item.url,
+          thumbnail: item.thumbnail,
+          displayOrder: item.displayOrder,
+          metadata: json(item.metadata),
+        })),
+      },
+      targets: {
+        create: source.targets.map((target) => ({
+          countryId: target.countryId,
+          stateId: target.stateId,
+          cityId: target.cityId,
+          minimumAge: target.minimumAge,
+          maximumAge: target.maximumAge,
+          minimumFollowers: target.minimumFollowers,
+          minimumLevel: target.minimumLevel,
+          gender: target.gender,
+        })),
+      },
+      categories: { create: source.categories.map(({ categoryId }) => ({ category: { connect: { id: categoryId } } })) },
+      tags: { create: source.tags.map(({ tagId }) => ({ tag: { connect: { id: tagId } } })) },
+    });
+
+    this.eventEmitter.emit('campaign.created', new CampaignCreatedEvent(copy.id, source.merchantId, copy.title));
+    await this.auditLogService.record({
+      actorId: userId,
+      actorType: 'MERCHANT',
+      entity: 'Campaign',
+      entityId: copy.id,
+      action: 'CREATE',
+      after: { duplicatedFromCampaignId: source.id } as Prisma.InputJsonValue,
+    });
+
+    return this.getById(copy.id);
+  }
+
   async getById(campaignId: string) {
     const campaign = await this.campaignRepository.findById(campaignId);
     if (!campaign) throw new NotFoundException('Campaign');

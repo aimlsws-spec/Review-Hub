@@ -6,6 +6,11 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ERROR_CODES } from '@common/constants';
+import { BadRequestException, ServiceUnavailableException } from '@common/exceptions/domain.exceptions';
+
+import { VirusScanService } from './virus-scan.service';
+
 export interface UploadResult {
   path: string;
   size: number;
@@ -18,7 +23,10 @@ export class LocalStorageService implements OnModuleInit {
   private readonly logger = new Logger(LocalStorageService.name);
   private readonly basePath: string;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly virusScan: VirusScanService,
+  ) {
     this.basePath = this.config.get<string>('storage.localPath', './uploads');
   }
 
@@ -93,6 +101,8 @@ export class LocalStorageService implements OnModuleInit {
   ): Promise<UploadResult> {
     const safeFolder = folder.replace(/^\/+|\/+$/g, '');
     const ext = this.resolveExtension(originalName, mimeType);
+    // A caller-supplied MIME type means the bytes came from a user, so they are scanned before touching the disk.
+    if (mimeType) await this.assertNotMalware(buffer, safeFolder);
     const filename = `${uuidv4()}${ext}`;
     const relativePath = `/${safeFolder}/${filename}`;
     const fullPath = this.resolveSafePath(`${safeFolder}/${filename}`);
@@ -111,6 +121,21 @@ export class LocalStorageService implements OnModuleInit {
       mimeType: mimeType ?? this.getMimeType(ext),
       originalName,
     };
+  }
+
+  /**
+   * Refuses an infected upload. While scanning is on, a file the scanner could not check is refused too, unless
+   * VIRUS_SCAN_FAIL_OPEN=true: storing it would quietly skip the one check the setting exists for.
+   */
+  private async assertNotMalware(buffer: Buffer, folder: string): Promise<void> {
+    const result = await this.virusScan.scan(buffer);
+    if (result.status === 'infected') {
+      this.logger.warn(`Rejected an infected upload to ${folder}: ${result.signature}`);
+      throw new BadRequestException('This file failed our security scan and was not uploaded.', ERROR_CODES.FILE_INFECTED);
+    }
+    if (result.status === 'error' && !this.virusScan.failOpen) {
+      throw new ServiceUnavailableException('file scanning');
+    }
   }
 
   private resolveExtension(originalName: string, mimeType?: string): string {

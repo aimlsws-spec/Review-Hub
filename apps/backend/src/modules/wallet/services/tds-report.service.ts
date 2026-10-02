@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, TdsStatus } from '@prisma/client';
 
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
+import { csvCell } from '@common/utils/csv.util';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { financialYearOf } from '../tds';
@@ -90,11 +91,5 @@ export class TdsReportService {
   }
 }
 
-/**
- * A CSV cell, quoted when it needs to be. A cell that starts with =, +, - or @ would be run as a formula by a
- * spreadsheet, and names come from users, so those get a leading apostrophe to be shown as plain text.
- */
-export function csvCell(value: string): string {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
+// Moved to common/utils so other modules can use it; re-exported so existing imports keep working.
+export { csvCell };

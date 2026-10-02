@@ -36,6 +36,7 @@ describe('Withdrawal rules and manual payout (e2e)', () => {
     const user = await api.registerUser();
     await api.fundWallet(user, balance);
     await api.approvePan(user, adminToken);
+    await api.verifyEmail(user);
     const bankAccountId = await api.addBankAccount(user);
     return { user, bankAccountId };
   };

@@ -46,6 +46,7 @@ describe('WithdrawalService', () => {
     tds: { rate: 0, annualThreshold: 0, section: null },
   };
   const mockSettings = jest.fn();
+  let assertEmailVerified: jest.SpyInstance;
 
   const wallet = { id: 'wallet-1', availableBalance: 5000 };
   const longAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -76,6 +77,7 @@ describe('WithdrawalService', () => {
     jest.resetAllMocks();
     // Every test starts as a normal, allowed request: the rules as configured, PAN verified, nothing linked.
     jest.spyOn(module.get(WithdrawalPolicyService), 'getSettings').mockImplementation(async () => mockSettings());
+    assertEmailVerified = jest.spyOn(module.get(WithdrawalPolicyService), 'assertEmailVerified').mockResolvedValue(undefined);
     mockSettings.mockReturnValue(settings);
     mockAccountLinkage.assess.mockResolvedValue({ points: 0, holdRecommended: false, accounts: [] });
     mockUserKycService.isPanVerified.mockResolvedValue(true);
@@ -105,6 +107,14 @@ describe('WithdrawalService', () => {
       mockUserKycService.isPanVerified.mockResolvedValue(false);
 
       await expect(service.request('user-1', ask)).rejects.toThrow(BadRequestException);
+      expect(mockBankRepository.findById).not.toHaveBeenCalled();
+    });
+
+    it('refuses until the email address is verified, before looking at the bank account', async () => {
+      assertEmailVerified.mockRejectedValue(new BadRequestException('Verify your email address before you can withdraw.', 'EMAIL_NOT_VERIFIED'));
+
+      await expect(service.request('user-1', ask)).rejects.toMatchObject({ code: 'EMAIL_NOT_VERIFIED' });
+      expect(assertEmailVerified).toHaveBeenCalledWith('user-1');
       expect(mockBankRepository.findById).not.toHaveBeenCalled();
     });
 

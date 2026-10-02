@@ -61,6 +61,11 @@ describe('Rewards and withdrawals (e2e)', () => {
   };
 
   const approvePan = (user: TestUser) => api.approvePan(user, adminToken);
+  /** PAN plus a verified email: everything a withdrawal needs besides money and a bank account. */
+  const readyToWithdraw = async (user: TestUser) => {
+    await approvePan(user);
+    await api.verifyEmail(user);
+  };
 
   const addBank = (user: TestUser) => api.addBankAccount(user);
 
@@ -212,10 +217,25 @@ describe('Rewards and withdrawals (e2e)', () => {
       expect(Number((await walletOf(user)).availableBalance)).toBe(2000);
     });
 
+    it('refuses a withdrawal until the email address has been verified, then allows it', async () => {
+      const user = await api.registerUser();
+      await api.post('/wallet/simulate-add-funds', user.token).send({ amount: 2000 }).expect(200);
+      await approvePan(user);
+      const bankAccountId = await addBank(user);
+
+      const refused = await api.post('/withdrawals', user.token).send({ amount: 1000, bankAccountId });
+      expect(refused.status).toBe(400);
+      expect(refused.body.code).toBe('EMAIL_NOT_VERIFIED');
+      expect(Number((await walletOf(user)).availableBalance)).toBe(2000);
+
+      await api.verifyEmail(user);
+      await api.post('/withdrawals', user.token).send({ amount: 1000, bankAccountId }).expect(201);
+    });
+
     it('refuses a withdrawal larger than the balance', async () => {
       const user = await api.registerUser();
       await api.post('/wallet/simulate-add-funds', user.token).send({ amount: 1000 }).expect(200);
-      await approvePan(user);
+      await readyToWithdraw(user);
       const bankAccountId = await addBank(user);
 
       const res = await api.post('/withdrawals', user.token).send({ amount: 5000, bankAccountId });
@@ -229,7 +249,7 @@ describe('Rewards and withdrawals (e2e)', () => {
       const thief = await api.registerUser();
       const ownersBank = await addBank(owner);
       await api.post('/wallet/simulate-add-funds', thief.token).send({ amount: 2000 }).expect(200);
-      await approvePan(thief);
+      await readyToWithdraw(thief);
 
       await api.post('/withdrawals', thief.token).send({ amount: 1000, bankAccountId: ownersBank }).expect(404);
 
@@ -243,7 +263,7 @@ describe('Rewards and withdrawals (e2e)', () => {
       beforeEach(async () => {
         user = await api.registerUser();
         await api.post('/wallet/simulate-add-funds', user.token).send({ amount: 3000 }).expect(200);
-        await approvePan(user);
+        await readyToWithdraw(user);
         bankAccountId = await addBank(user);
       });
 

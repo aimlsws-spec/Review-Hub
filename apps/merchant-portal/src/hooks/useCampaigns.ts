@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 
 import { merchantApi, type CampaignFormInput } from '@/api/merchant.api'
+import type { Campaign } from '@/types'
 import { QUERY_KEYS } from '@/constants'
 import { getApiErrorMessage, requireValue } from '@/utils'
 
@@ -51,12 +52,13 @@ function runCampaignAction(id: string, action: CampaignAction) {
   return merchantApi.cancelCampaign(id)
 }
 
-/** Create/update, action (submit/activate/pause/resume/cancel), and delete mutations for campaigns. */
+/** Create/update, action (submit/activate/pause/resume/cancel), duplicate and delete mutations for campaigns. */
 export function useCampaignMutations(merchantId: string | undefined, options?: {
   editingId?: string | null
   onSaveSuccess?: () => void
   onActionSuccess?: (action: CampaignAction) => void
   onDeleteSuccess?: () => void
+  onDuplicateSuccess?: (copy: Campaign) => void
 }) {
   const qc = useQueryClient()
   const invalidate = () => qc.invalidateQueries({ queryKey: QUERY_KEYS.CAMPAIGNS })
@@ -94,5 +96,15 @@ export function useCampaignMutations(merchantId: string | undefined, options?: {
     onError: (err) => toast.error(getApiErrorMessage(err)),
   })
 
-  return { saveMutation, actionMutation, deleteMutation }
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => merchantApi.duplicateCampaign(id),
+    onSuccess: (res) => {
+      toast.success('Campaign copied as a new draft. Set its dates, then submit it for review.')
+      invalidate()
+      options?.onDuplicateSuccess?.(res.data.data)
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
+  })
+
+  return { saveMutation, actionMutation, deleteMutation, duplicateMutation }
 }

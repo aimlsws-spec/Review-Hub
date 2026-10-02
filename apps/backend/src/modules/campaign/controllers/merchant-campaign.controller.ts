@@ -1,13 +1,21 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
 import { MerchantOwnershipGuard } from '../../merchant/guards';
-import { AnalyticsQueryDto, CampaignQueryDto, CheckWordingDto, CreateCampaignDto, RecommendCampaignDto } from '../dto';
-import { CampaignBuilderService, CampaignPolicyService, CampaignService, MerchantAnalyticsService, MerchantInsightsService } from '../services';
+import { AnalyticsQueryDto, CampaignQueryDto, CheckWordingDto, CreateCampaignDto, RecommendCampaignDto, ReportExportQueryDto } from '../dto';
+import {
+  CampaignBuilderService,
+  CampaignPolicyService,
+  CampaignService,
+  MerchantAnalyticsService,
+  MerchantInsightsService,
+  MerchantReportExportService,
+} from '../services';
 
 @ApiTags(SWAGGER_TAGS.CAMPAIGNS)
 @Controller({ path: 'merchants/:merchantId/campaigns', version: '1' })
@@ -19,6 +27,7 @@ export class MerchantCampaignController {
     private readonly insightsService: MerchantInsightsService,
     private readonly policyService: CampaignPolicyService,
     private readonly analyticsService: MerchantAnalyticsService,
+    private readonly reportExportService: MerchantReportExportService,
   ) {}
 
   @Post()
@@ -69,6 +78,21 @@ export class MerchantCampaignController {
   @ApiOperation({ summary: 'How all of this merchant’s campaigns are doing: totals, each campaign, and day by day. Counted from real joins and rewards.' })
   async overview(@Param('merchantId') merchantId: string, @Query() query: AnalyticsQueryDto) {
     return this.analyticsService.overview(merchantId, query.days);
+  }
+
+  @Get('report')
+  @ApiBearerAuth()
+  @ApiProduces('text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/pdf')
+  @ApiOperation({
+    summary: 'Download the campaign report (totals, every campaign, day by day) as CSV, Excel or PDF',
+    description: 'Same figures as /overview for the same period, but lists every campaign instead of the top twenty.',
+  })
+  async exportReport(@Param('merchantId') merchantId: string, @Query() query: ReportExportQueryDto, @Res() res: Response) {
+    const file = await this.reportExportService.export(merchantId, query.days, query.format);
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.send(file.content);
   }
 
   @Get('insights')

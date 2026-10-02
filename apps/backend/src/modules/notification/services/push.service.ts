@@ -8,6 +8,9 @@ export interface PushMessage {
   data?: Record<string, string>;
 }
 
+/** Firebase error codes meaning the token is permanently gone, not a temporary delivery problem. */
+const DEAD_TOKEN_CODES = new Set(['messaging/registration-token-not-registered', 'messaging/invalid-registration-token']);
+
 /**
  * Thin wrapper around Firebase Admin's messaging API. Mirrors MailService's
  * graceful-degradation pattern: without Firebase credentials configured, push
@@ -44,9 +47,12 @@ export class PushService implements OnModuleInit {
     return this.app !== null;
   }
 
-  /** Never throws — a push delivery failure must never break notification dispatch. */
-  async sendToTokens(tokens: string[], message: PushMessage): Promise<void> {
-    if (!this.app || tokens.length === 0) return;
+  /**
+   * Never throws — a push delivery failure must never break notification dispatch. Returns the tokens Firebase says
+   * will never work again (app uninstalled, token replaced), so the caller can stop storing them.
+   */
+  async sendToTokens(tokens: string[], message: PushMessage): Promise<string[]> {
+    if (!this.app || tokens.length === 0) return [];
 
     try {
       const response = await admin.messaging(this.app).sendEachForMulticast({
@@ -57,8 +63,12 @@ export class PushService implements OnModuleInit {
       if (response.failureCount > 0) {
         this.logger.warn(`${response.failureCount}/${tokens.length} push notifications failed to deliver`);
       }
+      return response.responses.flatMap((result, index) =>
+        !result.success && DEAD_TOKEN_CODES.has(result.error?.code ?? '') ? [tokens[index]] : [],
+      );
     } catch (error) {
       this.logger.error('Failed to send push notification', error instanceof Error ? error.message : String(error));
+      return [];
     }
   }
 }

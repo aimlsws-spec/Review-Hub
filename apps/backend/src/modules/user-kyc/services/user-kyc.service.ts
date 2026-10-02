@@ -10,11 +10,14 @@ import { USER_DOCUMENT_STORAGE } from '../constants';
 import { UserKycUploadDto } from '../dto';
 import { UserKycDocumentRepository } from '../repositories';
 
+import { KycOcrService } from './kyc-ocr.service';
+
 @Injectable()
 export class UserKycService {
   constructor(
     private readonly documentRepository: UserKycDocumentRepository,
     private readonly storageService: LocalStorageService,
+    private readonly kycOcrService: KycOcrService,
   ) {}
 
   async uploadDocument(userId: string, dto: UserKycUploadDto, file: Express.Multer.File) {
@@ -45,6 +48,17 @@ export class UserKycService {
     if (existingDoc && existingDoc.verificationStatus === 'REJECTED') {
       await this.documentRepository.softDelete(existingDoc.id);
     }
+
+    // Compares the image with the typed number and the account holder's name, for the admin reviewer. In the
+    // background: the upload is already saved and never waits on, or fails because of, the AI service.
+    this.kycOcrService.checkInBackground({
+      documentId: document.id,
+      userId,
+      documentType: dto.documentType,
+      documentNumber: dto.documentNumber,
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+    });
 
     return document;
   }

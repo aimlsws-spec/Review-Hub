@@ -97,3 +97,13 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
+
+/** Saves a downloaded file. Used for files behind the auth header, which a plain link can not fetch. */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}

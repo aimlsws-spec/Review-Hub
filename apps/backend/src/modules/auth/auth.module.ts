@@ -21,6 +21,8 @@ import { AuthService } from './services/auth.service';
 import { DemographicsService } from './services/demographics.service';
 import { DeviceService } from './services/device.service';
 import { OtpService } from './services/otp.service';
+import { PasswordHistoryRepository } from './repositories/password-history.repository';
+import { PasswordHistoryService } from './services/password-history.service';
 import { PasswordService } from './services/password.service';
 import { SessionService } from './services/session.service';
 import { AppleStrategy } from './strategies/apple.strategy';
@@ -54,12 +56,14 @@ import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy';
     DeviceService,
     DemographicsService,
     PasswordService,
+    PasswordHistoryService,
     OtpService,
     UserRepository,
     SessionRepository,
     DeviceRepository,
     OtpRepository,
     LoginHistoryRepository,
+    PasswordHistoryRepository,
     JwtStrategy,
     RefreshJwtStrategy,
     GoogleStrategy,

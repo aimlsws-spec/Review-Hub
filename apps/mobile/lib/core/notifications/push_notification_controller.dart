@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../router/app_router.dart';
@@ -16,6 +17,16 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) 
 /// below only matters if that override is ever forgotten.
 final pushTokenSyncProvider = Provider<Future<void> Function(String token)>((ref) {
   return (token) async {};
+});
+
+/// The app's one ScaffoldMessenger, so a notification that arrives while the app is open can be shown on
+/// whatever screen is up. `main.dart` hands it to MaterialApp.
+final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+/// Port called when a push arrives while the app is open, so the composition root can refresh what depends on
+/// notifications (the unread badge) without this core module importing a feature. No-op by default.
+final pushReceivedHookProvider = Provider<void Function()>((ref) {
+  return () {};
 });
 
 final pushNotificationControllerProvider = Provider<PushNotificationController>((ref) {
@@ -57,6 +68,7 @@ class PushNotificationController {
 
     service.onTokenRefresh.listen(_syncToken);
     service.onNotificationTap.listen(_navigateTo);
+    service.onForegroundMessage.listen(_showInApp);
 
     final initialMessage = await service.getInitialMessage();
     if (initialMessage != null) {
@@ -88,5 +100,25 @@ class PushNotificationController {
 
   void _navigateTo(RemoteMessage message) {
     _ref.read(routerProvider).go(routeForNotificationType(message.data['type'] as String?));
+  }
+
+  /// Android shows nothing for a push that arrives while the app is open, so it is shown as a banner with a
+  /// shortcut to where a tap on the real notification would have gone.
+  void _showInApp(RemoteMessage message) {
+    _ref.read(pushReceivedHookProvider)();
+    final notification = message.notification;
+    final messenger = rootScaffoldMessengerKey.currentState;
+    if (notification == null || messenger == null) return;
+
+    final title = notification.title ?? '';
+    final body = notification.body ?? '';
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        content: Text(title.isEmpty ? body : body.isEmpty ? title : '$title\n$body'),
+        action: SnackBarAction(label: 'View', onPressed: () => _navigateTo(message)),
+      ),
+    );
   }
 }

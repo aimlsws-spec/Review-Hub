@@ -1,9 +1,13 @@
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 
+import { OtpService } from '../../src/modules/auth/services/otp.service';
+
 /** The seeded platform administrator (prisma/seed.ts). Only ever exists in the throwaway test database. */
 const ADMIN = { email: 'admin@reviewhub.com', password: 'Admin@123456' };
 const PASSWORD = 'Passw0rd!23';
+/** The one-time code verifyEmail makes the OTP service issue, so a test can type it back in. */
+const KNOWN_OTP = '246810';
 
 /** 1x1 transparent PNG: a real image, so file validation passes without shipping a fixture file. */
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
@@ -96,6 +100,23 @@ export class Api {
   /** Adds money to a merchant wallet through the mock gateway. */
   async rechargeMerchant(merchant: TestMerchant, amount: number) {
     return this.post(`/merchants/${merchant.merchantId}/wallet/recharge/simulate`, merchant.token).send({ amount }).expect(200);
+  }
+
+  /**
+   * Verifies a user's email address through the real send-otp / verify-otp endpoints, which withdrawals require.
+   * The one exception to "nothing reaches into the services": the code is random and only ever emailed, so the
+   * generator is pinned for the length of this call. Everything else (storage, hashing, expiry, marking the email
+   * verified) runs for real.
+   */
+  async verifyEmail(user: TestUser) {
+    const otp = this.app.get(OtpService, { strict: false });
+    const pinned = jest.spyOn(otp as unknown as { generateCode(): string }, 'generateCode').mockReturnValue(KNOWN_OTP);
+    try {
+      await this.post('/auth/send-otp', user.token).send({ type: 'EMAIL_VERIFICATION' }).expect(200);
+      await this.post('/auth/verify-otp', user.token).send({ type: 'EMAIL_VERIFICATION', code: KNOWN_OTP }).expect(200);
+    } finally {
+      pinned.mockRestore();
+    }
   }
 
   /** Gets a user's PAN approved by an admin, which withdrawals require. */

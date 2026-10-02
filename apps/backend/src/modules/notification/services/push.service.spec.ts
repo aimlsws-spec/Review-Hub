@@ -77,7 +77,7 @@ describe('PushService', () => {
         .mockReturnValueOnce('private-key')
         .mockReturnValueOnce('client@example.com');
       service.onModuleInit();
-      mockSendEachForMulticast.mockResolvedValue({ failureCount: 0 });
+      mockSendEachForMulticast.mockResolvedValue({ failureCount: 0, responses: [{ success: true }, { success: true }] });
 
       await service.sendToTokens(['token-1', 'token-2'], { title: 'Hi', body: 'Body', data: { a: '1' } });
 
@@ -98,7 +98,26 @@ describe('PushService', () => {
       service.onModuleInit();
       mockSendEachForMulticast.mockRejectedValue(new Error('FCM down'));
 
-      await expect(service.sendToTokens(['token-1'], { title: 'Hi', body: 'Body' })).resolves.toBeUndefined();
+      await expect(service.sendToTokens(['token-1'], { title: 'Hi', body: 'Body' })).resolves.toEqual([]);
+    });
+
+    it('returns only the tokens Firebase says are gone for good, not temporary failures', async () => {
+      mockConfigService.get
+        .mockReturnValueOnce('project-1')
+        .mockReturnValueOnce('private-key')
+        .mockReturnValueOnce('client@example.com');
+      service.onModuleInit();
+      mockSendEachForMulticast.mockResolvedValue({
+        failureCount: 3,
+        responses: [
+          { success: true },
+          { success: false, error: { code: 'messaging/registration-token-not-registered' } },
+          { success: false, error: { code: 'messaging/internal-error' } },
+          { success: false, error: { code: 'messaging/invalid-registration-token' } },
+        ],
+      });
+
+      await expect(service.sendToTokens(['ok', 'uninstalled', 'flaky', 'garbage'], { title: 'Hi', body: 'Body' })).resolves.toEqual(['uninstalled', 'garbage']);
     });
   });
 });

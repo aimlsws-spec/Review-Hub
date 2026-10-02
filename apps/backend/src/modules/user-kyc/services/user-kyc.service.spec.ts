@@ -5,6 +5,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { LocalStorageService } from '../../../storage/storage.service';
+
+import { KycOcrService } from './kyc-ocr.service';
 import { UserKycDocumentRepository } from '../repositories';
 
 import { UserKycService } from './user-kyc.service';
@@ -20,6 +22,7 @@ describe('UserKycService', () => {
     findById: jest.fn(),
   };
 
+  const mockKycOcrService = { checkInBackground: jest.fn() };
   const mockStorageService = {
     saveFile: jest.fn(),
     fileExists: jest.fn(),
@@ -50,6 +53,7 @@ describe('UserKycService', () => {
         UserKycService,
         { provide: UserKycDocumentRepository, useValue: mockDocumentRepository },
         { provide: LocalStorageService, useValue: mockStorageService },
+        { provide: KycOcrService, useValue: mockKycOcrService },
       ],
     }).compile();
 
@@ -58,6 +62,8 @@ describe('UserKycService', () => {
   });
 
   describe('uploadDocument', () => {
+    beforeEach(() => mockKycOcrService.checkInBackground.mockReset());
+
     const dto = { documentType: 'PAN' as const, documentNumber: 'AAAAA0000A' };
 
     it('should upload a document successfully', async () => {
@@ -69,6 +75,10 @@ describe('UserKycService', () => {
 
       expect(result).toEqual(mockDocument);
       expect(mockStorageService.saveFile).toHaveBeenCalledWith(mockFile.buffer, mockFile.originalname, 'user/user-1/documents', mockFile.mimetype);
+      // The OCR comparison is started for the saved document, without the upload waiting on it.
+      expect(mockKycOcrService.checkInBackground).toHaveBeenCalledWith(
+        expect.objectContaining({ documentId: mockDocument.id, userId: 'user-1', documentType: 'PAN', documentNumber: 'AAAAA0000A', mimeType: mockFile.mimetype }),
+      );
     });
 
     it('should throw BadRequestException for unsupported file type', async () => {

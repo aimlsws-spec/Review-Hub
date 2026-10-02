@@ -62,6 +62,7 @@ const draftCampaign = {
 const saveMutateMock = vi.fn()
 const actionMutateMock = vi.fn()
 const deleteMutateMock = vi.fn()
+const duplicateMutateMock = vi.fn()
 
 function mockAuthState(merchantId: string | undefined) {
   vi.mocked(useAuthStore).mockImplementation(
@@ -87,10 +88,12 @@ describe('CampaignsPage', () => {
       saveMutation: { mutate: saveMutateMock, isPending: false },
       actionMutation: { mutate: actionMutateMock, isPending: false },
       deleteMutation: { mutate: deleteMutateMock, isPending: false },
+      duplicateMutation: { mutate: duplicateMutateMock, isPending: false },
     } as never)
     saveMutateMock.mockReset()
     actionMutateMock.mockReset()
     deleteMutateMock.mockReset()
+    duplicateMutateMock.mockReset()
   })
 
   it('shows an empty state when there are no campaigns', () => {
@@ -200,6 +203,14 @@ describe('CampaignsPage', () => {
         }),
       ),
     )
+  })
+
+  it('duplicates a campaign into a new draft', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /^duplicate$/i }))
+    expect(duplicateMutateMock).toHaveBeenCalledWith('campaign-1')
   })
 
   it('submits a draft campaign for review', async () => {

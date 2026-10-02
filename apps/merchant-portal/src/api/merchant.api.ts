@@ -238,6 +238,9 @@ export const merchantApi = {
   updateCampaign: (campaignId: string, data: Partial<Omit<CampaignFormInput, 'campaignType'>>) =>
     apiClient.patch<ApiResponse<Campaign>>(`/campaigns/${campaignId}`, data),
 
+  /** Copies a campaign (tasks, media, targeting) into a new draft titled "<title> (copy)". */
+  duplicateCampaign: (campaignId: string) => apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/duplicate`),
+
   submitCampaign: (campaignId: string) => apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/submit`),
 
   activateCampaign: (campaignId: string) => apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/activate`),
@@ -251,6 +254,10 @@ export const merchantApi = {
   /** All campaigns together, each one, and day by day. Counted from real joins and rewards. */
   getAnalyticsOverview: (merchantId: string, days: number) =>
     apiClient.get<ApiResponse<AnalyticsOverview>>(`/merchants/${merchantId}/campaigns/overview`, { params: { days } }),
+
+  /** The campaign report as a file: the Analytics figures for the period, every campaign included. */
+  downloadCampaignReport: (merchantId: string, days: number, format: 'csv' | 'xlsx' | 'pdf') =>
+    apiClient.get<Blob>(`/merchants/${merchantId}/campaigns/report`, { params: { days, format }, responseType: 'blob' }),
 
   getCampaignAnalytics: (merchantId: string, campaignId: string) =>
     apiClient.get<ApiResponse<CampaignAnalytics>>(`/merchants/${merchantId}/campaigns/${campaignId}/analytics`),

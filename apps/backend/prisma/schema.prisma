@@ -531,6 +531,7 @@ model User {
   otps                   Otp[]
   devices                Device[]
   loginHistories         LoginHistory[]
+  passwordHistory        PasswordHistory[]
   merchant               Merchant?
   merchantTeams          MerchantTeam[]
   wallet                 UserWallet?
@@ -736,6 +737,21 @@ model LoginHistory {
   @@map("login_history")
 }
 
+/// Hashes of a user's previous passwords, so a change or reset can refuse one used recently (spec: password history,
+/// last 5). Only bcrypt hashes are kept, never the passwords; rows older than the history depth are deleted as new
+/// ones are added. Not soft-deleted: this is a security control, not user data anyone reads back.
+model PasswordHistory {
+  id           String   @id @default(uuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_history")
+}
+
 model Country {
   id       String  @id @default(uuid())
   name     String  @unique
@@ -882,6 +898,10 @@ model UserKycDocument {
   verifiedAt         DateTime?
   rejectionReason    String?                    @db.Text
   expiresAt          DateTime?
+  /// Automatic OCR comparison of the image with the typed number and the account holder's name: match flags only,
+  /// never the text read. A hint for the admin reviewer, never an approval. Null until checked.
+  ocrCheck           Json?
+  ocrCheckedAt       DateTime?
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
   deletedAt          DateTime?

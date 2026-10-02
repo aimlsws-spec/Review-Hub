@@ -2,7 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { MerchantOwnershipGuard } from '../../merchant/guards';
 import { MerchantRepository, MerchantTeamRepository } from '../../merchant/repositories';
-import { CampaignBuilderService, CampaignPolicyService, CampaignService, MerchantAnalyticsService, MerchantInsightsService } from '../services';
+import {
+  CampaignBuilderService,
+  CampaignPolicyService,
+  CampaignService,
+  MerchantAnalyticsService,
+  MerchantInsightsService,
+  MerchantReportExportService,
+} from '../services';
 
 import { MerchantCampaignController } from './merchant-campaign.controller';
 
@@ -31,6 +38,7 @@ describe('MerchantCampaignController', () => {
         { provide: MerchantInsightsService, useValue: mockInsightsService },
         { provide: CampaignPolicyService, useValue: mockPolicyService },
         { provide: MerchantAnalyticsService, useValue: mockAnalyticsService },
+        { provide: MerchantReportExportService, useValue: { export: jest.fn() } },
         MerchantOwnershipGuard,
         { provide: MerchantRepository, useValue: mockMerchantRepository },
         { provide: MerchantTeamRepository, useValue: mockTeamRepository },

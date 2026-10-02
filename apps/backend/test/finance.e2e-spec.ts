@@ -30,6 +30,7 @@ describe('Finance: TDS and credit/debit notes (e2e)', () => {
     const user = await api.registerUser();
     await api.fundWallet(user, balance);
     await api.approvePan(user, adminToken);
+    await api.verifyEmail(user);
     return { user, bankAccountId: await api.addBankAccount(user) };
   };
 
