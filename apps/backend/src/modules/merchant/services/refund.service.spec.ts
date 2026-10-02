@@ -15,6 +15,8 @@ describe('RefundService', () => {
   const mockRefundRepository = {
     create: jest.fn(),
     findById: jest.fn(),
+    // The payout's own read, with the real account number. Unset (no payout) unless a test arranges it.
+    findByIdForPayout: jest.fn(),
     update: jest.fn(),
     findByMerchantWalletId: jest.fn(),
     findPendingForAdmin: jest.fn(),
@@ -56,6 +58,7 @@ describe('RefundService', () => {
 
     service = module.get<RefundService>(RefundService);
     jest.clearAllMocks();
+    mockRefundRepository.findByIdForPayout.mockReset();
     mockMerchantRepository.findById.mockResolvedValue(merchant);
   });
 
@@ -158,10 +161,12 @@ describe('RefundService', () => {
 
     it('should initiate a RazorpayX payout and set status PROCESSING when a bank account is on file', async () => {
       const bankAccountOnFile = { accountHolderName: 'Acme Foods', accountNumber: '1234567890', ifscCode: 'HDFC0000053' };
-      mockRefundRepository.findById.mockResolvedValue({
+      const pending = {
         id: 'refund-1', status: 'PENDING', merchantWalletId: 'wallet-1', amount: 1500,
         merchantWallet: { merchantId: 'merchant-1' }, bankAccount: bankAccountOnFile,
-      });
+      };
+      mockRefundRepository.findById.mockResolvedValue({ ...pending, bankAccount: { ...bankAccountOnFile, accountNumber: 'XXXX7890' } });
+      mockRefundRepository.findByIdForPayout.mockResolvedValue(pending);
       mockRefundRepository.update.mockResolvedValue({ id: 'refund-1', status: 'PROCESSING' });
       mockRazorpayService.createCustomer.mockResolvedValue({ id: 'cust_1' });
       mockRazorpayService.createFundAccount.mockResolvedValue({ id: 'fa_1' });
@@ -172,6 +177,9 @@ describe('RefundService', () => {
       expect(mockRazorpayService.createPayout).toHaveBeenCalledWith({
         fundAccountId: 'fa_1', amountInRupees: 1500, referenceId: 'refund-1', narration: 'Merchant refund payout',
       });
+      // Only the payout reads the real account number; everything else gets it masked.
+      expect(mockRefundRepository.findByIdForPayout).toHaveBeenCalledWith('refund-1');
+      expect(mockRazorpayService.createFundAccount).toHaveBeenCalledWith(expect.objectContaining({ accountNumber: '1234567890' }));
       expect(mockRefundRepository.update).toHaveBeenCalledWith('refund-1', {
         status: 'PROCESSING',
         metadata: { razorpayPayoutId: 'pout_1', razorpayFundAccountId: 'fa_1' },
@@ -180,10 +188,12 @@ describe('RefundService', () => {
 
     it('should not throw and should record the error when the payout API call fails', async () => {
       const bankAccountOnFile = { accountHolderName: 'Acme Foods', accountNumber: '1234567890', ifscCode: 'HDFC0000053' };
-      mockRefundRepository.findById.mockResolvedValue({
+      const pending = {
         id: 'refund-1', status: 'PENDING', merchantWalletId: 'wallet-1', amount: 1500,
         merchantWallet: { merchantId: 'merchant-1' }, bankAccount: bankAccountOnFile,
-      });
+      };
+      mockRefundRepository.findById.mockResolvedValue({ ...pending, bankAccount: { ...bankAccountOnFile, accountNumber: 'XXXX7890' } });
+      mockRefundRepository.findByIdForPayout.mockResolvedValue(pending);
       mockRefundRepository.update.mockResolvedValue({ id: 'refund-1', status: 'APPROVED' });
       mockRazorpayService.createCustomer.mockRejectedValue(new Error('Razorpay API unavailable'));
 
@@ -195,10 +205,12 @@ describe('RefundService', () => {
     });
 
     it('should not attempt a payout when the refund has no bank account on file', async () => {
-      mockRefundRepository.findById.mockResolvedValue({
+      const pending = {
         id: 'refund-1', status: 'PENDING', merchantWalletId: 'wallet-1', amount: 1500,
         merchantWallet: { merchantId: 'merchant-1' }, bankAccount: null,
-      });
+      };
+      mockRefundRepository.findById.mockResolvedValue(pending);
+      mockRefundRepository.findByIdForPayout.mockResolvedValue(pending);
       mockRefundRepository.update.mockResolvedValue({ id: 'refund-1', status: 'APPROVED' });
 
       await service.approve('refund-1', 'admin-1');

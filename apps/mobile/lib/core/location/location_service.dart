@@ -7,6 +7,9 @@ import 'location_coordinates.dart';
 /// Reads the device's current GPS position, asking for permission first if needed.
 abstract class LocationService {
   Future<Result<LocationCoordinates>> getCurrentLocation();
+
+  /// Asks for location permission without reading a position. True when it is granted.
+  Future<bool> requestPermission();
 }
 
 /// The real implementation, over the `geolocator` plugin.
@@ -32,5 +35,14 @@ class GeolocatorLocationService implements LocationService {
     } catch (_) {
       return const Result.failure(UnknownFailure());
     }
+  }
+
+  @override
+  Future<bool> requestPermission() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    return permission == LocationPermission.always || permission == LocationPermission.whileInUse;
   }
 }

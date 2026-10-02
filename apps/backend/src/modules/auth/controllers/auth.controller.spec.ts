@@ -4,6 +4,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import appleSignin from 'apple-signin-auth';
 
 import { AuthService } from '../services/auth.service';
+import { PhoneChangeService } from '../services/phone-change.service';
 
 import { AuthController } from './auth.controller';
 
@@ -43,13 +44,20 @@ describe('AuthController', () => {
     getUserRoles: jest.fn(),
     revokeRefreshToken: jest.fn(),
     updatePushToken: jest.fn(),
+    verifyNewDevice: jest.fn(),
+    resendNewDeviceCode: jest.fn(),
+    getPolicyStatus: jest.fn(),
+    acceptPolicies: jest.fn(),
   };
+
+  const mockPhoneChangeService = { request: jest.fn(), verify: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: mockAuthService },
+        { provide: PhoneChangeService, useValue: mockPhoneChangeService },
       ],
     })
       .overrideGuard(AuthGuard('jwt'))
@@ -65,7 +73,7 @@ describe('AuthController', () => {
 
   describe('register', () => {
     it('should call authService.register with DTO data', async () => {
-      const dto = { firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123' };
+      const dto = { firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Passw0rd!23', acceptPolicies: true };
       const req = { ip: '127.0.0.1', headers: { 'user-agent': 'Mozilla/5.0' } } as unknown as import('express').Request;
       mockAuthService.register.mockResolvedValue({ user: {}, tokens: {} });
 
@@ -179,6 +187,19 @@ describe('AuthController', () => {
 
       expect(mockAuthService.socialLogin).toHaveBeenCalledWith(
         expect.objectContaining({ provider: 'google', providerId: 'google-sub-1', email: 'a@example.com', firstName: 'A', lastName: 'B' }),
+      );
+    });
+
+    // Regression: the app sends these with every sign-in. They were missing from the DTO, so the global
+    // forbidNonWhitelisted pipe refused every native Google/Apple sign-in with a 400.
+    it('passes on the device integrity signals the app reported', async () => {
+      mockedVerifyIdToken().mockResolvedValue({ getPayload: () => ({ sub: 'google-sub-1', email: 'a@example.com' }) });
+      mockAuthService.socialLogin.mockResolvedValue({ user: {}, tokens: {} });
+
+      await controller.googleMobileAuth({ idToken: 'token-1', isRooted: true, isEmulator: false, isAutomationDetected: true }, req);
+
+      expect(mockAuthService.socialLogin).toHaveBeenCalledWith(
+        expect.objectContaining({ isRooted: true, isEmulator: false, isAutomationDetected: true }),
       );
     });
 
@@ -298,16 +319,63 @@ describe('AuthController', () => {
   });
 
   describe('deleteAccount', () => {
-    it('should call authService.deleteAccount', async () => {
-      await controller.deleteAccount('user-1');
+    it('passes the confirming password to authService.deleteAccount', async () => {
+      await controller.deleteAccount('user-1', { currentPassword: 'Passw0rd!23' });
 
-      expect(mockAuthService.deleteAccount).toHaveBeenCalledWith('user-1');
+      expect(mockAuthService.deleteAccount).toHaveBeenCalledWith('user-1', 'Passw0rd!23');
+    });
+  });
+
+  describe('new-device sign-in', () => {
+    const req = { ip: '10.0.0.1', headers: { 'user-agent': 'UA', 'x-device-id': 'install-2' } } as unknown as import('express').Request;
+    const challengeToken = 'a'.repeat(64);
+
+    it('finishes the sign-in with the code and the device id the request came from', async () => {
+      await controller.verifyNewDevice({ challengeToken, code: '123456' }, req);
+
+      expect(mockAuthService.verifyNewDevice).toHaveBeenCalledWith(challengeToken, '123456', 'install-2', '10.0.0.1', 'UA');
+    });
+
+    it('resends the code for the same device', async () => {
+      await controller.resendNewDeviceCode({ challengeToken }, req);
+
+      expect(mockAuthService.resendNewDeviceCode).toHaveBeenCalledWith(challengeToken, 'install-2');
+    });
+  });
+
+  describe('policies', () => {
+    it('returns the policy status for the current user', async () => {
+      await controller.getPolicies('user-1');
+
+      expect(mockAuthService.getPolicyStatus).toHaveBeenCalledWith('user-1');
+    });
+
+    it('records the acceptance with the request IP and user agent', async () => {
+      const req = { ip: '10.0.0.1', headers: { 'user-agent': 'UA' } } as unknown as import('express').Request;
+
+      await controller.acceptPolicies('user-1', req);
+
+      expect(mockAuthService.acceptPolicies).toHaveBeenCalledWith('user-1', '10.0.0.1', 'UA');
+    });
+  });
+
+  describe('phone change', () => {
+    it('starts a change with the new number and the current password', async () => {
+      await controller.requestPhoneChange('user-1', { newPhone: '+919811122233', currentPassword: 'Passw0rd!23' });
+
+      expect(mockPhoneChangeService.request).toHaveBeenCalledWith('user-1', '+919811122233', 'Passw0rd!23');
+    });
+
+    it('finishes a change with the code', async () => {
+      await controller.verifyPhoneChange('user-1', { code: '123456' });
+
+      expect(mockPhoneChangeService.verify).toHaveBeenCalledWith('user-1', '123456');
     });
   });
 
   describe('sendOtp', () => {
     it('should call authService.sendOtp', async () => {
-      const dto = { type: 'REGISTRATION' as import('@prisma/client').OtpType };
+      const dto = { type: 'REGISTRATION' as const };
 
       await controller.sendOtp('user-1', dto);
 
@@ -317,7 +385,7 @@ describe('AuthController', () => {
 
   describe('verifyOtp', () => {
     it('should call authService.verifyOtp', async () => {
-      const dto = { type: 'REGISTRATION' as import('@prisma/client').OtpType, code: '123456' };
+      const dto = { type: 'REGISTRATION' as const, code: '123456' };
 
       await controller.verifyOtp('user-1', dto);
 

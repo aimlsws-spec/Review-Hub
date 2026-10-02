@@ -107,6 +107,7 @@ describe('Profile details and locations (e2e)', () => {
           email: `details-${id}@example.com`,
           phone: `+9196${String(id).slice(-8)}`,
           password: 'Passw0rd!23',
+          acceptPolicies: true,
           dateOfBirth: '2000-01-15',
           gender: 'OTHER',
           cityId: mumbai.id,
@@ -129,6 +130,7 @@ describe('Profile details and locations (e2e)', () => {
           email,
           phone: `+9195${String(id).slice(-8)}`,
           password: 'Passw0rd!23',
+          acceptPolicies: true,
           cityId: '00000000-0000-4000-8000-000000000000',
         })
         .expect(400);

@@ -33,6 +33,11 @@ export class CmsPageRepository {
     return this.prisma.cMSPage.findUnique({ where: { slug } });
   }
 
+  /** A page anyone may read: published and not deleted. */
+  async findPublishedBySlug(slug: string) {
+    return this.prisma.cMSPage.findFirst({ where: { slug, status: CMSPageStatus.PUBLISHED, deletedAt: null } });
+  }
+
   async create(data: Prisma.CMSPageCreateInput) {
     return this.prisma.cMSPage.create({ data });
   }

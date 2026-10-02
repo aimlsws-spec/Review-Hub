@@ -44,6 +44,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
 import { WebhookModule } from './modules/webhooks/webhook.module';
 import { QueueModule } from './queues/queue.module';
 import { AuditModule } from './shared/audit/audit.module';
+import { CryptoModule } from './shared/crypto/crypto.module';
 import { HealthModule } from './shared/health/health.module';
 import { LoggerModule } from './shared/logger/logger.module';
 import { SmsModule } from './sms/sms.module';
@@ -91,6 +92,7 @@ import { StorageModule } from './storage/storage.module';
     MailModule,
     SmsModule,
     AuditModule,
+    CryptoModule,
     EventEmitterModule.forRoot(),
     AuthModule,
     LocationModule,

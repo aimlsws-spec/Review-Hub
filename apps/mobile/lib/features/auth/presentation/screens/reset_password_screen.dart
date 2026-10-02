@@ -118,12 +118,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'New password'),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (!AppConstants.passwordPattern.hasMatch(v)) return 'Must include upper, lower, number & symbol';
-                    return null;
-                  },
+                  decoration: const InputDecoration(labelText: 'New password', helperText: AppConstants.passwordHint, helperMaxLines: 2),
+                  validator: AppConstants.newPasswordError,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

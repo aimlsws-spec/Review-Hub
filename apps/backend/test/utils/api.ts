@@ -64,7 +64,7 @@ export class Api {
     const phone = `+9198${id.slice(-8).padStart(8, '0')}`;
 
     const res = await this.post('/auth/register')
-      .send({ firstName: 'E2E', lastName: 'Person', email, phone, password: PASSWORD })
+      .send({ firstName: 'E2E', lastName: 'Person', email, phone, password: PASSWORD, acceptPolicies: true })
       .expect(201);
 
     return { id: res.body.data.user.id, email, phone, token: res.body.data.tokens.accessToken };

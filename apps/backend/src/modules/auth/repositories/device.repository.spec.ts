@@ -10,6 +10,7 @@ describe('DeviceRepository', () => {
   const mockPrisma = {
     device: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -117,6 +118,30 @@ describe('DeviceRepository', () => {
         where: { id: 'device-1' },
         data: { isActive: false, updatedAt: expect.any(Date) },
       });
+    });
+  });
+
+  describe('existsForInstall', () => {
+    it('is true when the user has a device with that install id', async () => {
+      mockPrisma.device.findFirst.mockResolvedValue({ id: 'device-1' });
+
+      await expect(repository.existsForInstall('user-1', 'hash-1')).resolves.toBe(true);
+      expect(mockPrisma.device.findFirst).toHaveBeenCalledWith({ where: { userId: 'user-1', installId: 'hash-1' }, select: { id: true } });
+    });
+
+    it('is false otherwise', async () => {
+      mockPrisma.device.findFirst.mockResolvedValue(null);
+
+      await expect(repository.existsForInstall('user-1', 'hash-2')).resolves.toBe(false);
+    });
+  });
+
+  describe('countWithInstallId', () => {
+    it('counts only devices that reported an install id', async () => {
+      mockPrisma.device.count.mockResolvedValue(2);
+
+      await expect(repository.countWithInstallId('user-1')).resolves.toBe(2);
+      expect(mockPrisma.device.count).toHaveBeenCalledWith({ where: { userId: 'user-1', installId: { not: null } } });
     });
   });
 

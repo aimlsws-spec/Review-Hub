@@ -5,6 +5,7 @@ import '../../../core/errors/result.dart';
 import '../../../shared/providers/core_providers.dart';
 import '../data/auth_repository.dart';
 import '../data/device_integrity.dart';
+import '../data/models/login_challenge_model.dart';
 import '../data/models/user_model.dart';
 
 /// The phone's own report on whether it looks rooted or emulated.
@@ -45,6 +46,7 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
     String? email,
     String? phone,
     required String password,
+    required bool acceptPolicies,
     String? referralCode,
   }) async {
     final repo = ref.read(authRepositoryProvider);
@@ -54,27 +56,49 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
       email: email,
       phone: phone,
       password: password,
+      acceptPolicies: acceptPolicies,
       referralCode: referralCode,
     );
     if (sessionResult.isFailure) return Result.failure(sessionResult.failureOrNull!);
     return _loadProfileAfterAuth(repo);
   }
 
-  Future<Result<UserModel?>> login({
+  /// Signs in with a password. Succeeds with `null` once signed in, or with the challenge to finish on the
+  /// new-device screen when the server asks for a code first.
+  Future<Result<LoginChallengeModel?>> login({
     String? email,
     String? phone,
     required String password,
     bool rememberMe = false,
   }) async {
     final repo = ref.read(authRepositoryProvider);
-    final sessionResult = await repo.login(
+    final loginResult = await repo.login(
       email: email,
       phone: phone,
       password: password,
       rememberMe: rememberMe,
     );
+    final outcome = loginResult.valueOrNull;
+    if (outcome == null) return Result.failure(loginResult.failureOrNull!);
+    if (outcome is LoginNeedsDeviceCode) return Result.success(outcome.challenge);
+
+    final profileResult = await _loadProfileAfterAuth(repo);
+    return profileResult.isFailure ? Result.failure(profileResult.failureOrNull!) : const Result.success(null);
+  }
+
+  /// Finishes a sign-in held for a new device.
+  Future<Result<UserModel?>> verifyNewDevice({required String challengeToken, required String code}) async {
+    final repo = ref.read(authRepositoryProvider);
+    final sessionResult = await repo.verifyNewDevice(challengeToken: challengeToken, code: code);
     if (sessionResult.isFailure) return Result.failure(sessionResult.failureOrNull!);
     return _loadProfileAfterAuth(repo);
+  }
+
+  /// Deletes the account and signs out. The router then goes back to sign-in.
+  Future<Result<void>> deleteAccount({String? currentPassword}) async {
+    final result = await ref.read(authRepositoryProvider).deleteAccount(currentPassword: currentPassword);
+    if (result.isSuccess) state = const AsyncData(null);
+    return result;
   }
 
   Future<Result<UserModel?>> socialLogin({

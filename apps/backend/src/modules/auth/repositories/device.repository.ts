@@ -24,6 +24,17 @@ export class DeviceRepository {
     });
   }
 
+  /** Whether this user has ever signed in from the install with this (hashed) id. */
+  async existsForInstall(userId: string, installId: string): Promise<boolean> {
+    const device = await this.prisma.device.findFirst({ where: { userId, installId }, select: { id: true } });
+    return device !== null;
+  }
+
+  /** How many of this user's devices have reported an install id. */
+  async countWithInstallId(userId: string): Promise<number> {
+    return this.prisma.device.count({ where: { userId, installId: { not: null } } });
+  }
+
   async create(data: Prisma.DeviceCreateInput) {
     return this.prisma.device.create({ data });
   }

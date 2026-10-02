@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/data/otp_type.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/data/models/login_challenge_model.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/new_device_verification_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
@@ -17,6 +19,8 @@ import '../../features/campaigns/presentation/screens/campaigns_screen.dart';
 import '../../features/dashboard/presentation/screens/home_screen.dart';
 import '../../features/gamification/presentation/screens/gamification_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_screen.dart';
+import '../../features/legal/presentation/screens/policy_acceptance_screen.dart';
+import '../../features/legal/presentation/screens/policy_document_screen.dart';
 import '../../features/leaderboard/presentation/screens/leaderboard_screen.dart';
 import '../../features/marketplace/presentation/screens/marketplace_screen.dart';
 import '../../features/marketplace/presentation/screens/my_redemptions_screen.dart';
@@ -24,7 +28,10 @@ import '../../features/notifications/presentation/screens/notifications_screen.d
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/referral/presentation/screens/referral_screen.dart';
+import '../../features/permissions/presentation/screens/permissions_intro_screen.dart';
 import '../../features/settings/presentation/screens/change_password_screen.dart';
+import '../../features/settings/presentation/screens/change_phone_screen.dart';
+import '../../features/settings/presentation/screens/delete_account_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/support/presentation/screens/new_support_ticket_screen.dart';
 import '../../features/support/presentation/screens/support_chat_screen.dart';
@@ -54,7 +61,12 @@ const _authRoutes = {
   RoutePaths.register,
   RoutePaths.forgotPassword,
   RoutePaths.resetPassword,
+  RoutePaths.newDeviceVerification,
 };
+
+/// A legal text: open to everyone, signed in or not, and never redirected away from.
+bool _isPolicyDocument(String location) =>
+    location.startsWith('/legal/') && location != RoutePaths.policyAcceptance;
 
 /// Bridges a Riverpod-watched value into the [Listenable] GoRouter's
 /// `refreshListenable` expects, so redirects re-run whenever auth state
@@ -98,10 +110,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (location == RoutePaths.onboarding) return null;
+      if (_isPolicyDocument(location)) return null;
 
       final onAuthRoute = _authRoutes.contains(location);
       if (!isAuthenticated && !onAuthRoute) return RoutePaths.login;
       if (isAuthenticated && onAuthRoute) return RoutePaths.home;
+      if (!isAuthenticated) return null;
+
+      // Before anything else, the person accepts the current legal documents (FR-008)...
+      final mustAcceptPolicies = authState.value!.pendingPolicies.isNotEmpty;
+      if (mustAcceptPolicies) return location == RoutePaths.policyAcceptance ? null : RoutePaths.policyAcceptance;
+      if (location == RoutePaths.policyAcceptance) return RoutePaths.home;
+
+      // ...then, once, sees why the app asks for each permission before any is asked for.
+      final permissionsIntroSeen =
+          ref.read(settingsBoxProvider).get(StorageKeys.permissionsIntroSeen, defaultValue: false) as bool;
+      if (!permissionsIntroSeen && location != RoutePaths.permissionsIntro) return RoutePaths.permissionsIntro;
 
       return null;
     },
@@ -118,6 +142,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.resetPassword,
         builder: (context, state) => ResetPasswordScreen(email: state.extra as String?),
       ),
+      GoRoute(
+        path: RoutePaths.newDeviceVerification,
+        builder: (context, state) => NewDeviceVerificationScreen(challenge: state.extra as LoginChallengeModel?),
+      ),
+      // Registered before the `:slug` route below so "accept" is not read as a slug.
+      GoRoute(path: RoutePaths.policyAcceptance, builder: (context, state) => const PolicyAcceptanceScreen()),
+      GoRoute(
+        path: RoutePaths.policyDocument,
+        builder: (context, state) => PolicyDocumentScreen(slug: state.pathParameters['slug']!),
+      ),
+      GoRoute(path: RoutePaths.permissionsIntro, builder: (context, state) => const PermissionsIntroScreen()),
       GoRoute(
         path: RoutePaths.otpVerification,
         builder: (context, state) => OtpVerificationScreen(type: state.extra as OtpType),
@@ -194,6 +229,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: RoutePaths.editProfile, builder: (context, state) => const EditProfileScreen()),
       GoRoute(path: RoutePaths.settings, builder: (context, state) => const SettingsScreen()),
       GoRoute(path: RoutePaths.changePassword, builder: (context, state) => const ChangePasswordScreen()),
+      GoRoute(path: RoutePaths.changePhone, builder: (context, state) => const ChangePhoneScreen()),
+      GoRoute(path: RoutePaths.deleteAccount, builder: (context, state) => const DeleteAccountScreen()),
       GoRoute(path: RoutePaths.kyc, builder: (context, state) => const KycScreen()),
 
       GoRoute(path: RoutePaths.notifications, builder: (context, state) => const NotificationsScreen()),

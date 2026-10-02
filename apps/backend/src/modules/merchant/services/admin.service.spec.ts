@@ -18,7 +18,7 @@ describe('AdminService', () => {
     findWithFilters: jest.fn(),
   };
   const mockDocumentRepository = { findByMerchantId: jest.fn() };
-  const mockBankRepository = { findByMerchantId: jest.fn().mockResolvedValue([]) };
+  const mockBankRepository = { findByMerchantId: jest.fn().mockResolvedValue([]), findByMerchantIdRevealed: jest.fn().mockResolvedValue([]) };
   const mockEventEmitter = { emit: jest.fn() };
   const mockAuditLogService = { record: jest.fn() };
 
@@ -109,6 +109,17 @@ describe('AdminService', () => {
 
       const result = await service.getMerchantDetail('merchant-1');
       expect(result.documents).toHaveLength(1);
+    });
+
+    it('shows the admin the real bank account numbers, to check against the documents', async () => {
+      mockMerchantRepository.findById.mockResolvedValue(merchant);
+      mockDocumentRepository.findByMerchantId.mockResolvedValue([]);
+      mockBankRepository.findByMerchantIdRevealed.mockResolvedValue([{ id: 'bank-1', accountNumber: '123456789012' }]);
+
+      const result = await service.getMerchantDetail('merchant-1');
+
+      expect(result.bankAccounts).toEqual([{ id: 'bank-1', accountNumber: '123456789012' }]);
+      expect(mockBankRepository.findByMerchantId).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException for an unknown merchant', async () => {

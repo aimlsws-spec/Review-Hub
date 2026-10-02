@@ -60,7 +60,7 @@ describe('ProfilePage', () => {
     renderPage()
 
     await testUser.type(screen.getByLabelText(/current password/i), 'oldpassword1')
-    await testUser.type(screen.getByLabelText(/^new password/i), 'NewPass1!')
+    await testUser.type(screen.getByLabelText(/^new password/i), 'NewPassw0rd!1')
     await testUser.type(screen.getByLabelText(/confirm new password/i), 'Different1!')
     await testUser.click(screen.getByRole('button', { name: /change password/i }))
 
@@ -77,7 +77,7 @@ describe('ProfilePage', () => {
     await testUser.type(screen.getByLabelText(/confirm new password/i), 'weak')
     await testUser.click(screen.getByRole('button', { name: /change password/i }))
 
-    expect(await screen.findByText(/must be 8\+ characters/i)).toBeInTheDocument()
+    expect(await screen.findByText(/must have 10\+ characters/i)).toBeInTheDocument()
     expect(mutateMock).not.toHaveBeenCalled()
   })
 
@@ -86,12 +86,12 @@ describe('ProfilePage', () => {
     renderPage()
 
     await testUser.type(screen.getByLabelText(/current password/i), 'oldpassword1')
-    await testUser.type(screen.getByLabelText(/^new password/i), 'NewPass1!')
-    await testUser.type(screen.getByLabelText(/confirm new password/i), 'NewPass1!')
+    await testUser.type(screen.getByLabelText(/^new password/i), 'NewPassw0rd!1')
+    await testUser.type(screen.getByLabelText(/confirm new password/i), 'NewPassw0rd!1')
     await testUser.click(screen.getByRole('button', { name: /change password/i }))
 
     await waitFor(() =>
-      expect(mutateMock).toHaveBeenCalledWith({ currentPassword: 'oldpassword1', newPassword: 'NewPass1!' }),
+      expect(mutateMock).toHaveBeenCalledWith({ currentPassword: 'oldpassword1', newPassword: 'NewPassw0rd!1' }),
     )
     await waitFor(() => expect(vi.mocked(toast.success)).toHaveBeenCalledWith('Password changed successfully'))
   })

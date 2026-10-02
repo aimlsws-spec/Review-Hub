@@ -73,27 +73,27 @@ describe('AccountLinkageRepository', () => {
   });
 
   describe('bank accounts', () => {
-    it("reads the user's live accounts as number + IFSC pairs", async () => {
-      mockPrisma.userBankAccount.findMany.mockResolvedValue([{ accountNumber: '111', ifscCode: 'HDFC0001' }]);
+    it("reads the user's live accounts as hashed number + IFSC pairs, never the numbers themselves", async () => {
+      mockPrisma.userBankAccount.findMany.mockResolvedValue([{ accountNumberHash: 'hash-111', ifscCode: 'HDFC0001' }]);
 
-      await expect(repository.bankKeysOf('user-1')).resolves.toEqual([{ accountNumber: '111', ifscCode: 'HDFC0001' }]);
+      await expect(repository.bankKeysOf('user-1')).resolves.toEqual([{ accountNumberHash: 'hash-111', ifscCode: 'HDFC0001' }]);
       expect(mockPrisma.userBankAccount.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1', deletedAt: null },
-        select: { accountNumber: true, ifscCode: true },
+        where: { userId: 'user-1', deletedAt: null, accountNumberHash: { not: null } },
+        select: { accountNumberHash: true, ifscCode: true },
       });
     });
 
     it('matches on number AND IFSC together, since an account number alone is not unique across banks', async () => {
       mockPrisma.userBankAccount.findMany.mockResolvedValue([{ userId: 'u2' }]);
 
-      await expect(repository.usersSharingBankAccounts([{ accountNumber: '111', ifscCode: 'HDFC0001' }, { accountNumber: '222', ifscCode: 'ICIC0002' }], scope)).resolves.toEqual(['u2']);
+      await expect(repository.usersSharingBankAccounts([{ accountNumberHash: 'hash-111', ifscCode: 'HDFC0001' }, { accountNumberHash: 'hash-222', ifscCode: 'ICIC0002' }], scope)).resolves.toEqual(['u2']);
 
       expect(mockPrisma.userBankAccount.findMany.mock.calls[0][0].where).toEqual({
         deletedAt: null,
         userId: { not: 'user-1' },
         OR: [
-          { accountNumber: '111', ifscCode: 'HDFC0001' },
-          { accountNumber: '222', ifscCode: 'ICIC0002' },
+          { accountNumberHash: 'hash-111', ifscCode: 'HDFC0001' },
+          { accountNumberHash: 'hash-222', ifscCode: 'ICIC0002' },
         ],
       });
     });

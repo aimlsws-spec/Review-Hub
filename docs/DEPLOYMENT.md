@@ -44,6 +44,12 @@ This is for whoever deploys the backend to the cPanel server. The portals and th
    that output immediately** — it is not logged anywhere else — store it in a password manager, and
    rotate it from the admin portal before the site is reachable. Re-running the seed against an
    already-seeded database never touches an existing admin's password.
+7. **Publish the three legal pages** in the admin portal (CMS → Pages) before anyone signs up, with exactly these
+   slugs: `terms-and-conditions`, `privacy-policy`, `reward-policy`. Sign-up makes people accept them, and the apps
+   show the published text from `GET /api/v1/pages/:slug`. Until they are published, the apps say "not published
+   yet" where the text should be. The text itself must come from your legal adviser.
+   When a document later changes materially, also bump its `version` in `POLICY_DOCUMENTS`
+   (`apps/backend/src/modules/auth/constants/index.ts`) and deploy: everyone is then asked to accept it again.
 
 ## Deploying
 

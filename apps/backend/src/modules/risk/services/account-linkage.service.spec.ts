@@ -24,7 +24,7 @@ describe('AccountLinkageService', () => {
   const arrange = (links: { pan?: string[]; bank?: string[]; device?: string[]; ips?: Record<string, string[]> } = {}) => {
     mockRepository.panNumbersOf.mockResolvedValue(links.pan ? ['ABCDE1234F'] : []);
     mockRepository.usersSharingPan.mockResolvedValue(links.pan ?? []);
-    mockRepository.bankKeysOf.mockResolvedValue(links.bank ? [{ accountNumber: '111', ifscCode: 'HDFC0001' }] : []);
+    mockRepository.bankKeysOf.mockResolvedValue(links.bank ? [{ accountNumberHash: 'hash-111', ifscCode: 'HDFC0001' }] : []);
     mockRepository.usersSharingBankAccounts.mockResolvedValue(links.bank ?? []);
     mockRepository.installIdsOf.mockResolvedValue(links.device ? ['install-hash'] : []);
     mockRepository.usersSharingInstallIds.mockResolvedValue(links.device ?? []);

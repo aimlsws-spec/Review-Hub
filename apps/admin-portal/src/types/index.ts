@@ -15,6 +15,10 @@ export interface User {
   emailVerifiedAt: string | null
   phoneVerifiedAt: string | null
   isTwoFactorEnabled: boolean
+  /** False for an account that only signs in with Google/Apple. Only on GET /auth/me. */
+  hasPassword?: boolean
+  /** Legal documents whose current version is not accepted yet. Only on GET /auth/me. */
+  pendingPolicies?: string[]
   createdAt: string
 }
 
@@ -27,6 +31,14 @@ export interface AuthTokens {
 export interface LoginResponse {
   user: User
   tokens: AuthTokens
+}
+
+/** What /auth/login returns instead of tokens for a browser this account has not used before. */
+export interface LoginChallenge {
+  requiresVerification: true
+  challengeToken: string
+  expiresIn: number
+  sentTo: string[]
 }
 
 // ============================================================

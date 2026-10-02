@@ -31,8 +31,8 @@ function renderPage() {
 async function fillForm(user: ReturnType<typeof userEvent.setup>, overrides: Partial<Record<'email' | 'code' | 'password' | 'confirmPassword', string>> = {}) {
   await user.type(screen.getByLabelText(/email address/i), overrides.email ?? 'owner@shop.com')
   await user.type(screen.getByLabelText(/otp code/i), overrides.code ?? '123456')
-  await user.type(screen.getByLabelText(/^new password/i), overrides.password ?? 'newpassword1')
-  await user.type(screen.getByLabelText(/confirm new password/i), overrides.confirmPassword ?? 'newpassword1')
+  await user.type(screen.getByLabelText(/^new password/i), overrides.password ?? 'NewPassw0rd!1')
+  await user.type(screen.getByLabelText(/confirm new password/i), overrides.confirmPassword ?? 'NewPassw0rd!1')
 }
 
 describe('ResetPasswordPage', () => {
@@ -71,7 +71,7 @@ describe('ResetPasswordPage', () => {
     await user.click(screen.getByRole('button', { name: /reset password/i }))
 
     expect(mutateMock).toHaveBeenCalledWith(
-      { email: 'owner@shop.com', code: '123456', password: 'newpassword1', confirmPassword: 'newpassword1' },
+      { email: 'owner@shop.com', code: '123456', password: 'NewPassw0rd!1', confirmPassword: 'NewPassw0rd!1' },
       expect.any(Object),
     )
     await waitFor(() => expect(screen.getByText('Login Landing')).toBeInTheDocument())

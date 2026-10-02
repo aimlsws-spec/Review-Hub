@@ -51,6 +51,16 @@ describe('CmsPageRepository', () => {
     });
   });
 
+  describe('findPublishedBySlug', () => {
+    it('only finds a published page that is not deleted', async () => {
+      mockPrisma.cMSPage.findFirst.mockResolvedValue(null);
+
+      await repository.findPublishedBySlug('privacy-policy');
+
+      expect(mockPrisma.cMSPage.findFirst).toHaveBeenCalledWith({ where: { slug: 'privacy-policy', status: 'PUBLISHED', deletedAt: null } });
+    });
+  });
+
   describe('softDelete', () => {
     it('should set deletedAt', async () => {
       mockPrisma.cMSPage.update.mockResolvedValue({ id: 'page-1', deletedAt: new Date() });

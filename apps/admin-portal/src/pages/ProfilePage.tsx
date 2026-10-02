@@ -1,12 +1,10 @@
-import { PageHeader } from '@reviewhub/shared-ui'
+import { PASSWORD_HINT, PASSWORD_PATTERN, PageHeader } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 
 import { useChangePasswordMutation } from '@/hooks/useChangePassword'
 import { useAuthStore } from '@/stores/auth.store'
 import { getInitials } from '@/utils'
-
-const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,72}$/
 
 function ChangePasswordCard() {
   const [currentPassword, setCurrentPassword] = useState('')
@@ -32,7 +30,7 @@ function ChangePasswordCard() {
       return
     }
     if (!PASSWORD_PATTERN.test(newPassword)) {
-      setError('New password must be 8+ characters with uppercase, lowercase, a number, and a special character')
+      setError(`New password must have ${PASSWORD_HINT}`)
       return
     }
     setError(null)

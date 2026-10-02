@@ -8,6 +8,15 @@ class RoutePaths {
   static const String otpVerification = '/otp-verification';
   static const String forgotPassword = '/forgot-password';
   static const String resetPassword = '/reset-password';
+  static const String newDeviceVerification = '/login/verify-device';
+
+  /// Legal texts are readable signed in or out (the sign-up screen links to them).
+  static const String policyAcceptance = '/legal/accept';
+  static const String policyDocument = '/legal/:slug';
+  static String policyDocumentPath(String slug) => '/legal/$slug';
+
+  /// Shown once after the first sign-in: why the app asks for each permission.
+  static const String permissionsIntro = '/permissions';
 
   static const String home = '/home';
   static const String tasks = '/tasks';
@@ -45,6 +54,8 @@ class RoutePaths {
   static const String editProfile = '/profile/edit';
   static const String settings = '/profile/settings';
   static const String changePassword = '/profile/settings/change-password';
+  static const String changePhone = '/profile/settings/change-phone';
+  static const String deleteAccount = '/profile/settings/delete-account';
   static const String kyc = '/profile/kyc';
 
   static const String gamification = '/gamification';

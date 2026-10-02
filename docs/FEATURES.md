@@ -86,6 +86,43 @@ these markers, so the system treats a "no" as "couldn't tell," never as proof of
 manifest's `<queries>` block to even be visible to the check on Android 11+ — both
 lists are there (`AndroidManifest.xml`).
 
+### Policy acceptance (FR-008)
+**What**: Sign-up requires accepting the Terms & Conditions, Privacy Policy and Reward Policy. Each acceptance is
+stored per document **version** with time, IP and user agent (`PolicyAcceptance` model), and audited.
+**Why**: Spec FR-008, and proof of consent if a reward or payout is ever disputed.
+**Where**: `auth/services/policy-acceptance.service.ts`; versions in `POLICY_DOCUMENTS` (`auth/constants`). The text
+is a published CMS page served publicly by `GET /pages/:slug` (`admin/controllers/public-cms-page.controller.ts`).
+**Details**: `GET /auth/me` lists `pendingPolicies`. The mobile app and merchant portal block use until they are
+accepted (`features/legal`, merchant `components/PolicyGate.tsx`), which covers Google/Apple sign-ups (no checkbox)
+and a version bump. Versions live in code on purpose, so fixing a typo on the page never re-asks everyone.
+
+### New-device sign-in check
+**What**: A password sign-in from a device the account has not used before returns a challenge instead of tokens,
+and sends a code to the account's email and phone; `POST /auth/login/verify-device` finishes it. Every sign-in that
+completes on a new device (including Google/Apple, which skip the code) emails a security alert.
+**Where**: `auth/services/new-device.service.ts`, `AuthService.login`/`verifyNewDevice`, alert in
+`auth/listeners/auth.listener.ts`. Clients: mobile `new_device_verification_screen.dart`, both portals'
+`LoginPage` with shared-ui `VerifyDeviceForm`.
+**Details — read before changing**: a device is recognised by its install id (`X-Device-ID`; the portals keep one
+in localStorage), never by IP. The challenge is bound to that id, so a stolen challenge token is useless elsewhere.
+The first device an account ever reports is trusted without a code. An account with no email or phone is let
+through rather than locked out. 2FA (`isTwoFactorEnabled`) is still **not** checked at sign-in; that is separate.
+
+### Phone number change and account deletion
+**What**: `POST /auth/phone/change` + `/auth/phone/verify` change the number only after a code sent by SMS to the
+*new* number (password required); the old number and the email are told. `DELETE /auth/account` (password
+required) is refused while the wallet holds money, rewards are pending, a withdrawal is in flight, or the account
+owns a business; otherwise it soft-deletes and frees the email, phone and Google/Apple links for a new sign-up.
+**Where**: `auth/services/phone-change.service.ts`, `AuthService.deleteAccount`, `UserRepository.findDeletionBlockers`.
+Mobile: Settings → Change phone number / Delete account. The general OTP endpoints refuse the `PHONE_CHANGE` and
+`NEW_DEVICE_LOGIN` types, so neither can be obtained through them.
+
+### Password rules and the permissions intro
+New passwords need at least 10 characters with upper and lower case, a digit and a symbol (`PASSWORD_POLICY`;
+mirrored in mobile `AppConstants` and shared-ui `passwordPolicy.ts`). Older, shorter passwords still sign in.
+On a phone's first sign-in the app shows `PermissionsIntroScreen` explaining notifications, location and camera
+before any system prompt; the notification prompt waits for it (`main.dart`).
+
 ### Biometric app lock
 **What**: Optional fingerprint/face lock on top of an already-signed-in session —
 confirms it's really the owner before showing the app, after 30 seconds away or on

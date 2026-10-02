@@ -1,4 +1,4 @@
-import { Spinner } from '@reviewhub/shared-ui'
+import { Spinner, VerifyDeviceForm } from '@reviewhub/shared-ui'
 import { Star, MessageSquare, TrendingUp, Mail, Lock, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import React, { forwardRef, useState, type InputHTMLAttributes } from 'react'
 import { useForm } from 'react-hook-form'
@@ -7,7 +7,9 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 
 import Viralkarlogo from '@/assets/ViralkarLogoK.svg'
 import { ROUTES } from '@/constants'
+import { useAuth } from '@/contexts/AuthContext'
 import { useLoginMutation } from '@/hooks/useAuthMutations'
+import type { LoginChallenge } from '@/types'
 import { getApiErrorMessage, cn } from '@/utils'
 
 interface LoginForm {
@@ -233,6 +235,14 @@ export default function LoginPage() {
   const location = useLocation()
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? ROUTES.DASHBOARD
   const [showPassword, setShowPassword] = useState(false)
+  const { verifyDevice, resendDeviceCode } = useAuth()
+  // Set when the sign-in comes from a browser this account has not used: the code step finishes it.
+  const [pending, setPending] = useState<{ challenge: LoginChallenge; rememberMe: boolean } | null>(null)
+
+  const finish = () => {
+    toast.success('Welcome back!')
+    navigate(from, { replace: true })
+  }
 
   const {
     register,
@@ -244,9 +254,9 @@ export default function LoginPage() {
 
   function onSubmit(data: LoginForm) {
     mutate(data, {
-      onSuccess: () => {
-        toast.success('Welcome back!')
-        navigate(from, { replace: true })
+      onSuccess: (challenge) => {
+        if (challenge) setPending({ challenge, rememberMe: data.rememberMe })
+        else finish()
       },
       onError: (err) => toast.error(getApiErrorMessage(err)),
     })
@@ -382,6 +392,19 @@ export default function LoginPage() {
         {/* Auth card wrapper (Creates the centered focal point) */}
         <div className="w-full max-w-[400px] opacity-0 animate-fade-up" style={{ animationDelay: '100ms' }}>
 
+          {pending ? (
+            <VerifyDeviceForm
+              sentTo={pending.challenge.sentTo}
+              onVerify={async (code) => {
+                await verifyDevice(pending.challenge, code, pending.rememberMe)
+                finish()
+              }}
+              onResend={() => resendDeviceCode(pending.challenge)}
+              onCancel={() => setPending(null)}
+              describeError={getApiErrorMessage}
+            />
+          ) : (
+          <>
           {/* Header */}
           <div className="mb-8">
             <h2 className="text-[28px] font-extrabold tracking-tight text-[#1B365D] mb-2">Welcome back</h2>
@@ -511,6 +534,8 @@ export default function LoginPage() {
                 </Link>
             </div>
           </form>
+          </>
+          )}
         </div>
 
         {/* Footer */}

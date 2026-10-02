@@ -1,4 +1,4 @@
-import { Input, Spinner } from '@reviewhub/shared-ui'
+import { Input, PASSWORD_HINT, Spinner, newPasswordRules } from '@reviewhub/shared-ui'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
@@ -65,10 +65,8 @@ export default function ResetPasswordPage() {
           type="password"
           required
           error={errors.password?.message}
-          {...register('password', {
-            required: 'Password is required',
-            minLength: { value: 8, message: 'Minimum 8 characters' },
-          })}
+          hint={PASSWORD_HINT}
+          {...register('password', newPasswordRules)}
         />
         <Input
           label="Confirm new password"

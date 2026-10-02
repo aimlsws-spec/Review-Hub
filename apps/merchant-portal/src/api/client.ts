@@ -1,3 +1,4 @@
+import { getDeviceId } from '@reviewhub/shared-ui'
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
 import { API_BASE_URL } from '@/constants'
@@ -10,8 +11,9 @@ export const apiClient = axios.create({
   withCredentials: true,
 })
 
-// Request interceptor — attach access token
+// Request interceptor — attach access token, and this browser's id so the backend can tell a new device from a known one
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  config.headers['X-Device-ID'] = getDeviceId()
   const token = useAuthStore.getState().accessToken
   if (token) {
     config.headers.Authorization = `Bearer ${token}`

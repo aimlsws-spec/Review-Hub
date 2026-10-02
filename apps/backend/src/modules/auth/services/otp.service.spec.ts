@@ -118,6 +118,18 @@ describe('OtpService', () => {
       expect(result).toHaveProperty('expiresIn', 300);
     });
 
+    it('sends only to the given number, never the account email or phone, when one is passed (phone change)', async () => {
+      mockCacheService.get.mockResolvedValue(null);
+      mockOtpRepository.create.mockResolvedValue({ id: 'otp-1' });
+
+      await service.sendOtp('user-1', OtpType.PHONE_CHANGE, '+919811122233');
+
+      expect(mockSmsService.send).toHaveBeenCalledWith('+919811122233', expect.stringContaining('OTP'));
+      expect(mockSmsService.send).toHaveBeenCalledTimes(1);
+      expect(mockMailService.send).not.toHaveBeenCalled();
+      expect(mockUserRepository.findById).not.toHaveBeenCalled();
+    });
+
     it('should send SMS when the user has a phone number (email-less accounts must still get an OTP)', async () => {
       mockCacheService.get.mockResolvedValue(null);
       const user = { id: 'user-1', phone: '+919876543210' };

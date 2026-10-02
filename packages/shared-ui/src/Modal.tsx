@@ -57,6 +57,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
             {title}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
             aria-label="Close modal"

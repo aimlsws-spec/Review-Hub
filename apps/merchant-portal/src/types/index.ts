@@ -13,6 +13,10 @@ export interface User {
   emailVerifiedAt: string | null
   phoneVerifiedAt: string | null
   isTwoFactorEnabled: boolean
+  /** False for an account that only signs in with Google/Apple. Only on GET /auth/me. */
+  hasPassword?: boolean
+  /** Legal documents whose current version is not accepted yet. Only on GET /auth/me. */
+  pendingPolicies?: string[]
   createdAt: string
 }
 
@@ -28,6 +32,33 @@ export interface LoginResponse {
   user: User
   tokens: AuthTokens
   merchant?: Merchant
+}
+
+/** A legal document in force, and when this person accepted its current version (GET /auth/policies). */
+export interface PolicyStatus {
+  policy: 'TERMS_OF_SERVICE' | 'PRIVACY_POLICY' | 'REWARD_POLICY'
+  title: string
+  /** Slug of the published page holding the text: GET /pages/:slug. */
+  slug: string
+  version: string
+  acceptedAt: string | null
+}
+
+/** A published content page (GET /pages/:slug). The content is plain text. */
+export interface ContentPage {
+  slug: string
+  title: string
+  content: string
+  publishedAt: string | null
+  updatedAt: string
+}
+
+/** What /auth/login returns instead of tokens for a browser this account has not used before. */
+export interface LoginChallenge {
+  requiresVerification: true
+  challengeToken: string
+  expiresIn: number
+  sentTo: string[]
 }
 
 // ============================================================

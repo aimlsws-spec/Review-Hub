@@ -1,4 +1,4 @@
-import { Spinner } from '@reviewhub/shared-ui'
+import { PASSWORD_HINT, Spinner, newPasswordRules } from '@reviewhub/shared-ui'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
@@ -106,12 +106,13 @@ export default function ResetPasswordPage() {
                 type="password"
                 className={cn('input', errors.password && 'input-error')}
                 aria-invalid={!!errors.password}
-                {...register('password', {
-                  required: 'Password is required',
-                  minLength: { value: 8, message: 'Minimum 8 characters' },
-                })}
+                {...register('password', newPasswordRules)}
               />
-              {errors.password && <p className="error-text" role="alert">{errors.password.message}</p>}
+              {errors.password ? (
+                <p className="error-text" role="alert">{errors.password.message}</p>
+              ) : (
+                <p className="text-xs text-gray-500">{PASSWORD_HINT}</p>
+              )}
             </div>
 
             <div className="form-group">

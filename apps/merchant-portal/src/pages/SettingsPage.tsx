@@ -1,4 +1,4 @@
-import { Input, Spinner } from '@reviewhub/shared-ui'
+import { Input, PASSWORD_HINT, PASSWORD_MIN_LENGTH, Spinner, newPasswordRules } from '@reviewhub/shared-ui'
 import { useForm } from 'react-hook-form'
 
 import { useUpdateAccountProfileMutation, useChangePasswordMutation, useSendOtpMutation } from '@/hooks/useAccountSettings'
@@ -107,7 +107,7 @@ export default function SettingsPage() {
         </SectionCard>
 
         {/* Change Password */}
-        <SectionCard title="Change Password" description="Use a strong password with at least 8 characters.">
+        <SectionCard title="Change Password" description={`Use a strong password with at least ${PASSWORD_MIN_LENGTH} characters.`}>
           <form onSubmit={handlePwd((d) => passwordMutation.mutate(d))} noValidate className="space-y-4">
             <Input
               label="Current password"
@@ -121,10 +121,8 @@ export default function SettingsPage() {
               type="password"
               required
               error={pwdErrors.newPassword?.message}
-              {...regPwd('newPassword', {
-                required: 'Required',
-                minLength: { value: 8, message: 'Minimum 8 characters' },
-              })}
+              hint={PASSWORD_HINT}
+              {...regPwd('newPassword', newPasswordRules)}
             />
             <Input
               label="Confirm new password"

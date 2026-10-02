@@ -1,23 +1,40 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { OtpType } from '@prisma/client';
+import { OtpType, User } from '@prisma/client';
 
 import { NotFoundException, BadRequestException, ConflictException, UnauthorizedException } from '@common/exceptions/domain.exceptions';
+import { maskEmail, maskPhone } from '@common/utils';
 
 import { LocalStorageService } from '../../../storage/storage.service';
 import { IpReputationService } from '../../risk/services';
-import { AUTH_EVENTS, ACCOUNT_LOCK } from '../constants';
-import type { LoginResponse, AuthTokens, RegisterInput, SocialLoginInput, UpdateProfileInput, UserProfile } from '../interfaces';
+import { AUTH_EVENTS, AUTH_ERRORS, ACCOUNT_LOCK } from '../constants';
+import type {
+  LoginChallengeResponse,
+  LoginResponse,
+  AuthTokens,
+  RegisterInput,
+  SocialLoginInput,
+  UpdateProfileInput,
+  UserProfile,
+} from '../interfaces';
 import { LoginHistoryRepository } from '../repositories/login-history.repository';
 import { UserRepository } from '../repositories/user.repository';
 
 import { DemographicsService } from './demographics.service';
 import { DeviceMetadata, DeviceService, DeviceSignalsInput } from './device.service';
+import { NewDeviceService, PendingLogin } from './new-device.service';
 import { OtpService } from './otp.service';
 import { PasswordHistoryService } from './password-history.service';
 import { PasswordService } from './password.service';
+import { PolicyAcceptanceService } from './policy-acceptance.service';
 import { SessionService } from './session.service';
+
+/** Everything needed to open a session for a sign-in, gathered from the request that made it. */
+interface SessionContext extends Omit<PendingLogin, 'userId'> {
+  ipAddress?: string;
+  userAgent?: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -36,6 +53,8 @@ export class AuthService {
     private readonly storageService: LocalStorageService,
     private readonly ipReputation: IpReputationService,
     private readonly config: ConfigService,
+    private readonly newDeviceService: NewDeviceService,
+    private readonly policyAcceptanceService: PolicyAcceptanceService,
   ) {}
 
   /**
@@ -50,6 +69,11 @@ export class AuthService {
   }
 
   async register(input: RegisterInput, ipAddress?: string, userAgent?: string, deviceSignals?: DeviceSignalsInput): Promise<LoginResponse> {
+    // The DTO already insists on this; checked here too so no other caller can create an account without it.
+    if (input.acceptPolicies !== true) {
+      throw new BadRequestException('You must accept the Terms & Conditions, Privacy Policy and Reward Policy to create an account');
+    }
+
     const existing = await this.userRepository.findByEmailOrPhone(input.email, input.phone);
     if (existing) throw new ConflictException('User', 'email or phone');
 
@@ -73,6 +97,9 @@ export class AuthService {
       ...demographics,
     });
 
+    // If this fails the account still exists without the record; the apps then see the documents as pending and
+    // ask again, so the person is never let in without having accepted them.
+    await this.policyAcceptanceService.acceptCurrent(user.id, ipAddress, userAgent);
 
     // Register device and create session
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
@@ -101,22 +128,13 @@ export class AuthService {
       referralCode: referrer ? input.referralCode : undefined,
     });
 
-    return {
-      user: {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        avatarUrl: user.avatarUrl,
-        status: user.status,
-        isTwoFactorEnabled: user.isTwoFactorEnabled,
-      },
-      tokens: { ...tokens, refreshToken },
-    };
+    return this.toLoginResponse(user, { ...tokens, refreshToken });
   }
 
-
+  /**
+   * Password sign-in. From a device the account has not used before, no session is opened yet: a code goes to the
+   * account's email and phone and the caller gets a challenge to complete with verifyNewDevice.
+   */
   async login(
     email?: string,
     phone?: string,
@@ -125,7 +143,7 @@ export class AuthService {
     userAgent?: string,
     rememberMe = false,
     deviceSignals?: DeviceSignalsInput,
-  ): Promise<LoginResponse> {
+  ): Promise<LoginResponse | LoginChallengeResponse> {
     const user = await this.userRepository.findByEmailOrPhone(email, phone);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
@@ -161,28 +179,127 @@ export class AuthService {
     }
 
     await this.userRepository.resetFailedAttempts(user.id);
+
+    const context: SessionContext = {
+      ipAddress,
+      userAgent,
+      rememberMe,
+      isRooted: deviceSignals?.isRooted,
+      isEmulator: deviceSignals?.isEmulator,
+      isAutomationDetected: deviceSignals?.isAutomationDetected,
+      vpnSuspected: this.detectVpn(ipAddress, deviceSignals ?? {}),
+      installIdHash: this.deviceService.hashInstallId(deviceSignals?.installId) ?? null,
+    };
+
+    if (await this.newDeviceService.isUnrecognised(user.id, context.installIdHash ?? undefined)) {
+      const challenge = await this.startNewDeviceChallenge(user, context);
+      if (challenge) return challenge;
+    }
+
+    return this.completeLogin(user, context, false);
+  }
+
+  /** Finishes a sign-in held by login() for a new device, once the person types the code that was sent. */
+  async verifyNewDevice(challengeToken: string, code: string, rawInstallId: string | undefined, ipAddress?: string, userAgent?: string): Promise<LoginResponse> {
+    const pending = await this.findPendingLogin(challengeToken, rawInstallId);
+
+    const user = await this.userRepository.findByIdSimple(pending.userId);
+    if (!user) throw new UnauthorizedException('This sign-in has expired. Please sign in again.');
+    // The account may have been suspended or locked while the code was on its way.
+    this.checkAccountStatus(user);
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException('Account is temporarily locked. Please try again later.');
+    }
+
+    await this.otpService.verifyOtp(user.id, OtpType.NEW_DEVICE_LOGIN, code);
+    await this.newDeviceService.consumeChallenge(challengeToken);
+
+    return this.completeLogin(user, { ...pending, ipAddress, userAgent }, true);
+  }
+
+  /** Sends a fresh code for a sign-in that is waiting for one. The usual resend cooldown applies. */
+  async resendNewDeviceCode(challengeToken: string, rawInstallId: string | undefined): Promise<{ message: string; expiresIn: number }> {
+    const pending = await this.findPendingLogin(challengeToken, rawInstallId);
+    return this.otpService.resendOtp(pending.userId, OtpType.NEW_DEVICE_LOGIN);
+  }
+
+  private async findPendingLogin(challengeToken: string, rawInstallId: string | undefined): Promise<PendingLogin> {
+    const pending = await this.newDeviceService.findChallenge(challengeToken, this.deviceService.hashInstallId(rawInstallId));
+    if (!pending) throw new UnauthorizedException('This sign-in has expired. Please sign in again.');
+    return pending;
+  }
+
+  /**
+   * Holds a sign-in from an unrecognised device and sends the code. Returns null, letting the sign-in through, only
+   * when the account has no email or phone to send a code to: locking such an account out would be worse than the
+   * risk, and the device is still recorded so the next sign-in from it is recognised.
+   */
+  private async startNewDeviceChallenge(user: User, context: SessionContext): Promise<LoginChallengeResponse | null> {
+    if (!user.email && !user.phone) {
+      this.logger.warn(`User ${user.id} signed in from a new device but has no email or phone for a code`);
+      return null;
+    }
+
+    const challengeToken = await this.newDeviceService.createChallenge({
+      userId: user.id,
+      rememberMe: context.rememberMe,
+      installIdHash: context.installIdHash,
+      isRooted: context.isRooted,
+      isEmulator: context.isEmulator,
+      isAutomationDetected: context.isAutomationDetected,
+      vpnSuspected: context.vpnSuspected,
+    });
+
+    let expiresIn: number;
+    try {
+      ({ expiresIn } = await this.otpService.sendOtp(user.id, OtpType.NEW_DEVICE_LOGIN));
+    } catch (error) {
+      // Signing in again within the cooldown: the code sent a moment ago is still valid, so reuse it.
+      if (!(error instanceof BadRequestException) || error.code !== AUTH_ERRORS.OTP_RESEND_COOLDOWN) throw error;
+      expiresIn = Number(this.config.get('OTP_EXPIRY_MINUTES', 5)) * 60;
+    }
+
+    const sentTo = [user.email && maskEmail(user.email), user.phone && maskPhone(user.phone)].filter((v): v is string => !!v);
+    return { requiresVerification: true, challengeToken, expiresIn, sentTo };
+  }
+
+  /** Opens the session for a sign-in that has passed every check, and records it. */
+  private async completeLogin(user: User, context: SessionContext, isNewDevice: boolean): Promise<LoginResponse> {
+    const { ipAddress, userAgent } = context;
     await this.userRepository.updateLastLogin(user.id, ipAddress ?? '');
     await this.loginHistoryRepository.create({ userId: user.id, ipAddress, userAgent, isSuccess: true });
 
     // Register/update device before the session, so the session can link to it
     const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
     const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
-    const vpnSuspected = this.detectVpn(ipAddress, deviceSignals ?? {});
     const deviceId = await this.deviceService.registerDevice(user.id, {
       ...deviceMetadata,
       fingerprint,
-      isRooted: deviceSignals?.isRooted,
-      isEmulator: deviceSignals?.isEmulator,
-      isAutomationDetected: deviceSignals?.isAutomationDetected,
-      vpnSuspected,
-      installId: this.deviceService.hashInstallId(deviceSignals?.installId),
+      isRooted: context.isRooted,
+      isEmulator: context.isEmulator,
+      isAutomationDetected: context.isAutomationDetected,
+      vpnSuspected: context.vpnSuspected,
+      installId: context.installIdHash ?? undefined,
     } as DeviceMetadata);
-    const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId, rememberMe);
+    const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId, context.rememberMe);
     const roles = await this.userRepository.getRoleNames(user.id);
     const tokens = this.sessionService.generateTokens(user.id, sessionId, roles);
 
     this.eventEmitter.emit(AUTH_EVENTS.USER_LOGGED_IN, { userId: user.id, ipAddress });
+    if (isNewDevice) {
+      this.eventEmitter.emit(AUTH_EVENTS.NEW_DEVICE_LOGIN, {
+        userId: user.id,
+        ipAddress,
+        deviceName: deviceMetadata.name,
+        os: deviceMetadata.os,
+        at: new Date(),
+      });
+    }
 
+    return this.toLoginResponse(user, { ...tokens, refreshToken });
+  }
+
+  private toLoginResponse(user: User, tokens: AuthTokens): LoginResponse {
     return {
       user: {
         id: user.id,
@@ -194,7 +311,7 @@ export class AuthService {
         status: user.status,
         isTwoFactorEnabled: user.isTwoFactorEnabled,
       },
-      tokens: { ...tokens, refreshToken },
+      tokens,
     };
   }
 
@@ -203,6 +320,9 @@ export class AuthService {
    * exists (so a user who registered by password can also sign in socially later),
    * otherwise provisions a new, already-verified account — the provider has already
    * done the identity verification we'd normally do via OTP.
+   *
+   * No new-device code here: the provider has just verified the person. A new device still gets the alert email.
+   * A new account has not accepted the policy documents yet; the apps see them in pendingPolicies and ask first.
    */
   async socialLogin(input: SocialLoginInput): Promise<LoginResponse> {
     const { provider, providerId, email, firstName, lastName, avatarUrl, ipAddress, userAgent, xForwardedFor, via, installId } = input;
@@ -245,37 +365,18 @@ export class AuthService {
       throw new UnauthorizedException('Account is temporarily locked. Please try again later.');
     }
 
-    await this.userRepository.updateLastLogin(user.id, ipAddress ?? '');
-    await this.loginHistoryRepository.create({ userId: user.id, ipAddress, userAgent, isSuccess: true });
-
-    const deviceMetadata = this.deviceService.parseUserAgent(userAgent);
-    const fingerprint = this.deviceService.generateFingerprint(userAgent, ipAddress);
-    const vpnSuspected = this.detectVpn(ipAddress, { xForwardedFor, via });
-    const deviceId = await this.deviceService.registerDevice(user.id, {
-      ...deviceMetadata,
-      fingerprint,
-      vpnSuspected,
-      installId: this.deviceService.hashInstallId(installId),
-    } as DeviceMetadata);
-    const { sessionId, refreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent, deviceId);
-    const roles = await this.userRepository.getRoleNames(user.id);
-    const tokens = this.sessionService.generateTokens(user.id, sessionId, roles);
-
-    this.eventEmitter.emit(AUTH_EVENTS.USER_LOGGED_IN, { userId: user.id, ipAddress });
-
-    return {
-      user: {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        avatarUrl: user.avatarUrl,
-        status: user.status,
-        isTwoFactorEnabled: user.isTwoFactorEnabled,
-      },
-      tokens: { ...tokens, refreshToken },
+    const context: SessionContext = {
+      ipAddress,
+      userAgent,
+      rememberMe: false,
+      isRooted: input.isRooted,
+      isEmulator: input.isEmulator,
+      isAutomationDetected: input.isAutomationDetected,
+      vpnSuspected: this.detectVpn(ipAddress, { xForwardedFor, via }),
+      installIdHash: this.deviceService.hashInstallId(installId) ?? null,
     };
+    const isNewDevice = await this.newDeviceService.isUnrecognised(user.id, context.installIdHash ?? undefined);
+    return this.completeLogin(user, context, isNewDevice);
   }
 
   async revokeRefreshToken(refreshToken: string): Promise<void> {
@@ -355,7 +456,10 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<UserProfile> {
-    const user = await this.userRepository.findByIdSimple(userId);
+    const [user, pendingPolicies] = await Promise.all([
+      this.userRepository.findByIdSimple(userId),
+      this.policyAcceptanceService.getPending(userId),
+    ]);
     if (!user) throw new NotFoundException('User');
 
     return {
@@ -369,6 +473,7 @@ export class AuthService {
       emailVerifiedAt: user.emailVerifiedAt,
       phoneVerifiedAt: user.phoneVerifiedAt,
       isTwoFactorEnabled: user.isTwoFactorEnabled,
+      hasPassword: user.passwordHash !== null,
       referralCode: user.referralCode,
       timezone: user.timezone,
       language: user.language,
@@ -378,6 +483,7 @@ export class AuthService {
       countryId: user.countryId,
       stateId: user.stateId,
       cityId: user.cityId,
+      pendingPolicies,
       createdAt: user.createdAt,
     };
   }
@@ -438,14 +544,44 @@ export class AuthService {
     this.eventEmitter.emit(AUTH_EVENTS.PASSWORD_CHANGED, { userId });
   }
 
-  async deleteAccount(userId: string): Promise<void> {
+  /**
+   * Closes the person's own account (app-store requirement). Refused while money is still owed either way: a balance
+   * in the wallet, a withdrawal in flight, or a business account, which support closes. The email and phone are
+   * freed for a future sign-up; the account row and its history stay, soft-deleted.
+   */
+  async deleteAccount(userId: string, currentPassword?: string): Promise<void> {
     const user = await this.userRepository.findByIdSimple(userId);
     if (!user) throw new NotFoundException('User');
 
-    await this.sessionService.revokeAllUserSessions(userId);
-    await this.userRepository.softDelete(userId);
+    if (user.passwordHash) {
+      const valid = !!currentPassword && (await this.passwordService.verify(currentPassword, user.passwordHash));
+      if (!valid) throw new BadRequestException('Current password is incorrect');
+    }
 
-    this.eventEmitter.emit(AUTH_EVENTS.ACCOUNT_DELETED, { userId });
+    const blockers = await this.userRepository.findDeletionBlockers(userId);
+    if (blockers.ownsMerchant) {
+      throw new BadRequestException('This account owns a business account. Please contact support to close it.', AUTH_ERRORS.ACCOUNT_DELETE_FAILED);
+    }
+    if (blockers.hasOpenWithdrawal) {
+      throw new BadRequestException('You have a withdrawal in progress. Please wait for it to finish before deleting your account.', AUTH_ERRORS.ACCOUNT_DELETE_FAILED);
+    }
+    if (blockers.hasBalance) {
+      throw new BadRequestException('Your wallet still has money in it, or rewards waiting to be approved. Please withdraw it before deleting your account.', AUTH_ERRORS.ACCOUNT_DELETE_FAILED);
+    }
+
+    await this.sessionService.revokeAllUserSessions(userId);
+    await this.userRepository.deleteAndReleaseIdentifiers(userId);
+
+    // The email is captured before it was cleared, so the listener can confirm the deletion to it.
+    this.eventEmitter.emit(AUTH_EVENTS.ACCOUNT_DELETED, { userId, email: user.email });
+  }
+
+  async getPolicyStatus(userId: string) {
+    return this.policyAcceptanceService.getStatus(userId);
+  }
+
+  async acceptPolicies(userId: string, ipAddress?: string, userAgent?: string) {
+    return this.policyAcceptanceService.acceptCurrent(userId, ipAddress, userAgent);
   }
 
   async sendOtp(userId: string, type: OtpType) {

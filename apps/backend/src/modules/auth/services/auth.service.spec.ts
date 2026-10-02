@@ -12,9 +12,11 @@ import { UserRepository } from '../repositories/user.repository';
 import { AuthService } from './auth.service';
 import { DemographicsService } from './demographics.service';
 import { DeviceService } from './device.service';
+import { NewDeviceService } from './new-device.service';
 import { OtpService } from './otp.service';
 import { PasswordHistoryService } from './password-history.service';
 import { PasswordService } from './password.service';
+import { PolicyAcceptanceService } from './policy-acceptance.service';
 import { SessionService } from './session.service';
 
 describe('AuthService', () => {
@@ -32,6 +34,8 @@ describe('AuthService', () => {
     create: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
+    deleteAndReleaseIdentifiers: jest.fn(),
+    findDeletionBlockers: jest.fn(),
     incrementFailedAttempts: jest.fn(),
     resetFailedAttempts: jest.fn(),
     lockAccount: jest.fn(),
@@ -91,6 +95,19 @@ describe('AuthService', () => {
     emit: jest.fn(),
   };
 
+  const mockNewDeviceService = {
+    isUnrecognised: jest.fn(),
+    createChallenge: jest.fn(),
+    findChallenge: jest.fn(),
+    consumeChallenge: jest.fn(),
+  };
+
+  const mockPolicyAcceptanceService = {
+    acceptCurrent: jest.fn(),
+    getPending: jest.fn(),
+    getStatus: jest.fn(),
+  };
+
   const mockUser = {
     id: 'user-1',
     firstName: 'John',
@@ -130,6 +147,8 @@ describe('AuthService', () => {
         { provide: LocalStorageService, useValue: { saveFile: jest.fn(), deleteFile: jest.fn() } },
         { provide: IpReputationService, useValue: mockIpReputation },
         { provide: ConfigService, useValue: mockConfig },
+        { provide: NewDeviceService, useValue: mockNewDeviceService },
+        { provide: PolicyAcceptanceService, useValue: mockPolicyAcceptanceService },
       ],
     }).compile();
 
@@ -142,6 +161,9 @@ describe('AuthService', () => {
     mockDeviceService.detectVpnSuspicion.mockReturnValue(false);
     mockDemographicsService.resolve.mockResolvedValue({ data: {}, changed: {} });
     mockDeviceService.hashInstallId.mockImplementation((raw?: string) => (raw ? `hashed:${raw}` : undefined));
+    // A recognised device and nothing left to accept, unless a test says otherwise.
+    mockNewDeviceService.isUnrecognised.mockResolvedValue(false);
+    mockPolicyAcceptanceService.getPending.mockResolvedValue([]);
   });
 
   describe('register', () => {
@@ -153,7 +175,7 @@ describe('AuthService', () => {
       mockSessionService.generateTokens.mockReturnValue({ accessToken: 'access-token', expiresIn: 900 });
 
       const result = await service.register(
-        { firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123' },
+        { firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123', acceptPolicies: true },
         '127.0.0.1',
         'Mozilla/5.0',
       );
@@ -171,6 +193,7 @@ describe('AuthService', () => {
         lastName: 'Doe',
         email: 'john@example.com',
         password: 'Pass@123',
+        acceptPolicies: true,
         dateOfBirth: '1998-04-21',
         gender: 'MALE' as const,
         cityId: 'city-amd',
@@ -204,7 +227,7 @@ describe('AuthService', () => {
       });
 
       it('sends nothing extra when no details were given', async () => {
-        await service.register({ firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123' });
+        await service.register({ firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123', acceptPolicies: true });
 
         const created = mockUserRepository.create.mock.calls[0][0];
         expect(created).not.toHaveProperty('dateOfBirth');
@@ -216,7 +239,7 @@ describe('AuthService', () => {
       mockUserRepository.findByEmailOrPhone.mockResolvedValue(mockUser);
 
       await expect(
-        service.register({ firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123' }),
+        service.register({ firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123', acceptPolicies: true }),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -361,13 +384,216 @@ describe('AuthService', () => {
   });
 
   describe('deleteAccount', () => {
-    it('should soft delete user and revoke sessions', async () => {
+    const noBlockers = { hasBalance: false, hasOpenWithdrawal: false, ownsMerchant: false };
+
+    beforeEach(() => {
       mockUserRepository.findByIdSimple.mockResolvedValue(mockUser);
+      mockUserRepository.findDeletionBlockers.mockResolvedValue(noBlockers);
+      mockPasswordService.verify.mockResolvedValue(true);
+    });
+
+    it('deletes the account, frees its email and phone, and revokes every session', async () => {
+      await service.deleteAccount('user-1', 'Passw0rd!23');
+
+      expect(mockPasswordService.verify).toHaveBeenCalledWith('Passw0rd!23', 'hashed-password');
+      expect(mockSessionService.revokeAllUserSessions).toHaveBeenCalledWith('user-1');
+      expect(mockUserRepository.deleteAndReleaseIdentifiers).toHaveBeenCalledWith('user-1');
+      // The email is passed along because it is cleared from the account, and the confirmation still needs it.
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('auth.account.deleted', { userId: 'user-1', email: 'john@example.com' });
+    });
+
+    it('refuses without the right password when the account has one', async () => {
+      mockPasswordService.verify.mockResolvedValue(false);
+
+      await expect(service.deleteAccount('user-1', 'wrong')).rejects.toThrow('Current password is incorrect');
+      await expect(service.deleteAccount('user-1')).rejects.toThrow('Current password is incorrect');
+      expect(mockUserRepository.deleteAndReleaseIdentifiers).not.toHaveBeenCalled();
+    });
+
+    it('needs no password for an account that never had one (Google/Apple only)', async () => {
+      mockUserRepository.findByIdSimple.mockResolvedValue({ ...mockUser, passwordHash: null });
 
       await service.deleteAccount('user-1');
 
-      expect(mockSessionService.revokeAllUserSessions).toHaveBeenCalledWith('user-1');
-      expect(mockUserRepository.softDelete).toHaveBeenCalledWith('user-1');
+      expect(mockPasswordService.verify).not.toHaveBeenCalled();
+      expect(mockUserRepository.deleteAndReleaseIdentifiers).toHaveBeenCalledWith('user-1');
+    });
+
+    it.each([
+      ['money in the wallet', { hasBalance: true }, 'withdraw it'],
+      ['a withdrawal in progress', { hasOpenWithdrawal: true }, 'withdrawal in progress'],
+      ['a business account', { ownsMerchant: true }, 'contact support'],
+    ])('refuses while the account has %s', async (_label, blocker, message) => {
+      mockUserRepository.findDeletionBlockers.mockResolvedValue({ ...noBlockers, ...blocker });
+
+      await expect(service.deleteAccount('user-1', 'Passw0rd!23')).rejects.toThrow(message);
+
+      expect(mockSessionService.revokeAllUserSessions).not.toHaveBeenCalled();
+      expect(mockUserRepository.deleteAndReleaseIdentifiers).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('policy acceptance', () => {
+    it('records acceptance of the current policies when an account is created', async () => {
+      mockUserRepository.findByEmailOrPhone.mockResolvedValue(null);
+      mockPasswordService.hash.mockResolvedValue('hashed');
+      mockUserRepository.create.mockResolvedValue(mockUser);
+      mockSessionService.createSession.mockResolvedValue({ sessionId: 'session-1', refreshToken: 'refresh-token' });
+      mockSessionService.generateTokens.mockReturnValue({ accessToken: 'access-token', expiresIn: 900 });
+
+      await service.register(
+        { firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Passw0rd!23', acceptPolicies: true },
+        '127.0.0.1',
+        'UA',
+      );
+
+      expect(mockPolicyAcceptanceService.acceptCurrent).toHaveBeenCalledWith('user-1', '127.0.0.1', 'UA');
+    });
+
+    it('creates no account when the policies were not accepted', async () => {
+      await expect(
+        service.register({ firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Passw0rd!23', acceptPolicies: false }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockUserRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('lists the documents still to accept on the profile', async () => {
+      mockUserRepository.findByIdSimple.mockResolvedValue(mockUser);
+      mockPolicyAcceptanceService.getPending.mockResolvedValue(['REWARD_POLICY']);
+
+      const profile = await service.getProfile('user-1');
+
+      expect(profile.pendingPolicies).toEqual(['REWARD_POLICY']);
+    });
+
+    it('says whether the account has a password to confirm actions with', async () => {
+      mockUserRepository.findByIdSimple.mockResolvedValue({ ...mockUser, passwordHash: null });
+
+      await expect(service.getProfile('user-1')).resolves.toEqual(expect.objectContaining({ hasPassword: false }));
+    });
+  });
+
+  describe('sign-in from a new device', () => {
+    const pending = {
+      userId: 'user-1',
+      rememberMe: true,
+      installIdHash: 'hashed:install-2',
+      isRooted: false,
+      isEmulator: false,
+      isAutomationDetected: false,
+      vpnSuspected: false,
+    };
+
+    beforeEach(() => {
+      mockUserRepository.findByEmailOrPhone.mockResolvedValue(mockUser);
+      mockUserRepository.findByIdSimple.mockResolvedValue(mockUser);
+      mockPasswordService.verify.mockResolvedValue(true);
+      mockUserRepository.getRoleNames.mockResolvedValue(['USER']);
+      mockSessionService.createSession.mockResolvedValue({ sessionId: 'session-1', refreshToken: 'refresh-token' });
+      mockSessionService.generateTokens.mockReturnValue({ accessToken: 'access-token', expiresIn: 900 });
+      mockNewDeviceService.isUnrecognised.mockResolvedValue(true);
+      mockNewDeviceService.createChallenge.mockResolvedValue('challenge-token');
+      mockOtpService.sendOtp.mockResolvedValue({ message: 'OTP sent successfully', expiresIn: 300 });
+    });
+
+    it('holds the sign-in and sends a code instead of opening a session', async () => {
+      const result = await service.login('john@example.com', undefined, 'Passw0rd!23', '1.2.3.4', 'UA', true, { installId: 'install-2' });
+
+      expect(result).toEqual({
+        requiresVerification: true,
+        challengeToken: 'challenge-token',
+        expiresIn: 300,
+        sentTo: ['j****n@example.com', '****3210'],
+      });
+      expect(mockNewDeviceService.isUnrecognised).toHaveBeenCalledWith('user-1', 'hashed:install-2');
+      expect(mockNewDeviceService.createChallenge).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', rememberMe: true, installIdHash: 'hashed:install-2' }));
+      expect(mockOtpService.sendOtp).toHaveBeenCalledWith('user-1', 'NEW_DEVICE_LOGIN');
+      expect(mockSessionService.createSession).not.toHaveBeenCalled();
+    });
+
+    it('reuses the code already sent when signing in again within the cooldown', async () => {
+      mockOtpService.sendOtp.mockRejectedValue(new BadRequestException('Please wait a minute before asking for another code.', 'OTP_RESEND_COOLDOWN'));
+      mockConfig.get.mockImplementation((key: string, fallback: unknown) => (key === 'OTP_EXPIRY_MINUTES' ? '5' : fallback));
+
+      const result = await service.login('john@example.com', undefined, 'Passw0rd!23');
+
+      expect(result).toEqual(expect.objectContaining({ requiresVerification: true, expiresIn: 300 }));
+    });
+
+    it('lets the sign-in through when there is nowhere to send a code', async () => {
+      mockUserRepository.findByEmailOrPhone.mockResolvedValue({ ...mockUser, email: null, phone: null });
+
+      const result = await service.login(undefined, '+919876543210', 'Passw0rd!23');
+
+      expect(result).toHaveProperty('tokens');
+      expect(mockOtpService.sendOtp).not.toHaveBeenCalled();
+    });
+
+    it('opens the session once the right code comes back from the same device, and sends the alert', async () => {
+      mockNewDeviceService.findChallenge.mockResolvedValue(pending);
+
+      const result = await service.verifyNewDevice('challenge-token', '123456', 'install-2', '1.2.3.4', 'UA');
+
+      expect(mockNewDeviceService.findChallenge).toHaveBeenCalledWith('challenge-token', 'hashed:install-2');
+      expect(mockOtpService.verifyOtp).toHaveBeenCalledWith('user-1', 'NEW_DEVICE_LOGIN', '123456');
+      expect(mockNewDeviceService.consumeChallenge).toHaveBeenCalledWith('challenge-token');
+      expect(mockDeviceService.registerDevice).toHaveBeenCalledWith('user-1', expect.objectContaining({ installId: 'hashed:install-2' }));
+      expect(mockSessionService.createSession).toHaveBeenCalledWith('user-1', '1.2.3.4', 'UA', 'device-1', true);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('auth.login.new_device', expect.objectContaining({ userId: 'user-1', ipAddress: '1.2.3.4' }));
+      expect(result.tokens.accessToken).toBe('access-token');
+    });
+
+    it('opens no session for a wrong code', async () => {
+      mockNewDeviceService.findChallenge.mockResolvedValue(pending);
+      mockOtpService.verifyOtp.mockRejectedValue(new BadRequestException('OTP_INVALID'));
+
+      await expect(service.verifyNewDevice('challenge-token', '000000', 'install-2')).rejects.toThrow('OTP_INVALID');
+
+      expect(mockNewDeviceService.consumeChallenge).not.toHaveBeenCalled();
+      expect(mockSessionService.createSession).not.toHaveBeenCalled();
+    });
+
+    it('refuses an expired challenge, or one from another device', async () => {
+      mockNewDeviceService.findChallenge.mockResolvedValue(null);
+
+      await expect(service.verifyNewDevice('challenge-token', '123456', 'install-9')).rejects.toThrow(UnauthorizedException);
+      expect(mockOtpService.verifyOtp).not.toHaveBeenCalled();
+    });
+
+    it('refuses when the account was suspended while the code was on its way', async () => {
+      mockNewDeviceService.findChallenge.mockResolvedValue(pending);
+      mockUserRepository.findByIdSimple.mockResolvedValue({ ...mockUser, status: 'SUSPENDED' });
+
+      await expect(service.verifyNewDevice('challenge-token', '123456', 'install-2')).rejects.toThrow(UnauthorizedException);
+      expect(mockOtpService.verifyOtp).not.toHaveBeenCalled();
+    });
+
+    it('resends the code for a waiting sign-in', async () => {
+      mockNewDeviceService.findChallenge.mockResolvedValue(pending);
+      mockOtpService.resendOtp.mockResolvedValue({ message: 'OTP sent successfully', expiresIn: 300 });
+
+      await service.resendNewDeviceCode('challenge-token', 'install-2');
+
+      expect(mockOtpService.resendOtp).toHaveBeenCalledWith('user-1', 'NEW_DEVICE_LOGIN');
+    });
+
+    it('sends no alert for a recognised device', async () => {
+      mockNewDeviceService.isUnrecognised.mockResolvedValue(false);
+
+      await service.login('john@example.com', undefined, 'Passw0rd!23');
+
+      expect(mockEventEmitter.emit).not.toHaveBeenCalledWith('auth.login.new_device', expect.anything());
+    });
+
+    it('alerts, without asking for a code, on a Google/Apple sign-in from a new device', async () => {
+      mockUserRepository.findByGoogleId.mockResolvedValue(mockUser);
+
+      const result = await service.socialLogin({ provider: 'google', providerId: 'google-sub-1', firstName: 'John', lastName: 'Doe', installId: 'install-2' });
+
+      expect(result.tokens.accessToken).toBe('access-token');
+      expect(mockOtpService.sendOtp).not.toHaveBeenCalled();
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('auth.login.new_device', expect.objectContaining({ userId: 'user-1' }));
     });
   });
 
@@ -528,7 +754,7 @@ describe('AuthService', () => {
       expect(result.tokens.accessToken).toBe('access-token');
       // Regression: same device-before-session ordering bug as login().
       expect(mockSessionService.createSession).toHaveBeenCalledWith(
-        mockUser.id, undefined, undefined, 'device-1',
+        mockUser.id, undefined, undefined, 'device-1', false,
       );
     });
 
@@ -596,7 +822,7 @@ describe('AuthService', () => {
       mockSessionService.generateTokens.mockReturnValue({ accessToken: 'access-token', expiresIn: 900 });
     };
     const registerWith = (ip: string, signals = {}) =>
-      service.register({ firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123' }, ip, 'UA', signals);
+      service.register({ firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123', acceptPolicies: true }, ip, 'UA', signals);
     const loginWith = (ip: string, signals = {}) =>
       service.login('john@example.com', undefined, 'Pass@123', ip, 'UA', false, signals);
     const lastDevice = () => mockDeviceService.registerDevice.mock.calls.at(-1)?.[1];

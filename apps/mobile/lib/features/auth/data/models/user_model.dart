@@ -50,6 +50,8 @@ abstract class UserModel with _$UserModel {
     DateTime? emailVerifiedAt,
     DateTime? phoneVerifiedAt,
     @Default(false) bool isTwoFactorEnabled,
+    /// False for an account that only signs in with Google/Apple, so there is no password to ask for.
+    @Default(true) bool hasPassword,
     String? referralCode,
     String? timezone,
     String? language,
@@ -59,6 +61,9 @@ abstract class UserModel with _$UserModel {
     String? countryId,
     String? stateId,
     String? cityId,
+    /// Legal documents whose current version this person still has to accept (`TERMS_OF_SERVICE`, ...). The router
+    /// sends them to the acceptance screen before anything else while this is not empty.
+    @Default(<String>[]) List<String> pendingPolicies,
     DateTime? createdAt,
   }) = _UserModel;
 

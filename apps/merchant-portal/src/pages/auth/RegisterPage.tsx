@@ -1,8 +1,9 @@
-import { Input, Spinner } from '@reviewhub/shared-ui'
+import { Input, PASSWORD_HINT, Spinner, newPasswordRules } from '@reviewhub/shared-ui'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { PolicyLinks } from '@/components/PolicyLinks'
 import { ROUTES } from '@/constants'
 import { useRegisterMutation } from '@/hooks/useAuthMutations'
 import { AuthCard } from '@/layouts/AuthCard'
@@ -16,6 +17,7 @@ interface RegisterForm {
   phone: string
   password: string
   confirmPassword: string
+  acceptPolicies: boolean
 }
 
 export default function RegisterPage() {
@@ -101,10 +103,8 @@ export default function RegisterPage() {
           autoComplete="new-password"
           required
           error={errors.password?.message}
-          {...register('password', {
-            required: 'Password is required',
-            minLength: { value: 8, message: 'Minimum 8 characters' },
-          })}
+          hint={PASSWORD_HINT}
+          {...register('password', newPasswordRules)}
         />
 
         <Input
@@ -118,6 +118,30 @@ export default function RegisterPage() {
             validate: (v) => v === watch('password') || 'Passwords do not match',
           })}
         />
+
+        <div className="form-group">
+          {/* Not a <label> around the text: the documents open in a dialog, and clicks inside it must not tick the box. */}
+          <div className="flex items-start gap-2 text-sm text-gray-600">
+            <input
+              id="accept-policies"
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              aria-labelledby="accept-policies-text"
+              aria-invalid={!!errors.acceptPolicies}
+              {...register('acceptPolicies', {
+                required: 'Please accept the Terms & Conditions, Privacy Policy and Reward Policy',
+              })}
+            />
+            <span id="accept-policies-text">
+              <PolicyLinks prefix="I have read and accept the" />
+            </span>
+          </div>
+          {errors.acceptPolicies && (
+            <p className="error-text" role="alert">
+              {errors.acceptPolicies.message}
+            </p>
+          )}
+        </div>
 
         <button type="submit" className="btn-primary w-full btn-lg mt-2" disabled={isPending}>
           {isPending && <Spinner size="sm" className="text-white" />}

@@ -6,6 +6,7 @@ import { getIstDayBoundaries, getIstMonthBoundaries } from '@common/utils';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { lockUserWallet, lockWithdrawalAndWallet } from '../../../database/prisma/row-lock';
+import { BankDetailsProtector } from '../../../shared/crypto';
 import { LIMIT_COUNTED_STATUSES, MANUALLY_SETTLEABLE_STATUS, REVIEWABLE_WITHDRAWAL_STATUSES } from '../constants';
 import { calculateTds, financialYearOf } from '../tds';
 
@@ -34,7 +35,10 @@ type WithdrawalWithWallet = Prisma.WithdrawalRequestGetPayload<{ include: { wall
  */
 @Injectable()
 export class WithdrawalSettlementRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly protector: BankDetailsProtector,
+  ) {}
 
   /**
    * Creates a withdrawal and sets its amount aside in one transaction, after checking the balance and the daily and
@@ -221,14 +225,17 @@ export class WithdrawalSettlementRepository {
     });
   }
 
-  /** Approved withdrawals waiting for someone to send the money and record the reference. */
+  /**
+   * Approved withdrawals waiting for someone to send the money and record the reference. The bank account comes back
+   * revealed: this list is the finance admin's instructions for making the transfer by hand.
+   */
   async findAwaitingManualPayout(page: number, limit: number) {
     const where: Prisma.WithdrawalRequestWhereInput = {
       status: MANUALLY_SETTLEABLE_STATUS,
       deletedAt: null,
       OR: [{ payoutMode: 'MANUAL' }, { metadata: { path: '$.payoutInitiationError', not: Prisma.AnyNull } }],
     };
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.withdrawalRequest.findMany({
         where,
         include: { wallet: true, bankAccount: true },
@@ -238,7 +245,7 @@ export class WithdrawalSettlementRepository {
       }),
       this.prisma.withdrawalRequest.count({ where }),
     ]);
-    return { data, total, page, limit };
+    return { data: rows.map((row) => this.protector.revealNested(row)), total, page, limit };
   }
 
   private async lockAndRead(tx: Tx, withdrawalId: string): Promise<WithdrawalWithWallet> {

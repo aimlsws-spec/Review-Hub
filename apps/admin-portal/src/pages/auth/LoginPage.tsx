@@ -1,4 +1,4 @@
-import { Spinner } from '@reviewhub/shared-ui'
+import { Spinner, VerifyDeviceForm } from '@reviewhub/shared-ui'
 import { useMutation } from '@tanstack/react-query'
 import { ShieldCheck, Activity, Users, Lock, Mail, Eye, EyeOff, ArrowRight, Shield, Sparkles, Building2, Star, Check } from 'lucide-react'
 import React, { useState, InputHTMLAttributes, forwardRef } from 'react'
@@ -9,6 +9,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import Viralkarlogo from '@/assets/ViralkarLogoK.svg'
 import { ROUTES } from '@/constants'
 import { useAuth } from '@/contexts/AuthContext'
+import type { LoginChallenge } from '@/types'
 import { getApiErrorMessage, cn } from '@/utils'
 
 interface LoginForm {
@@ -70,9 +71,16 @@ const OutlineInput = forwardRef<HTMLInputElement, InputProps>(function OutlineIn
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login } = useAuth()
+  const { login, verifyDevice, resendDeviceCode } = useAuth()
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? ROUTES.DASHBOARD
   const [showPassword, setShowPassword] = useState(false)
+  // Set when the sign-in comes from a browser this account has not used: the code step finishes it.
+  const [pending, setPending] = useState<{ challenge: LoginChallenge; rememberMe: boolean } | null>(null)
+
+  const finish = () => {
+    toast.success('Welcome back')
+    navigate(from, { replace: true })
+  }
 
   const {
     register,
@@ -82,9 +90,9 @@ export default function LoginPage() {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: LoginForm) => login(data),
-    onSuccess: () => {
-      toast.success('Welcome back')
-      navigate(from, { replace: true })
+    onSuccess: (challenge, data) => {
+      if (challenge) setPending({ challenge, rememberMe: data.rememberMe })
+      else finish()
     },
     onError: (err) => toast.error(getApiErrorMessage(err)),
   })
@@ -321,6 +329,19 @@ export default function LoginPage() {
         {/* Form Container */}
         <div className="w-full max-w-[380px] opacity-0 animate-fade-up" style={{ animationDelay: '100ms' }}>
 
+          {pending ? (
+            <VerifyDeviceForm
+              sentTo={pending.challenge.sentTo}
+              onVerify={async (code) => {
+                await verifyDevice(pending.challenge, code, pending.rememberMe)
+                finish()
+              }}
+              onResend={() => resendDeviceCode(pending.challenge)}
+              onCancel={() => setPending(null)}
+              describeError={getApiErrorMessage}
+            />
+          ) : (
+          <>
           {/* Header */}
           <div className="mb-8">
             <h2 className="text-[32px] font-extrabold tracking-tight text-[#1B365D] mb-2">Welcome back</h2>
@@ -442,6 +463,8 @@ export default function LoginPage() {
                <p className="text-[12px] text-slate-500 leading-snug">All administrative actions are logged and monitored.</p>
              </div>
           </div>
+          </>
+          )}
 
           <p className="text-center text-[11px] text-slate-400 mt-10">
             By signing in, you agree to our <Link to="#" className="text-blue-500 hover:underline">Terms of Service</Link> and <Link to="#" className="text-blue-500 hover:underline">Privacy Policy</Link>.

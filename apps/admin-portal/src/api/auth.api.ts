@@ -1,10 +1,16 @@
-import type { ApiResponse, LoginResponse, User } from '@/types'
+import type { ApiResponse, LoginChallenge, LoginResponse, User } from '@/types'
 
 import { apiClient } from './client'
 
 export const authApi = {
   login: (email: string, password: string, rememberMe = false) =>
-    apiClient.post<ApiResponse<LoginResponse>>('/auth/login', { email, password, rememberMe }),
+    apiClient.post<ApiResponse<LoginResponse | LoginChallenge>>('/auth/login', { email, password, rememberMe }),
+
+  /** Finishes a sign-in from a new browser with the code that was sent. */
+  verifyDevice: (challengeToken: string, code: string) =>
+    apiClient.post<ApiResponse<LoginResponse>>('/auth/login/verify-device', { challengeToken, code }),
+
+  resendDeviceCode: (challengeToken: string) => apiClient.post('/auth/login/resend-device-code', { challengeToken }),
 
   logout: () => apiClient.post('/auth/logout'),
 

@@ -100,14 +100,10 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'New password',
-                    helperText: '8+ characters, upper & lowercase, a number and a symbol',
+                    helperText: AppConstants.passwordHint,
                     helperMaxLines: 2,
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Enter a new password';
-                    if (!AppConstants.passwordPattern.hasMatch(v)) return 'Must include upper, lower, number & symbol';
-                    return null;
-                  },
+                  validator: AppConstants.newPasswordError,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

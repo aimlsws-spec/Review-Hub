@@ -33,6 +33,9 @@ describe('environment validation of PAYMENT_PROVIDER', () => {
     DATABASE_URL: 'mysql://u:p@localhost:3306/db',
     JWT_ACCESS_SECRET: 'a'.repeat(32),
     JWT_REFRESH_SECRET: 'b'.repeat(32),
+    // Required in production since column encryption was added (2 Oct 2026); irrelevant to what these tests check.
+    FIELD_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+    FIELD_HASH_KEY: Buffer.alloc(32, 2).toString('base64'),
     // Required in production as of the CORS_ORIGINS validation added 23 Sep 2026 — irrelevant to
     // what these tests check, but needed for a production-mode validate() call to be otherwise valid.
     CORS_ORIGINS: 'https://app.example.com',

@@ -15,6 +15,7 @@ class StorageKeys {
 
   // Hive keys within settingsBox
   static const String onboardingSeen = 'onboarding_seen';
+  static const String permissionsIntroSeen = 'permissions_intro_seen';
   static const String themeMode = 'theme_mode';
   static const String languageCode = 'language_code';
   static const String appLockEnabled = 'app_lock_enabled';

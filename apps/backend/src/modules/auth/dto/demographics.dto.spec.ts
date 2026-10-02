@@ -10,7 +10,7 @@ const validate = <T>(metatype: new () => T, value: unknown) => pipe.transform(va
 
 const STATE = '6f1c3c9e-3f6a-4c55-9a55-2f0d5f0b7a11';
 const CITY = '0b9c5f5e-7a0e-4d4b-8d9e-5a1b8e1d2c22';
-const registration = { firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Pass@123' };
+const registration = { firstName: 'John', lastName: 'Doe', email: 'john@example.com', password: 'Passw0rd!23', acceptPolicies: true };
 
 describe('demographics on RegisterDto and UpdateProfileDto', () => {
   it.each([

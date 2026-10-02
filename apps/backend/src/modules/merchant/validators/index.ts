@@ -81,3 +81,43 @@ export function IsBusinessUrl(validationOptions?: ValidationOptions) {
     });
   };
 }
+
+/** Indian bank account numbers: 9 to 18 digits, nothing else. Spaces and dashes are for people, not storage. */
+export function IsBankAccountNumber(validationOptions?: ValidationOptions) {
+  return (object: object, propertyName: string): void => {
+    registerDecorator({
+      name: 'isBankAccountNumber',
+      target: object.constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown): boolean {
+          return typeof value === 'string' && /^\d{9,18}$/.test(value);
+        },
+        defaultMessage(): string {
+          return 'Account number must be 9 to 18 digits';
+        },
+      },
+    });
+  };
+}
+
+/** A UPI ID (virtual payment address): handle@provider, e.g. jane.doe@okhdfc. */
+export function IsUpiId(validationOptions?: ValidationOptions) {
+  return (object: object, propertyName: string): void => {
+    registerDecorator({
+      name: 'isUpiId',
+      target: object.constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown): boolean {
+          return typeof value === 'string' && value.length <= 100 && /^[A-Za-z0-9._-]{2,}@[A-Za-z][A-Za-z0-9]{1,63}$/.test(value);
+        },
+        defaultMessage(): string {
+          return 'UPI ID must look like name@bank (e.g. jane.doe@okhdfc)';
+        },
+      },
+    });
+  };
+}

@@ -5,6 +5,7 @@ import * as Joi from 'joi';
 import { aiConfig } from './envs/ai.config';
 import { appConfig } from './envs/app.config';
 import { databaseConfig } from './envs/database.config';
+import { fieldEncryptionConfig } from './envs/field-encryption.config';
 import { firebaseConfig } from './envs/firebase.config';
 import { jwtConfig } from './envs/jwt.config';
 import { oauthConfig } from './envs/oauth.config';
@@ -50,6 +51,20 @@ export const validationSchema = Joi.object({
   LOG_FILE_ENABLED: Joi.string().valid('true', 'false').default('true'),
   LOG_FILE_MAX_SIZE: Joi.string().default('20m'),
   LOG_FILE_MAX_FILES: Joi.string().default('14d'),
+  // 32 random bytes, base64 (44 characters). Production refuses to boot without them: see field-encryption.config.ts.
+  FIELD_ENCRYPTION_KEY: Joi.alternatives().conditional('NODE_ENV', {
+    is: 'production',
+    then: Joi.string().base64().length(44).required(),
+    otherwise: Joi.string().base64().length(44).allow(''),
+  }),
+  FIELD_HASH_KEY: Joi.alternatives().conditional('NODE_ENV', {
+    is: 'production',
+    then: Joi.string().base64().length(44).required().invalid(Joi.ref('FIELD_ENCRYPTION_KEY')).messages({
+      'any.invalid': 'FIELD_HASH_KEY must differ from FIELD_ENCRYPTION_KEY',
+    }),
+    otherwise: Joi.string().base64().length(44).allow(''),
+  }),
+  FIELD_ENCRYPTION_PREVIOUS_KEYS: Joi.string().allow(''),
 }).unknown(true);
 
 @Global()
@@ -61,6 +76,7 @@ export const validationSchema = Joi.object({
       load: [
         appConfig,
         databaseConfig,
+        fieldEncryptionConfig,
         firebaseConfig,
         jwtConfig,
         redisConfig,

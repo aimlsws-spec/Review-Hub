@@ -21,7 +21,7 @@ export class BankAccountService {
     }
 
     const bankAccount = await this.bankRepository.create({
-      user: { connect: { id: userId } },
+      userId,
       bankName: dto.bankName,
       accountHolderName: dto.accountHolderName,
       accountNumber: dto.accountNumber,

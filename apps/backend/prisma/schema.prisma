@@ -28,6 +28,17 @@ enum OtpType {
   TWO_FACTOR
   EMAIL_VERIFICATION
   PHONE_VERIFICATION
+  /// Step-up check when a password sign-in comes from a device the account has not used before.
+  NEW_DEVICE_LOGIN
+  /// Sent to the new number when a user changes their phone number.
+  PHONE_CHANGE
+}
+
+/// The legal documents a person must accept before using the platform (spec FR-008).
+enum PolicyType {
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+  REWARD_POLICY
 }
 
 enum OtpStatus {
@@ -532,6 +543,7 @@ model User {
   devices                Device[]
   loginHistories         LoginHistory[]
   passwordHistory        PasswordHistory[]
+  policyAcceptances      PolicyAcceptance[]
   merchant               Merchant?
   merchantTeams          MerchantTeam[]
   wallet                 UserWallet?
@@ -752,6 +764,25 @@ model PasswordHistory {
   @@map("password_history")
 }
 
+/// Proof that a person accepted a given version of a legal document, and when (spec FR-008). One row per document
+/// version, so accepting a newer version adds a row instead of overwriting the older one. Not soft-deleted: this is a
+/// legal record, kept even after the account is deleted.
+model PolicyAcceptance {
+  id         String     @id @default(uuid())
+  userId     String
+  policy     PolicyType
+  version    String     @db.VarChar(32)
+  acceptedAt DateTime   @default(now())
+  ipAddress  String?    @db.VarChar(64)
+  userAgent  String?    @db.VarChar(512)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, policy, version])
+  @@index([userId])
+  @@map("policy_acceptances")
+}
+
 model Country {
   id       String  @id @default(uuid())
   name     String  @unique
@@ -921,10 +952,17 @@ model MerchantBankAccount {
   merchantId         String
   bankName           String
   accountHolderName  String
-  accountNumber      String
+  /// Encrypted (AES-256-GCM, see shared/crypto). Read it through BankDetailsProtector, never directly.
+  accountNumber      String                 @db.VarChar(255)
+  /// Keyed hash of the account number, for "same account?" lookups without decrypting. Null only on rows written
+  /// before encryption until `npm run db:encrypt-bank-details` has run.
+  accountNumberHash  String?                @db.VarChar(64)
+  /// For display ("XXXX1234") without decrypting. Null on the same not-yet-backfilled rows.
+  accountNumberLast4 String?                @db.VarChar(4)
   ifscCode           String
   branch             String?
-  upiId              String?
+  /// Encrypted, like accountNumber.
+  upiId              String?                @db.VarChar(255)
   isPrimary          Boolean                @default(false)
   verificationStatus BankVerificationStatus @default(PENDING)
   verifiedAt         DateTime?
@@ -935,7 +973,7 @@ model MerchantBankAccount {
   merchant       Merchant                @relation(fields: [merchantId], references: [id])
   refundRequests MerchantRefundRequest[]
 
-  @@unique([merchantId, accountNumber, ifscCode])
+  @@unique([merchantId, accountNumberHash, ifscCode])
   @@index([merchantId])
   @@index([verificationStatus])
   @@index([deletedAt])
@@ -1958,10 +1996,17 @@ model UserBankAccount {
   userId             String
   bankName           String
   accountHolderName  String
-  accountNumber      String
+  /// Encrypted (AES-256-GCM, see shared/crypto). Read it through BankDetailsProtector, never directly.
+  accountNumber      String                 @db.VarChar(255)
+  /// Keyed hash of the account number, for "same account?" lookups without decrypting. Null only on rows written
+  /// before encryption until `npm run db:encrypt-bank-details` has run.
+  accountNumberHash  String?                @db.VarChar(64)
+  /// For display ("XXXX1234") without decrypting. Null on the same not-yet-backfilled rows.
+  accountNumberLast4 String?                @db.VarChar(4)
   ifscCode           String
   branch             String?
-  upiId              String?
+  /// Encrypted, like accountNumber.
+  upiId              String?                @db.VarChar(255)
   isPrimary          Boolean                @default(false)
   verificationStatus BankVerificationStatus @default(PENDING)
   verifiedAt         DateTime?
@@ -1974,9 +2019,9 @@ model UserBankAccount {
   user               User                @relation(fields: [userId], references: [id])
   withdrawalRequests WithdrawalRequest[]
 
-  @@unique([userId, accountNumber, ifscCode])
+  @@unique([userId, accountNumberHash, ifscCode])
   @@index([userId])
-  @@index([accountNumber, ifscCode])
+  @@index([accountNumberHash, ifscCode])
   @@index([verificationStatus])
   @@index([deletedAt])
   @@map("user_bank_accounts")

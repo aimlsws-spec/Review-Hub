@@ -1,3 +1,5 @@
+import type { OtpType, PolicyType } from '@prisma/client';
+
 export const AUTH_ERRORS = {
   USER_NOT_FOUND: 'USER_NOT_FOUND',
   USER_EXISTS: 'USER_EXISTS',
@@ -33,6 +35,10 @@ export const AUTH_EVENTS = {
   ACCOUNT_DELETED: 'auth.account.deleted',
   PROFILE_UPDATED: 'auth.profile.updated',
   LOGIN_FAILED: 'auth.login.failed',
+  /** A sign-in finished on a device the account had not used before. Triggers the security alert email. */
+  NEW_DEVICE_LOGIN: 'auth.login.new_device',
+  PHONE_CHANGED: 'auth.phone.changed',
+  POLICIES_ACCEPTED: 'auth.policies.accepted',
 } as const;
 
 export const ACCOUNT_LOCK = {
@@ -46,7 +52,8 @@ export const ACCOUNT_LOCK = {
 export const BLOCKED_ACCOUNT_STATUSES = ['SUSPENDED', 'BANNED', 'DEACTIVATED'] as const;
 
 export const PASSWORD_POLICY = {
-  MIN_LENGTH: 8,
+  /** Spec (security chapter): at least 10 characters. Only applies when a password is set; existing ones still work. */
+  MIN_LENGTH: 10,
   MAX_LENGTH: 72,
   REQUIRE_UPPERCASE: true,
   REQUIRE_LOWERCASE: true,
@@ -55,6 +62,46 @@ export const PASSWORD_POLICY = {
   /** A new password may not match any of this many most recent ones, the current one included (spec: last 5). */
   HISTORY_DEPTH: 5,
 } as const;
+
+/** Upper, lower, digit and special character, within the length limits above. Shared by every DTO that sets a password. */
+export const PASSWORD_PATTERN = new RegExp(
+  `^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*]).{${PASSWORD_POLICY.MIN_LENGTH},${PASSWORD_POLICY.MAX_LENGTH}}$`,
+);
+export const PASSWORD_PATTERN_MESSAGE = 'Password must contain uppercase, lowercase, number, and special character';
+
+/**
+ * The legal documents a person accepts (spec FR-008), where the apps read their text (a published CMS page with this
+ * slug), and the version currently in force.
+ *
+ * Why the version lives in code and not on the CMS page: a typo fix on the page must not make every user accept again,
+ * while a real change of terms must. Bump a version here, in a deploy, when the text changes materially; everyone is
+ * asked to accept the new version the next time they open an app.
+ */
+export const POLICY_DOCUMENTS = [
+  { policy: 'TERMS_OF_SERVICE', slug: 'terms-and-conditions', title: 'Terms & Conditions', version: '2026-10-01' },
+  { policy: 'PRIVACY_POLICY', slug: 'privacy-policy', title: 'Privacy Policy', version: '2026-10-01' },
+  { policy: 'REWARD_POLICY', slug: 'reward-policy', title: 'Reward Policy', version: '2026-10-01' },
+] as const satisfies ReadonlyArray<{ policy: PolicyType; slug: string; title: string; version: string }>;
+
+/**
+ * The OTP types the general send/verify/resend endpoints accept. NEW_DEVICE_LOGIN and PHONE_CHANGE are left out on
+ * purpose: each has its own endpoint that checks extra things (the pending sign-in, the new number). Through the
+ * general endpoints, a PHONE_CHANGE code would go to the old phone and email, and skip proving the new number.
+ */
+export const GENERIC_OTP_TYPES = [
+  'REGISTRATION',
+  'PASSWORD_RESET',
+  'TWO_FACTOR',
+  'EMAIL_VERIFICATION',
+  'PHONE_VERIFICATION',
+] as const satisfies ReadonlyArray<OtpType>;
+export type GenericOtpType = (typeof GENERIC_OTP_TYPES)[number];
+
+/** How long a new-device sign-in may wait for its code before the person has to sign in again. */
+export const LOGIN_CHALLENGE_TTL_SECONDS = 10 * 60;
+
+/** How long a requested phone number change stays open for its code. */
+export const PHONE_CHANGE_TTL_SECONDS = 10 * 60;
 
 export const TOKEN_CONFIG = {
   ACCESS_TOKEN_EXPIRY: '15m',

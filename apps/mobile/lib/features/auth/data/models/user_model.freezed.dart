@@ -15,8 +15,11 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$UserModel {
 
- String get id; String get firstName; String get lastName; String? get email; String? get phone; String? get avatarUrl; String get status; DateTime? get emailVerifiedAt; DateTime? get phoneVerifiedAt; bool get isTwoFactorEnabled; String? get referralCode; String? get timezone; String? get language;/// `YYYY-MM-DD`, or null when the person has not said.
- String? get dateOfBirth; String? get gender; String? get countryId; String? get stateId; String? get cityId; DateTime? get createdAt;
+ String get id; String get firstName; String get lastName; String? get email; String? get phone; String? get avatarUrl; String get status; DateTime? get emailVerifiedAt; DateTime? get phoneVerifiedAt; bool get isTwoFactorEnabled;/// False for an account that only signs in with Google/Apple, so there is no password to ask for.
+ bool get hasPassword; String? get referralCode; String? get timezone; String? get language;/// `YYYY-MM-DD`, or null when the person has not said.
+ String? get dateOfBirth; String? get gender; String? get countryId; String? get stateId; String? get cityId;/// Legal documents whose current version this person still has to accept (`TERMS_OF_SERVICE`, ...). The router
+/// sends them to the acceptance screen before anything else while this is not empty.
+ List<String> get pendingPolicies; DateTime? get createdAt;
 /// Create a copy of UserModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +32,16 @@ $UserModelCopyWith<UserModel> get copyWith => _$UserModelCopyWithImpl<UserModel>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserModel&&(identical(other.id, id) || other.id == id)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.status, status) || other.status == status)&&(identical(other.emailVerifiedAt, emailVerifiedAt) || other.emailVerifiedAt == emailVerifiedAt)&&(identical(other.phoneVerifiedAt, phoneVerifiedAt) || other.phoneVerifiedAt == phoneVerifiedAt)&&(identical(other.isTwoFactorEnabled, isTwoFactorEnabled) || other.isTwoFactorEnabled == isTwoFactorEnabled)&&(identical(other.referralCode, referralCode) || other.referralCode == referralCode)&&(identical(other.timezone, timezone) || other.timezone == timezone)&&(identical(other.language, language) || other.language == language)&&(identical(other.dateOfBirth, dateOfBirth) || other.dateOfBirth == dateOfBirth)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.countryId, countryId) || other.countryId == countryId)&&(identical(other.stateId, stateId) || other.stateId == stateId)&&(identical(other.cityId, cityId) || other.cityId == cityId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserModel&&(identical(other.id, id) || other.id == id)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.status, status) || other.status == status)&&(identical(other.emailVerifiedAt, emailVerifiedAt) || other.emailVerifiedAt == emailVerifiedAt)&&(identical(other.phoneVerifiedAt, phoneVerifiedAt) || other.phoneVerifiedAt == phoneVerifiedAt)&&(identical(other.isTwoFactorEnabled, isTwoFactorEnabled) || other.isTwoFactorEnabled == isTwoFactorEnabled)&&(identical(other.hasPassword, hasPassword) || other.hasPassword == hasPassword)&&(identical(other.referralCode, referralCode) || other.referralCode == referralCode)&&(identical(other.timezone, timezone) || other.timezone == timezone)&&(identical(other.language, language) || other.language == language)&&(identical(other.dateOfBirth, dateOfBirth) || other.dateOfBirth == dateOfBirth)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.countryId, countryId) || other.countryId == countryId)&&(identical(other.stateId, stateId) || other.stateId == stateId)&&(identical(other.cityId, cityId) || other.cityId == cityId)&&const DeepCollectionEquality().equals(other.pendingPolicies, pendingPolicies)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,firstName,lastName,email,phone,avatarUrl,status,emailVerifiedAt,phoneVerifiedAt,isTwoFactorEnabled,referralCode,timezone,language,dateOfBirth,gender,countryId,stateId,cityId,createdAt]);
+int get hashCode => Object.hashAll([runtimeType,id,firstName,lastName,email,phone,avatarUrl,status,emailVerifiedAt,phoneVerifiedAt,isTwoFactorEnabled,hasPassword,referralCode,timezone,language,dateOfBirth,gender,countryId,stateId,cityId,const DeepCollectionEquality().hash(pendingPolicies),createdAt]);
 
 @override
 String toString() {
-  return 'UserModel(id: $id, firstName: $firstName, lastName: $lastName, email: $email, phone: $phone, avatarUrl: $avatarUrl, status: $status, emailVerifiedAt: $emailVerifiedAt, phoneVerifiedAt: $phoneVerifiedAt, isTwoFactorEnabled: $isTwoFactorEnabled, referralCode: $referralCode, timezone: $timezone, language: $language, dateOfBirth: $dateOfBirth, gender: $gender, countryId: $countryId, stateId: $stateId, cityId: $cityId, createdAt: $createdAt)';
+  return 'UserModel(id: $id, firstName: $firstName, lastName: $lastName, email: $email, phone: $phone, avatarUrl: $avatarUrl, status: $status, emailVerifiedAt: $emailVerifiedAt, phoneVerifiedAt: $phoneVerifiedAt, isTwoFactorEnabled: $isTwoFactorEnabled, hasPassword: $hasPassword, referralCode: $referralCode, timezone: $timezone, language: $language, dateOfBirth: $dateOfBirth, gender: $gender, countryId: $countryId, stateId: $stateId, cityId: $cityId, pendingPolicies: $pendingPolicies, createdAt: $createdAt)';
 }
 
 
@@ -49,7 +52,7 @@ abstract mixin class $UserModelCopyWith<$Res>  {
   factory $UserModelCopyWith(UserModel value, $Res Function(UserModel) _then) = _$UserModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String firstName, String lastName, String? email, String? phone, String? avatarUrl, String status, DateTime? emailVerifiedAt, DateTime? phoneVerifiedAt, bool isTwoFactorEnabled, String? referralCode, String? timezone, String? language, String? dateOfBirth, String? gender, String? countryId, String? stateId, String? cityId, DateTime? createdAt
+ String id, String firstName, String lastName, String? email, String? phone, String? avatarUrl, String status, DateTime? emailVerifiedAt, DateTime? phoneVerifiedAt, bool isTwoFactorEnabled, bool hasPassword, String? referralCode, String? timezone, String? language, String? dateOfBirth, String? gender, String? countryId, String? stateId, String? cityId, List<String> pendingPolicies, DateTime? createdAt
 });
 
 
@@ -66,7 +69,7 @@ class _$UserModelCopyWithImpl<$Res>
 
 /// Create a copy of UserModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? firstName = null,Object? lastName = null,Object? email = freezed,Object? phone = freezed,Object? avatarUrl = freezed,Object? status = null,Object? emailVerifiedAt = freezed,Object? phoneVerifiedAt = freezed,Object? isTwoFactorEnabled = null,Object? referralCode = freezed,Object? timezone = freezed,Object? language = freezed,Object? dateOfBirth = freezed,Object? gender = freezed,Object? countryId = freezed,Object? stateId = freezed,Object? cityId = freezed,Object? createdAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? firstName = null,Object? lastName = null,Object? email = freezed,Object? phone = freezed,Object? avatarUrl = freezed,Object? status = null,Object? emailVerifiedAt = freezed,Object? phoneVerifiedAt = freezed,Object? isTwoFactorEnabled = null,Object? hasPassword = null,Object? referralCode = freezed,Object? timezone = freezed,Object? language = freezed,Object? dateOfBirth = freezed,Object? gender = freezed,Object? countryId = freezed,Object? stateId = freezed,Object? cityId = freezed,Object? pendingPolicies = null,Object? createdAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,firstName: null == firstName ? _self.firstName : firstName // ignore: cast_nullable_to_non_nullable
@@ -78,6 +81,7 @@ as String?,status: null == status ? _self.status : status // ignore: cast_nullab
 as String,emailVerifiedAt: freezed == emailVerifiedAt ? _self.emailVerifiedAt : emailVerifiedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,phoneVerifiedAt: freezed == phoneVerifiedAt ? _self.phoneVerifiedAt : phoneVerifiedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,isTwoFactorEnabled: null == isTwoFactorEnabled ? _self.isTwoFactorEnabled : isTwoFactorEnabled // ignore: cast_nullable_to_non_nullable
+as bool,hasPassword: null == hasPassword ? _self.hasPassword : hasPassword // ignore: cast_nullable_to_non_nullable
 as bool,referralCode: freezed == referralCode ? _self.referralCode : referralCode // ignore: cast_nullable_to_non_nullable
 as String?,timezone: freezed == timezone ? _self.timezone : timezone // ignore: cast_nullable_to_non_nullable
 as String?,language: freezed == language ? _self.language : language // ignore: cast_nullable_to_non_nullable
@@ -86,7 +90,8 @@ as String?,gender: freezed == gender ? _self.gender : gender // ignore: cast_nul
 as String?,countryId: freezed == countryId ? _self.countryId : countryId // ignore: cast_nullable_to_non_nullable
 as String?,stateId: freezed == stateId ? _self.stateId : stateId // ignore: cast_nullable_to_non_nullable
 as String?,cityId: freezed == cityId ? _self.cityId : cityId // ignore: cast_nullable_to_non_nullable
-as String?,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as String?,pendingPolicies: null == pendingPolicies ? _self.pendingPolicies : pendingPolicies // ignore: cast_nullable_to_non_nullable
+as List<String>,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
 }
@@ -172,10 +177,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String firstName,  String lastName,  String? email,  String? phone,  String? avatarUrl,  String status,  DateTime? emailVerifiedAt,  DateTime? phoneVerifiedAt,  bool isTwoFactorEnabled,  String? referralCode,  String? timezone,  String? language,  String? dateOfBirth,  String? gender,  String? countryId,  String? stateId,  String? cityId,  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String firstName,  String lastName,  String? email,  String? phone,  String? avatarUrl,  String status,  DateTime? emailVerifiedAt,  DateTime? phoneVerifiedAt,  bool isTwoFactorEnabled,  bool hasPassword,  String? referralCode,  String? timezone,  String? language,  String? dateOfBirth,  String? gender,  String? countryId,  String? stateId,  String? cityId,  List<String> pendingPolicies,  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserModel() when $default != null:
-return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,_that.avatarUrl,_that.status,_that.emailVerifiedAt,_that.phoneVerifiedAt,_that.isTwoFactorEnabled,_that.referralCode,_that.timezone,_that.language,_that.dateOfBirth,_that.gender,_that.countryId,_that.stateId,_that.cityId,_that.createdAt);case _:
+return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,_that.avatarUrl,_that.status,_that.emailVerifiedAt,_that.phoneVerifiedAt,_that.isTwoFactorEnabled,_that.hasPassword,_that.referralCode,_that.timezone,_that.language,_that.dateOfBirth,_that.gender,_that.countryId,_that.stateId,_that.cityId,_that.pendingPolicies,_that.createdAt);case _:
   return orElse();
 
 }
@@ -193,10 +198,10 @@ return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String firstName,  String lastName,  String? email,  String? phone,  String? avatarUrl,  String status,  DateTime? emailVerifiedAt,  DateTime? phoneVerifiedAt,  bool isTwoFactorEnabled,  String? referralCode,  String? timezone,  String? language,  String? dateOfBirth,  String? gender,  String? countryId,  String? stateId,  String? cityId,  DateTime? createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String firstName,  String lastName,  String? email,  String? phone,  String? avatarUrl,  String status,  DateTime? emailVerifiedAt,  DateTime? phoneVerifiedAt,  bool isTwoFactorEnabled,  bool hasPassword,  String? referralCode,  String? timezone,  String? language,  String? dateOfBirth,  String? gender,  String? countryId,  String? stateId,  String? cityId,  List<String> pendingPolicies,  DateTime? createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _UserModel():
-return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,_that.avatarUrl,_that.status,_that.emailVerifiedAt,_that.phoneVerifiedAt,_that.isTwoFactorEnabled,_that.referralCode,_that.timezone,_that.language,_that.dateOfBirth,_that.gender,_that.countryId,_that.stateId,_that.cityId,_that.createdAt);case _:
+return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,_that.avatarUrl,_that.status,_that.emailVerifiedAt,_that.phoneVerifiedAt,_that.isTwoFactorEnabled,_that.hasPassword,_that.referralCode,_that.timezone,_that.language,_that.dateOfBirth,_that.gender,_that.countryId,_that.stateId,_that.cityId,_that.pendingPolicies,_that.createdAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -213,10 +218,10 @@ return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String firstName,  String lastName,  String? email,  String? phone,  String? avatarUrl,  String status,  DateTime? emailVerifiedAt,  DateTime? phoneVerifiedAt,  bool isTwoFactorEnabled,  String? referralCode,  String? timezone,  String? language,  String? dateOfBirth,  String? gender,  String? countryId,  String? stateId,  String? cityId,  DateTime? createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String firstName,  String lastName,  String? email,  String? phone,  String? avatarUrl,  String status,  DateTime? emailVerifiedAt,  DateTime? phoneVerifiedAt,  bool isTwoFactorEnabled,  bool hasPassword,  String? referralCode,  String? timezone,  String? language,  String? dateOfBirth,  String? gender,  String? countryId,  String? stateId,  String? cityId,  List<String> pendingPolicies,  DateTime? createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _UserModel() when $default != null:
-return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,_that.avatarUrl,_that.status,_that.emailVerifiedAt,_that.phoneVerifiedAt,_that.isTwoFactorEnabled,_that.referralCode,_that.timezone,_that.language,_that.dateOfBirth,_that.gender,_that.countryId,_that.stateId,_that.cityId,_that.createdAt);case _:
+return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,_that.avatarUrl,_that.status,_that.emailVerifiedAt,_that.phoneVerifiedAt,_that.isTwoFactorEnabled,_that.hasPassword,_that.referralCode,_that.timezone,_that.language,_that.dateOfBirth,_that.gender,_that.countryId,_that.stateId,_that.cityId,_that.pendingPolicies,_that.createdAt);case _:
   return null;
 
 }
@@ -228,7 +233,7 @@ return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.phone,
 @JsonSerializable()
 
 class _UserModel implements UserModel {
-  const _UserModel({required this.id, required this.firstName, required this.lastName, this.email, this.phone, this.avatarUrl, required this.status, this.emailVerifiedAt, this.phoneVerifiedAt, this.isTwoFactorEnabled = false, this.referralCode, this.timezone, this.language, this.dateOfBirth, this.gender, this.countryId, this.stateId, this.cityId, this.createdAt});
+  const _UserModel({required this.id, required this.firstName, required this.lastName, this.email, this.phone, this.avatarUrl, required this.status, this.emailVerifiedAt, this.phoneVerifiedAt, this.isTwoFactorEnabled = false, this.hasPassword = true, this.referralCode, this.timezone, this.language, this.dateOfBirth, this.gender, this.countryId, this.stateId, this.cityId, final  List<String> pendingPolicies = const <String>[], this.createdAt}): _pendingPolicies = pendingPolicies;
   factory _UserModel.fromJson(Map<String, dynamic> json) => _$UserModelFromJson(json);
 
 @override final  String id;
@@ -241,6 +246,8 @@ class _UserModel implements UserModel {
 @override final  DateTime? emailVerifiedAt;
 @override final  DateTime? phoneVerifiedAt;
 @override@JsonKey() final  bool isTwoFactorEnabled;
+/// False for an account that only signs in with Google/Apple, so there is no password to ask for.
+@override@JsonKey() final  bool hasPassword;
 @override final  String? referralCode;
 @override final  String? timezone;
 @override final  String? language;
@@ -250,6 +257,17 @@ class _UserModel implements UserModel {
 @override final  String? countryId;
 @override final  String? stateId;
 @override final  String? cityId;
+/// Legal documents whose current version this person still has to accept (`TERMS_OF_SERVICE`, ...). The router
+/// sends them to the acceptance screen before anything else while this is not empty.
+ final  List<String> _pendingPolicies;
+/// Legal documents whose current version this person still has to accept (`TERMS_OF_SERVICE`, ...). The router
+/// sends them to the acceptance screen before anything else while this is not empty.
+@override@JsonKey() List<String> get pendingPolicies {
+  if (_pendingPolicies is EqualUnmodifiableListView) return _pendingPolicies;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_pendingPolicies);
+}
+
 @override final  DateTime? createdAt;
 
 /// Create a copy of UserModel
@@ -265,16 +283,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserModel&&(identical(other.id, id) || other.id == id)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.status, status) || other.status == status)&&(identical(other.emailVerifiedAt, emailVerifiedAt) || other.emailVerifiedAt == emailVerifiedAt)&&(identical(other.phoneVerifiedAt, phoneVerifiedAt) || other.phoneVerifiedAt == phoneVerifiedAt)&&(identical(other.isTwoFactorEnabled, isTwoFactorEnabled) || other.isTwoFactorEnabled == isTwoFactorEnabled)&&(identical(other.referralCode, referralCode) || other.referralCode == referralCode)&&(identical(other.timezone, timezone) || other.timezone == timezone)&&(identical(other.language, language) || other.language == language)&&(identical(other.dateOfBirth, dateOfBirth) || other.dateOfBirth == dateOfBirth)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.countryId, countryId) || other.countryId == countryId)&&(identical(other.stateId, stateId) || other.stateId == stateId)&&(identical(other.cityId, cityId) || other.cityId == cityId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserModel&&(identical(other.id, id) || other.id == id)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.status, status) || other.status == status)&&(identical(other.emailVerifiedAt, emailVerifiedAt) || other.emailVerifiedAt == emailVerifiedAt)&&(identical(other.phoneVerifiedAt, phoneVerifiedAt) || other.phoneVerifiedAt == phoneVerifiedAt)&&(identical(other.isTwoFactorEnabled, isTwoFactorEnabled) || other.isTwoFactorEnabled == isTwoFactorEnabled)&&(identical(other.hasPassword, hasPassword) || other.hasPassword == hasPassword)&&(identical(other.referralCode, referralCode) || other.referralCode == referralCode)&&(identical(other.timezone, timezone) || other.timezone == timezone)&&(identical(other.language, language) || other.language == language)&&(identical(other.dateOfBirth, dateOfBirth) || other.dateOfBirth == dateOfBirth)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.countryId, countryId) || other.countryId == countryId)&&(identical(other.stateId, stateId) || other.stateId == stateId)&&(identical(other.cityId, cityId) || other.cityId == cityId)&&const DeepCollectionEquality().equals(other._pendingPolicies, _pendingPolicies)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,firstName,lastName,email,phone,avatarUrl,status,emailVerifiedAt,phoneVerifiedAt,isTwoFactorEnabled,referralCode,timezone,language,dateOfBirth,gender,countryId,stateId,cityId,createdAt]);
+int get hashCode => Object.hashAll([runtimeType,id,firstName,lastName,email,phone,avatarUrl,status,emailVerifiedAt,phoneVerifiedAt,isTwoFactorEnabled,hasPassword,referralCode,timezone,language,dateOfBirth,gender,countryId,stateId,cityId,const DeepCollectionEquality().hash(_pendingPolicies),createdAt]);
 
 @override
 String toString() {
-  return 'UserModel(id: $id, firstName: $firstName, lastName: $lastName, email: $email, phone: $phone, avatarUrl: $avatarUrl, status: $status, emailVerifiedAt: $emailVerifiedAt, phoneVerifiedAt: $phoneVerifiedAt, isTwoFactorEnabled: $isTwoFactorEnabled, referralCode: $referralCode, timezone: $timezone, language: $language, dateOfBirth: $dateOfBirth, gender: $gender, countryId: $countryId, stateId: $stateId, cityId: $cityId, createdAt: $createdAt)';
+  return 'UserModel(id: $id, firstName: $firstName, lastName: $lastName, email: $email, phone: $phone, avatarUrl: $avatarUrl, status: $status, emailVerifiedAt: $emailVerifiedAt, phoneVerifiedAt: $phoneVerifiedAt, isTwoFactorEnabled: $isTwoFactorEnabled, hasPassword: $hasPassword, referralCode: $referralCode, timezone: $timezone, language: $language, dateOfBirth: $dateOfBirth, gender: $gender, countryId: $countryId, stateId: $stateId, cityId: $cityId, pendingPolicies: $pendingPolicies, createdAt: $createdAt)';
 }
 
 
@@ -285,7 +303,7 @@ abstract mixin class _$UserModelCopyWith<$Res> implements $UserModelCopyWith<$Re
   factory _$UserModelCopyWith(_UserModel value, $Res Function(_UserModel) _then) = __$UserModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String firstName, String lastName, String? email, String? phone, String? avatarUrl, String status, DateTime? emailVerifiedAt, DateTime? phoneVerifiedAt, bool isTwoFactorEnabled, String? referralCode, String? timezone, String? language, String? dateOfBirth, String? gender, String? countryId, String? stateId, String? cityId, DateTime? createdAt
+ String id, String firstName, String lastName, String? email, String? phone, String? avatarUrl, String status, DateTime? emailVerifiedAt, DateTime? phoneVerifiedAt, bool isTwoFactorEnabled, bool hasPassword, String? referralCode, String? timezone, String? language, String? dateOfBirth, String? gender, String? countryId, String? stateId, String? cityId, List<String> pendingPolicies, DateTime? createdAt
 });
 
 
@@ -302,7 +320,7 @@ class __$UserModelCopyWithImpl<$Res>
 
 /// Create a copy of UserModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? firstName = null,Object? lastName = null,Object? email = freezed,Object? phone = freezed,Object? avatarUrl = freezed,Object? status = null,Object? emailVerifiedAt = freezed,Object? phoneVerifiedAt = freezed,Object? isTwoFactorEnabled = null,Object? referralCode = freezed,Object? timezone = freezed,Object? language = freezed,Object? dateOfBirth = freezed,Object? gender = freezed,Object? countryId = freezed,Object? stateId = freezed,Object? cityId = freezed,Object? createdAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? firstName = null,Object? lastName = null,Object? email = freezed,Object? phone = freezed,Object? avatarUrl = freezed,Object? status = null,Object? emailVerifiedAt = freezed,Object? phoneVerifiedAt = freezed,Object? isTwoFactorEnabled = null,Object? hasPassword = null,Object? referralCode = freezed,Object? timezone = freezed,Object? language = freezed,Object? dateOfBirth = freezed,Object? gender = freezed,Object? countryId = freezed,Object? stateId = freezed,Object? cityId = freezed,Object? pendingPolicies = null,Object? createdAt = freezed,}) {
   return _then(_UserModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,firstName: null == firstName ? _self.firstName : firstName // ignore: cast_nullable_to_non_nullable
@@ -314,6 +332,7 @@ as String?,status: null == status ? _self.status : status // ignore: cast_nullab
 as String,emailVerifiedAt: freezed == emailVerifiedAt ? _self.emailVerifiedAt : emailVerifiedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,phoneVerifiedAt: freezed == phoneVerifiedAt ? _self.phoneVerifiedAt : phoneVerifiedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,isTwoFactorEnabled: null == isTwoFactorEnabled ? _self.isTwoFactorEnabled : isTwoFactorEnabled // ignore: cast_nullable_to_non_nullable
+as bool,hasPassword: null == hasPassword ? _self.hasPassword : hasPassword // ignore: cast_nullable_to_non_nullable
 as bool,referralCode: freezed == referralCode ? _self.referralCode : referralCode // ignore: cast_nullable_to_non_nullable
 as String?,timezone: freezed == timezone ? _self.timezone : timezone // ignore: cast_nullable_to_non_nullable
 as String?,language: freezed == language ? _self.language : language // ignore: cast_nullable_to_non_nullable
@@ -322,7 +341,8 @@ as String?,gender: freezed == gender ? _self.gender : gender // ignore: cast_nul
 as String?,countryId: freezed == countryId ? _self.countryId : countryId // ignore: cast_nullable_to_non_nullable
 as String?,stateId: freezed == stateId ? _self.stateId : stateId // ignore: cast_nullable_to_non_nullable
 as String?,cityId: freezed == cityId ? _self.cityId : cityId // ignore: cast_nullable_to_non_nullable
-as String?,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as String?,pendingPolicies: null == pendingPolicies ? _self._pendingPolicies : pendingPolicies // ignore: cast_nullable_to_non_nullable
+as List<String>,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
 }

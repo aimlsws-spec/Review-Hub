@@ -14,6 +14,7 @@ describe('CmsPageService', () => {
     findAll: jest.fn(),
     findById: jest.fn(),
     findBySlug: jest.fn(),
+    findPublishedBySlug: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
@@ -31,6 +32,37 @@ describe('CmsPageService', () => {
 
     service = module.get<CmsPageService>(CmsPageService);
     jest.clearAllMocks();
+  });
+
+  describe('getPublishedBySlug', () => {
+    it('returns only what a reader needs from a published page', async () => {
+      const publishedAt = new Date('2026-10-01T00:00:00Z');
+      const updatedAt = new Date('2026-10-02T00:00:00Z');
+      mockCmsPageRepository.findPublishedBySlug.mockResolvedValue({
+        id: 'page-1',
+        slug: 'privacy-policy',
+        title: 'Privacy Policy',
+        content: 'We keep your data safe.',
+        status: 'PUBLISHED',
+        createdBy: 'admin-1',
+        publishedAt,
+        updatedAt,
+      });
+
+      await expect(service.getPublishedBySlug('privacy-policy')).resolves.toEqual({
+        slug: 'privacy-policy',
+        title: 'Privacy Policy',
+        content: 'We keep your data safe.',
+        publishedAt,
+        updatedAt,
+      });
+    });
+
+    it('treats a draft or missing page as not found', async () => {
+      mockCmsPageRepository.findPublishedBySlug.mockResolvedValue(null);
+
+      await expect(service.getPublishedBySlug('terms-and-conditions')).rejects.toThrow(NotFoundException);
+    });
   });
 
   describe('create', () => {

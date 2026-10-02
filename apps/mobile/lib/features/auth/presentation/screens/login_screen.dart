@@ -13,6 +13,7 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
+import '../../data/models/login_challenge_model.dart';
 import '../../providers/auth_providers.dart';
 
 final _socialSignInProvider = AsyncNotifierProvider.autoDispose<_SocialSignInNotifier, void>(_SocialSignInNotifier.new);
@@ -121,9 +122,13 @@ class _LoginSubmitNotifier extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  /// Returns true on success. Errors are surfaced via `state` rather than a
-  /// thrown exception, so the screen just watches this provider.
-  Future<bool> submit({required String identifier, required String password, required bool rememberMe}) async {
+  /// Signs in. `signedIn` when done, a `challenge` when the new-device code is needed first, neither on failure (the
+  /// error is in `state`, so the screen just watches this provider).
+  Future<({bool signedIn, LoginChallengeModel? challenge})> submit({
+    required String identifier,
+    required String password,
+    required bool rememberMe,
+  }) async {
     state = const AsyncLoading();
     final isEmail = identifier.contains('@');
     final result = await ref.read(authStateProvider.notifier).login(
@@ -134,10 +139,11 @@ class _LoginSubmitNotifier extends AsyncNotifier<void> {
         );
     if (result.isFailure) {
       state = AsyncError(result.failureOrNull?.message ?? 'Something went wrong.', StackTrace.current);
-      return false;
+      return (signedIn: false, challenge: null);
     }
     state = const AsyncData(null);
-    return true;
+    final challenge = result.valueOrNull;
+    return (signedIn: challenge == null, challenge: challenge);
   }
 }
 
@@ -162,13 +168,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final success = await ref.read(_loginSubmitProvider.notifier).submit(
+    final outcome = await ref.read(_loginSubmitProvider.notifier).submit(
           identifier: _identifierController.text.trim(),
           password: _passwordController.text,
           rememberMe: ref.read(_rememberMeProvider),
         );
-    if (!mounted || !success) return;
-    context.go(RoutePaths.home);
+    if (!mounted) return;
+    if (outcome.challenge != null) {
+      // A device this account has not used before: the code step finishes the sign-in.
+      await context.push(RoutePaths.newDeviceVerification, extra: outcome.challenge);
+    } else if (outcome.signedIn) {
+      context.go(RoutePaths.home);
+    }
   }
 
   Future<void> _signInWithGoogle() async {

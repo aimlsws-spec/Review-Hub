@@ -270,8 +270,10 @@ describe('Withdrawal rules and manual payout (e2e)', () => {
       expect(await walletOf(user)).toEqual({ available: 4000, locked: 0, withdrawn: 1000 });
 
       const queue = await api.get('/admin/withdrawals/awaiting-payout?limit=100', adminToken).expect(200);
-      const ids = (queue.body.data.data as { id: string; bankAccount: { accountNumber: string } }[]).map((w) => w.id);
-      expect(ids).toContain(id);
+      const entries = queue.body.data.data as { id: string; bankAccount: { accountNumber: string } }[];
+      expect(entries.map((w) => w.id)).toContain(id);
+      // The admin pays these by hand, so this list (unlike every other response) shows the real account number.
+      expect(entries.find((w) => w.id === id)?.bankAccount.accountNumber).toMatch(/^\d{9,18}$/);
     });
 
     it('records the bank reference and who paid, keeps the approver, and takes it off the list', async () => {

@@ -4,3 +4,6 @@ export * from './session.service';
 export * from './password.service';
 export * from './otp.service';
 export * from './password-history.service';
+export * from './new-device.service';
+export * from './policy-acceptance.service';
+export * from './phone-change.service';

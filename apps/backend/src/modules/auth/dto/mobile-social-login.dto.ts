@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class MobileSocialLoginDto {
   @ApiProperty({ description: 'The identity token from Google/Apple' })
@@ -21,4 +21,19 @@ export class MobileSocialLoginDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Client-reported: whether the device is rooted/jailbroken' })
+  @IsOptional()
+  @IsBoolean()
+  isRooted?: boolean;
+
+  @ApiPropertyOptional({ description: 'Client-reported: whether the app is running on an emulator/simulator' })
+  @IsOptional()
+  @IsBoolean()
+  isEmulator?: boolean;
+
+  @ApiPropertyOptional({ description: 'Client-reported: whether an automation framework (Frida/Xposed) was detected' })
+  @IsOptional()
+  @IsBoolean()
+  isAutomationDetected?: boolean;
 }

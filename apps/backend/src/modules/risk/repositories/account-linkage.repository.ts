@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
+/** A bank account as the linkage check compares it: the keyed hash of the number (never the number) and the IFSC. */
 export interface BankKey {
-  accountNumber: string;
+  accountNumberHash: string;
   ifscCode: string;
 }
 
@@ -55,17 +56,19 @@ export class AccountLinkageRepository {
 
   // ── Same bank account ─────────────────────────────────────────────────────
 
+  /** Rows written before encryption have no hash until the backfill runs; they are simply not compared until then. */
   async bankKeysOf(userId: string): Promise<BankKey[]> {
-    return this.prisma.userBankAccount.findMany({
-      where: { userId, deletedAt: null },
-      select: { accountNumber: true, ifscCode: true },
+    const rows = await this.prisma.userBankAccount.findMany({
+      where: { userId, deletedAt: null, accountNumberHash: { not: null } },
+      select: { accountNumberHash: true, ifscCode: true },
     });
+    return rows.map((r) => ({ accountNumberHash: r.accountNumberHash as string, ifscCode: r.ifscCode }));
   }
 
   async usersSharingBankAccounts(keys: BankKey[], scope: Scope): Promise<string[]> {
     if (keys.length === 0) return [];
     const rows = await this.prisma.userBankAccount.findMany({
-      where: { deletedAt: null, ...otherUsers(scope), OR: keys.map((k) => ({ accountNumber: k.accountNumber, ifscCode: k.ifscCode })) },
+      where: { deletedAt: null, ...otherUsers(scope), OR: keys.map((k) => ({ accountNumberHash: k.accountNumberHash, ifscCode: k.ifscCode })) },
       distinct: ['userId'],
       select: { userId: true },
       take: scope.limit,

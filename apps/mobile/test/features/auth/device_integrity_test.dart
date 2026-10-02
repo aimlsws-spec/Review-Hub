@@ -159,7 +159,7 @@ void main() {
         _FixedChecker(const DeviceIntegrity(isEmulator: true)),
       );
 
-      await repository.register(firstName: 'A', lastName: 'B', email: 'a@example.com', password: 'Passw0rd!23');
+      await repository.register(firstName: 'A', lastName: 'B', email: 'a@example.com', password: 'Passw0rd!23', acceptPolicies: true);
 
       expect(adapter.bodies.single, containsPair('isEmulator', true));
       expect(adapter.bodies.single, containsPair('isRooted', false));

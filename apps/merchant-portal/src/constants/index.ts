@@ -32,6 +32,13 @@ export const ROUTES = {
   WEBHOOKS: '/webhooks',
 } as const
 
+/** The legal documents a person accepts (backend: POLICY_DOCUMENTS in auth/constants), and the page holding each. */
+export const POLICY_DOCUMENTS = [
+  { slug: 'terms-and-conditions', title: 'Terms & Conditions' },
+  { slug: 'privacy-policy', title: 'Privacy Policy' },
+  { slug: 'reward-policy', title: 'Reward Policy' },
+] as const
+
 export const QUERY_KEYS = {
   ME: ['me'],
   MERCHANT: ['merchant'],
@@ -58,6 +65,8 @@ export const QUERY_KEYS = {
   ANALYTICS: ['analytics'],
   NOTIFICATIONS: ['notifications'],
   WEBHOOKS: ['webhooks'],
+  POLICIES: ['policies'],
+  CONTENT_PAGE: ['content-page'],
   WEBHOOK_DELIVERIES: ['webhook-deliveries'],
 } as const
 

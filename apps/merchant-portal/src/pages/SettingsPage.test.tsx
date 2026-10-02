@@ -77,7 +77,7 @@ describe('SettingsPage', () => {
     renderPage()
 
     await user.type(screen.getByLabelText(/current password/i), 'oldpass1')
-    await user.type(screen.getByLabelText(/^new password/i), 'newpassword1')
+    await user.type(screen.getByLabelText(/^new password/i), 'NewPassw0rd!1')
     await user.type(screen.getByLabelText(/confirm new password/i), 'different1')
     await user.click(screen.getByRole('button', { name: /change password/i }))
 
@@ -90,15 +90,15 @@ describe('SettingsPage', () => {
     renderPage()
 
     await user.type(screen.getByLabelText(/current password/i), 'oldpass1')
-    await user.type(screen.getByLabelText(/^new password/i), 'newpassword1')
-    await user.type(screen.getByLabelText(/confirm new password/i), 'newpassword1')
+    await user.type(screen.getByLabelText(/^new password/i), 'NewPassw0rd!1')
+    await user.type(screen.getByLabelText(/confirm new password/i), 'NewPassw0rd!1')
     await user.click(screen.getByRole('button', { name: /change password/i }))
 
     await waitFor(() =>
       expect(passwordMutateMock).toHaveBeenCalledWith({
         currentPassword: 'oldpass1',
-        newPassword: 'newpassword1',
-        confirmPassword: 'newpassword1',
+        newPassword: 'NewPassw0rd!1',
+        confirmPassword: 'NewPassw0rd!1',
       }),
     )
   })

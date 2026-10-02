@@ -8,10 +8,12 @@ import '../../../../core/deep_link/pending_referral_code_provider.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
+import '../../../legal/presentation/widgets/policy_links.dart';
 import '../../providers/auth_providers.dart';
 
 final _obscurePasswordProvider = StateProvider.autoDispose<bool>((ref) => true);
 final _obscureConfirmPasswordProvider = StateProvider.autoDispose<bool>((ref) => true);
+final _acceptedPoliciesProvider = StateProvider.autoDispose<bool>((ref) => false);
 
 final _registerSubmitProvider =
     AsyncNotifierProvider.autoDispose<_RegisterSubmitNotifier, void>(_RegisterSubmitNotifier.new);
@@ -33,6 +35,8 @@ class _RegisterSubmitNotifier extends AsyncNotifier<void> {
           lastName: lastName,
           phone: phone,
           password: password,
+          // The screen only submits once the box is ticked; the server refuses the sign-up without it anyway.
+          acceptPolicies: true,
           referralCode: referralCode,
         );
     if (result.isFailure) {
@@ -86,6 +90,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!ref.read(_acceptedPoliciesProvider)) return;
 
     final success = await ref.read(_registerSubmitProvider.notifier).submit(
           firstName: _firstNameController.text.trim(),
@@ -104,6 +109,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final submitState = ref.watch(_registerSubmitProvider);
     final obscurePassword = ref.watch(_obscurePasswordProvider);
     final obscureConfirmPassword = ref.watch(_obscureConfirmPasswordProvider);
+    final acceptedPolicies = ref.watch(_acceptedPoliciesProvider);
     final errorMessage = submitState.hasError ? submitState.error.toString() : null;
 
     return Scaffold(
@@ -171,19 +177,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   controller: _passwordController,
                   obscureText: obscurePassword,
                   label: 'Password',
-                  helperText: '8+ characters, upper & lowercase, a number and a symbol',
+                  helperText: AppConstants.passwordHint,
                   helperMaxLines: 2,
                   suffixIcon: IconButton(
                     icon: Icon(obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppColors.slate500),
                     onPressed: () => ref.read(_obscurePasswordProvider.notifier).state = !obscurePassword,
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Enter a password';
-                    if (!AppConstants.passwordPattern.hasMatch(v)) {
-                      return 'Must include upper, lower, number & symbol';
-                    }
-                    return null;
-                  },
+                  validator: AppConstants.newPasswordError,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
@@ -205,8 +205,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   controller: _referralCodeController,
                   label: 'Referral code (optional)',
                 ),
-                const SizedBox(height: 32),
-                LoadingButton(label: 'Create account', isLoading: submitState.isLoading, gradient: true, onPressed: _submit),
+                const SizedBox(height: 20),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        key: const Key('acceptPolicies'),
+                        value: acceptedPolicies,
+                        onChanged: (v) => ref.read(_acceptedPoliciesProvider.notifier).state = v ?? false,
+                        activeColor: AppColors.orange500,
+                        side: const BorderSide(color: AppColors.slate300),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(child: PolicyLinks(prefix: 'I have read and accept the')),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                LoadingButton(
+                  label: 'Create account',
+                  isLoading: submitState.isLoading,
+                  gradient: true,
+                  // Disabled until the policies are accepted (FR-008).
+                  onPressed: acceptedPolicies ? _submit : null,
+                ),
                 const SizedBox(height: 32),
                 Center(
                   child: TextButton(

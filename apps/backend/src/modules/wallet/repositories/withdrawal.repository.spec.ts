@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+import { BankDetailsProtector } from '../../../shared/crypto';
+import { testBankDetailsProtector } from '../../../shared/crypto/testing';
 
 import { WithdrawalRepository } from './withdrawal.repository';
 
@@ -25,6 +27,7 @@ describe('WithdrawalRepository', () => {
       providers: [
         WithdrawalRepository,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: BankDetailsProtector, useValue: testBankDetailsProtector() },
       ],
     }).compile();
 

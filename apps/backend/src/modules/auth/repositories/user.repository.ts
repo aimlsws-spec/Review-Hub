@@ -73,6 +73,40 @@ export class UserRepository {
     return this.prisma.user.update({ where: { id }, data: { deletedAt: new Date(), status: 'DEACTIVATED' } });
   }
 
+  /**
+   * Deletes an account the person asked to close: soft delete, plus clearing the email, phone and Google/Apple links so
+   * they can sign up again later. The row itself stays, so wallet history, submissions and audit logs keep pointing at
+   * it. Devices are deactivated and their push tokens dropped in the same transaction.
+   */
+  async deleteAndReleaseIdentifiers(id: string) {
+    return this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id },
+        data: { deletedAt: new Date(), status: 'DEACTIVATED', email: null, phone: null, googleId: null, appleId: null },
+      }),
+      this.prisma.device.updateMany({ where: { userId: id }, data: { isActive: false, pushToken: null } }),
+    ]);
+  }
+
+  /** What still stops this account from being deleted: money in the wallet, a withdrawal in flight, or a business. */
+  async findDeletionBlockers(id: string) {
+    const [wallet, openWithdrawals, merchant] = await Promise.all([
+      this.prisma.userWallet.findUnique({
+        where: { userId: id },
+        select: { availableBalance: true, pendingBalance: true, lockedBalance: true },
+      }),
+      this.prisma.withdrawalRequest.count({
+        where: { wallet: { userId: id }, status: { in: ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING'] } },
+      }),
+      this.prisma.merchant.findFirst({ where: { userId: id, deletedAt: null }, select: { id: true } }),
+    ]);
+    return {
+      hasBalance: !!wallet && (wallet.availableBalance.gt(0) || wallet.pendingBalance.gt(0) || wallet.lockedBalance.gt(0)),
+      hasOpenWithdrawal: openWithdrawals > 0,
+      ownsMerchant: merchant !== null,
+    };
+  }
+
   async incrementFailedAttempts(id: string) {
     return this.prisma.user.update({ where: { id }, data: { failedLoginAttempts: { increment: 1 } } });
   }

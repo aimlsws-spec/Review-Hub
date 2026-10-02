@@ -18,6 +18,15 @@ class ApiEndpoints {
   static const String changePassword = '/auth/change-password';
   static const String me = '/auth/me';
   static const String devicePushToken = '/auth/devices/push-token';
+  static const String loginVerifyDevice = '/auth/login/verify-device';
+  static const String loginResendDeviceCode = '/auth/login/resend-device-code';
+  static const String acceptPolicies = '/auth/policies/accept';
+  static const String phoneChange = '/auth/phone/change';
+  static const String phoneVerify = '/auth/phone/verify';
+  static const String account = '/auth/account';
+
+  // Published content pages (legal texts) — admin/controllers/public-cms-page.controller.ts (public)
+  static String contentPage(String slug) => '/pages/$slug';
 
   // Wallet — apps/backend/src/modules/wallet/controllers/wallet.controller.ts
   static const String wallet = '/wallet';

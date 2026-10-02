@@ -96,7 +96,8 @@ export class AdminService {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
     const documents = await this.documentRepository.findByMerchantId(merchantId);
-    const bankAccounts = await this.bankRepository.findByMerchantId(merchantId);
+    // Revealed, not masked: the admin checks these against the merchant's uploaded documents before approving.
+    const bankAccounts = await this.bankRepository.findByMerchantIdRevealed(merchantId);
     return { ...merchant, documents, bankAccounts };
   }
 

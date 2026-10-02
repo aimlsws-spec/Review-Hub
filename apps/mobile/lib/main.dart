@@ -16,6 +16,7 @@ import 'features/app_lock/presentation/widgets/app_lock_gate.dart';
 import 'features/app_status/presentation/widgets/app_status_gate.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/notifications/providers/notification_providers.dart';
+import 'shared/providers/core_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +76,10 @@ class _ViralKarAppState extends ConsumerState<ViralKarApp> {
     ref.listen<AsyncValue<UserModel?>>(authStateProvider, (previous, next) {
       final justSignedIn = next.value != null && previous?.value == null;
       if (justSignedIn) {
-        unawaited(ref.read(pushNotificationControllerProvider).syncForCurrentUser());
+        // On a phone's first sign-in the permissions intro explains notifications and asks from there, so the
+        // system prompt never appears before the reason for it.
+        final introSeen = ref.read(settingsBoxProvider).get(StorageKeys.permissionsIntroSeen, defaultValue: false) as bool;
+        if (introSeen) unawaited(ref.read(pushNotificationControllerProvider).syncForCurrentUser());
         // A referral link only matters pre-registration — drop a stale one so
         // a later, unrelated visit to the register screen never sees it.
         ref.read(pendingReferralCodeProvider.notifier).state = null;

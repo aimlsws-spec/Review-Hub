@@ -30,7 +30,7 @@ export class BankService {
     }
 
     const bankAccount = await this.bankRepository.create({
-      merchant: { connect: { id: merchantId } },
+      merchantId,
       bankName: dto.bankName,
       accountHolderName: dto.accountHolderName,
       accountNumber: dto.accountNumber,

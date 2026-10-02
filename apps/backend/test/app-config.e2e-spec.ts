@@ -112,7 +112,7 @@ describe('App config: maintenance mode and minimum app version (e2e)', () => {
     it('turns away someone who is not signed in from the public calls too, such as registering, and shows the message on the app-config call', async () => {
       await setConfig({ maintenanceMode: true, maintenanceMessage: 'Back at 6 PM tonight' }).expect(200);
 
-      await api.post('/auth/register').send({ firstName: 'New', lastName: 'Person', email: `maintenance-${Date.now()}@example.com`, password: 'Passw0rd!23' }).expect(503);
+      await api.post('/auth/register').send({ firstName: 'New', lastName: 'Person', email: `maintenance-${Date.now()}@example.com`, password: 'Passw0rd!23', acceptPolicies: true }).expect(503);
       const settings = await api.get('/app-config').expect(200);
       expect(settings.body.data).toMatchObject({ maintenanceMode: true, maintenanceMessage: 'Back at 6 PM tonight' });
     });

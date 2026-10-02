@@ -14,6 +14,17 @@ import { AUTH_EVENTS, AUTH_ERRORS } from '../constants';
 import { OtpRepository } from '../repositories/otp.repository';
 import { UserRepository } from '../repositories/user.repository';
 
+/**
+ * What a person reads when a code is refused. The machine-readable reason stays in the error's `code`
+ * (AUTH_ERRORS.OTP_*); these used to be the code names themselves, which the apps then showed as is.
+ */
+const OTP_MESSAGES = {
+  RESEND_COOLDOWN: 'Please wait a minute before asking for another code.',
+  NONE_WAITING: 'No code is waiting. Please ask for a new one.',
+  EXPIRED: 'That code has expired. Please ask for a new one.',
+  MAX_ATTEMPTS: 'Too many wrong tries. Please ask for a new code.',
+  INVALID: 'That code is not right. Please check it and try again.',
+} as const;
 
 @Injectable()
 export class OtpService {
@@ -62,12 +73,16 @@ export class OtpService {
     return crypto.createHash('sha256').update(code).digest('hex');
   }
 
-  async sendOtp(userId: string, type: OtpType): Promise<{ message: string; expiresIn: number }> {
+  /**
+   * Issues a code and sends it to the account's email and phone, or, with `toPhone`, only by SMS to that number. The
+   * override exists for a phone number change, where the point is to prove the person holds the *new* number.
+   */
+  async sendOtp(userId: string, type: OtpType, toPhone?: string): Promise<{ message: string; expiresIn: number }> {
     const cacheKey = `otp_cooldown:${userId}:${type}`;
     const cooldownRemaining = await this.cacheService.get<number>(cacheKey);
 
     if (cooldownRemaining) {
-      throw new BadRequestException(AUTH_ERRORS.OTP_RESEND_COOLDOWN);
+      throw new BadRequestException(OTP_MESSAGES.RESEND_COOLDOWN, AUTH_ERRORS.OTP_RESEND_COOLDOWN);
     }
 
     await this.otpRepository.expireAllByUserAndType(userId, type);
@@ -85,6 +100,13 @@ export class OtpService {
     });
 
     await this.cacheService.set(cacheKey, 1, this.resendCooldownSeconds);
+
+    if (toPhone) {
+      this.smsService
+        .send(toPhone, `Your VIRAL KAR OTP is ${plainCode}. It expires in ${this.otpExpiryMinutes} minutes.`)
+        .catch((err: Error) => this.logger.error('Failed to send OTP SMS', err.message));
+      return { message: 'OTP sent successfully', expiresIn: this.otpExpiryMinutes * 60 };
+    }
 
     const user = await this.userRepository.findById(userId);
     if (user?.email) {
@@ -110,16 +132,16 @@ export class OtpService {
     const otp = await this.otpRepository.findLatestByUserAndType(userId, type);
 
     if (!otp) {
-      throw new BadRequestException(AUTH_ERRORS.OTP_INVALID);
+      throw new BadRequestException(OTP_MESSAGES.NONE_WAITING, AUTH_ERRORS.OTP_INVALID);
     }
 
     if (otp.status !== 'PENDING') {
-      throw new BadRequestException(AUTH_ERRORS.OTP_EXPIRED);
+      throw new BadRequestException(OTP_MESSAGES.EXPIRED, AUTH_ERRORS.OTP_EXPIRED);
     }
 
     if (otp.expiresAt < new Date()) {
       await this.otpRepository.markExpired(otp.id);
-      throw new BadRequestException(AUTH_ERRORS.OTP_EXPIRED);
+      throw new BadRequestException(OTP_MESSAGES.EXPIRED, AUTH_ERRORS.OTP_EXPIRED);
     }
 
     // Bug fixed 23 Sep 2026 (security review): this used to compare the *stale* `otp.attempts`
@@ -130,12 +152,12 @@ export class OtpService {
 
     if (updated.attempts > otp.maxAttempts) {
       await this.otpRepository.markExhausted(otp.id);
-      throw new BadRequestException(AUTH_ERRORS.OTP_MAX_ATTEMPTS);
+      throw new BadRequestException(OTP_MESSAGES.MAX_ATTEMPTS, AUTH_ERRORS.OTP_MAX_ATTEMPTS);
     }
 
     const hashedInput = this.hashCode(code);
     if (otp.code !== hashedInput) {
-      throw new BadRequestException(AUTH_ERRORS.OTP_INVALID);
+      throw new BadRequestException(OTP_MESSAGES.INVALID, AUTH_ERRORS.OTP_INVALID);
     }
 
     await this.otpRepository.markVerified(otp.id);

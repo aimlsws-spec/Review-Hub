@@ -26,6 +26,8 @@ interface RegisterFormValues {
   email: string
   phone?: string
   password: string
+  /** The sign-up form only submits once the policies box is ticked (FR-008). */
+  acceptPolicies: boolean
 }
 
 export function useRegisterMutation() {
@@ -37,6 +39,7 @@ export function useRegisterMutation() {
         email: data.email,
         password: data.password,
         phone: data.phone || undefined,
+        acceptPolicies: data.acceptPolicies,
       }),
   })
 }

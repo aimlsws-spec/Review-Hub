@@ -6,6 +6,15 @@ import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { CmsPageQueryDto, CreateCmsPageDto, UpdateCmsPageDto } from '../dto';
 import { CmsPageRepository } from '../repositories';
 
+export interface PublicCmsPage {
+  slug: string;
+  title: string;
+  /** Plain text, as typed in the admin portal. */
+  content: string;
+  publishedAt: Date | null;
+  updatedAt: Date;
+}
+
 @Injectable()
 export class CmsPageService {
   constructor(
@@ -21,6 +30,16 @@ export class CmsPageService {
     const page = await this.cmsPageRepository.findById(id);
     if (!page) throw new NotFoundException('CMS page');
     return page;
+  }
+
+  /**
+   * A published page for the apps, e.g. the Terms & Conditions the sign-up screen links to. Only the fields a reader
+   * needs: drafts, authors and internal ids stay private.
+   */
+  async getPublishedBySlug(slug: string): Promise<PublicCmsPage> {
+    const page = await this.cmsPageRepository.findPublishedBySlug(slug);
+    if (!page) throw new NotFoundException('Page');
+    return { slug: page.slug, title: page.title, content: page.content, publishedAt: page.publishedAt, updatedAt: page.updatedAt };
   }
 
   async create(dto: CreateCmsPageDto, adminId: string) {

@@ -17,7 +17,13 @@ import { WithdrawalService } from './withdrawal.service';
 describe('WithdrawalService', () => {
   let service: WithdrawalService;
 
-  const mockWithdrawalRepository = { findById: jest.fn(), update: jest.fn(), findPendingForAdmin: jest.fn() };
+  const mockWithdrawalRepository = {
+    findById: jest.fn(),
+    // The payout's own read, with the real account number.
+    findByIdForPayout: jest.fn(),
+    update: jest.fn(),
+    findPendingForAdmin: jest.fn(),
+  };
   const mockWalletRepository = { getOrCreate: jest.fn() };
   const mockSettlementRepository = {
     request: jest.fn(),
@@ -254,7 +260,9 @@ describe('WithdrawalService', () => {
 
     beforeEach(() => {
       mockSettlementRepository.approve.mockResolvedValue(approved);
-      mockWithdrawalRepository.findById.mockResolvedValue({ id: 'withdrawal-1', status: 'APPROVED', finalAmount: 1500, bankAccount: onFile, metadata: null });
+      const stored = { id: 'withdrawal-1', status: 'APPROVED', finalAmount: 1500, bankAccount: onFile, metadata: null };
+      mockWithdrawalRepository.findById.mockResolvedValue({ ...stored, bankAccount: { ...onFile, accountNumber: 'XXXX7890' } });
+      mockWithdrawalRepository.findByIdForPayout.mockResolvedValue(stored);
     });
 
     it('approves through the locked settlement step, tells the user, and writes an audit entry', async () => {
@@ -292,6 +300,9 @@ describe('WithdrawalService', () => {
         await service.approve('withdrawal-1', 'admin-1');
 
         expect(mockPayments.createPayout).toHaveBeenCalledWith({ fundAccountId: 'fa_1', amountInRupees: 1500, referenceId: 'withdrawal-1' });
+        // Only the payout reads the real account number; everything else gets it masked.
+        expect(mockWithdrawalRepository.findByIdForPayout).toHaveBeenCalledWith('withdrawal-1');
+        expect(mockPayments.createFundAccount).toHaveBeenCalledWith(expect.objectContaining({ accountNumber: '1234567890' }));
         expect(mockSettlementRepository.markProcessing).toHaveBeenCalledWith({
           withdrawalId: 'withdrawal-1',
           metadata: { razorpayPayoutId: 'pout_1', razorpayFundAccountId: 'fa_1' },
@@ -300,7 +311,7 @@ describe('WithdrawalService', () => {
 
       it('keeps the error, and does not throw, when the gateway call fails: an admin can then pay it by hand', async () => {
         mockPayments.createCustomer.mockRejectedValue(new Error('Razorpay API unavailable'));
-        mockWithdrawalRepository.findById.mockResolvedValue({ id: 'withdrawal-1', status: 'APPROVED', bankAccount: onFile, metadata: { note: 'kept' } });
+        mockWithdrawalRepository.findByIdForPayout.mockResolvedValue({ id: 'withdrawal-1', status: 'APPROVED', bankAccount: onFile, metadata: { note: 'kept' } });
 
         await expect(service.approve('withdrawal-1', 'admin-1')).resolves.toBeDefined();
 
@@ -310,7 +321,7 @@ describe('WithdrawalService', () => {
       });
 
       it('makes no payout when there is no bank account on file', async () => {
-        mockWithdrawalRepository.findById.mockResolvedValue({ id: 'withdrawal-1', status: 'APPROVED', bankAccount: null });
+        mockWithdrawalRepository.findByIdForPayout.mockResolvedValue({ id: 'withdrawal-1', status: 'APPROVED', bankAccount: null });
 
         await service.approve('withdrawal-1', 'admin-1');
 

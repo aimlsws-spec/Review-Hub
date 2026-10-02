@@ -2,6 +2,8 @@ import { PageLoader } from '@reviewhub/shared-ui'
 import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 
+import { PolicyGate } from '@/components/PolicyGate'
+
 import { Sidebar } from './Sidebar'
 import { TopNavbar } from './TopNavbar'
 
@@ -37,6 +39,7 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+      <PolicyGate />
     </div>
   )
 }

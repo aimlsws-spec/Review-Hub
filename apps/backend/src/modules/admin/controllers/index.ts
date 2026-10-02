@@ -14,3 +14,4 @@ export * from './account-risk.controller';
 export * from './city.controller';
 
 export * from './admin-dispute.controller';
+export * from './public-cms-page.controller';

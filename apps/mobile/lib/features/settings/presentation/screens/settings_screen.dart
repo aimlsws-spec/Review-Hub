@@ -58,11 +58,23 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(RoutePaths.changePassword),
           ),
+          ListTile(
+            leading: const Icon(Icons.phone_iphone_rounded, color: AppColors.primary600),
+            title: const Text('Change phone number'),
+            subtitle: user?.phone == null ? null : Text(user!.phone!),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(RoutePaths.changePhone),
+          ),
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.logout_rounded, color: AppColors.danger),
             title: const Text('Log out', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600)),
             onTap: () => ref.read(authStateProvider.notifier).logout(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_forever_outlined, color: AppColors.danger),
+            title: const Text('Delete account', style: TextStyle(color: AppColors.danger)),
+            onTap: () => context.push(RoutePaths.deleteAccount),
           ),
           const SizedBox(height: 24),
         ],

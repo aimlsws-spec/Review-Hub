@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
-import { IsIFSC } from '../validators';
+import { IsBankAccountNumber, IsIFSC, IsUpiId } from '../validators';
 
 export class AddBankDto {
   @ApiProperty({ example: 'HDFC Bank' })
@@ -18,8 +18,7 @@ export class AddBankDto {
 
   @ApiProperty({ example: '12345678901' })
   @IsString()
-  @MinLength(9)
-  @MaxLength(18)
+  @IsBankAccountNumber()
   accountNumber!: string;
 
   @ApiProperty({ example: 'HDFC0001234' })
@@ -35,6 +34,7 @@ export class AddBankDto {
   @ApiPropertyOptional({ example: 'john@upi' })
   @IsOptional()
   @IsString()
+  @IsUpiId()
   upiId?: string;
 
   @ApiPropertyOptional({ example: true })
@@ -68,6 +68,7 @@ export class UpdateBankDto {
   @ApiPropertyOptional({ example: 'john@upi' })
   @IsOptional()
   @IsString()
+  @IsUpiId()
   upiId?: string;
 
   @ApiPropertyOptional({ example: true })

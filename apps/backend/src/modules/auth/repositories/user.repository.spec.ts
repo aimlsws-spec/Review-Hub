@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
@@ -18,6 +19,11 @@ describe('UserRepository', () => {
     userRole: {
       findMany: jest.fn(),
     },
+    device: { updateMany: jest.fn() },
+    userWallet: { findUnique: jest.fn() },
+    withdrawalRequest: { count: jest.fn() },
+    merchant: { findFirst: jest.fn() },
+    $transaction: jest.fn((operations: unknown[]) => Promise.all(operations)),
   };
 
   beforeEach(async () => {
@@ -88,6 +94,64 @@ describe('UserRepository', () => {
         where: { id: 'user-1' },
         data: { deletedAt: expect.any(Date), status: 'DEACTIVATED' },
       });
+    });
+  });
+
+  describe('deleteAndReleaseIdentifiers', () => {
+    it('soft-deletes, clears the email, phone and social links, and silences the devices together', async () => {
+      await repository.deleteAndReleaseIdentifiers('user-1');
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { deletedAt: expect.any(Date), status: 'DEACTIVATED', email: null, phone: null, googleId: null, appleId: null },
+      });
+      expect(mockPrisma.device.updateMany).toHaveBeenCalledWith({ where: { userId: 'user-1' }, data: { isActive: false, pushToken: null } });
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('findDeletionBlockers', () => {
+    const wallet = (available: number, pending = 0, locked = 0) => ({
+      availableBalance: new Prisma.Decimal(available),
+      pendingBalance: new Prisma.Decimal(pending),
+      lockedBalance: new Prisma.Decimal(locked),
+    });
+
+    beforeEach(() => {
+      mockPrisma.userWallet.findUnique.mockResolvedValue(wallet(0));
+      mockPrisma.withdrawalRequest.count.mockResolvedValue(0);
+      mockPrisma.merchant.findFirst.mockResolvedValue(null);
+    });
+
+    it('reports nothing for an empty wallet, no withdrawals and no business', async () => {
+      await expect(repository.findDeletionBlockers('user-1')).resolves.toEqual({ hasBalance: false, hasOpenWithdrawal: false, ownsMerchant: false });
+    });
+
+    it('reports nothing when the user never had a wallet', async () => {
+      mockPrisma.userWallet.findUnique.mockResolvedValue(null);
+
+      await expect(repository.findDeletionBlockers('user-1')).resolves.toEqual(expect.objectContaining({ hasBalance: false }));
+    });
+
+    it.each([
+      ['available', wallet(10)],
+      ['pending', wallet(0, 5)],
+      ['locked', wallet(0, 0, 1)],
+    ])('counts money that is %s as a balance', async (_label, w) => {
+      mockPrisma.userWallet.findUnique.mockResolvedValue(w);
+
+      await expect(repository.findDeletionBlockers('user-1')).resolves.toEqual(expect.objectContaining({ hasBalance: true }));
+    });
+
+    it('only counts withdrawals still in flight, and only a business not already closed', async () => {
+      mockPrisma.withdrawalRequest.count.mockResolvedValue(1);
+      mockPrisma.merchant.findFirst.mockResolvedValue({ id: 'merchant-1' });
+
+      await expect(repository.findDeletionBlockers('user-1')).resolves.toEqual({ hasBalance: false, hasOpenWithdrawal: true, ownsMerchant: true });
+      expect(mockPrisma.withdrawalRequest.count).toHaveBeenCalledWith({
+        where: { wallet: { userId: 'user-1' }, status: { in: ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING'] } },
+      });
+      expect(mockPrisma.merchant.findFirst).toHaveBeenCalledWith({ where: { userId: 'user-1', deletedAt: null }, select: { id: true } });
     });
   });
 

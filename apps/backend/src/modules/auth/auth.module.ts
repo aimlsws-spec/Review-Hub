@@ -15,15 +15,19 @@ import { AuthListener } from './listeners/auth.listener';
 import { DeviceRepository } from './repositories/device.repository';
 import { LoginHistoryRepository } from './repositories/login-history.repository';
 import { OtpRepository } from './repositories/otp.repository';
+import { PasswordHistoryRepository } from './repositories/password-history.repository';
+import { PolicyAcceptanceRepository } from './repositories/policy-acceptance.repository';
 import { SessionRepository } from './repositories/session.repository';
 import { UserRepository } from './repositories/user.repository';
 import { AuthService } from './services/auth.service';
 import { DemographicsService } from './services/demographics.service';
 import { DeviceService } from './services/device.service';
+import { NewDeviceService } from './services/new-device.service';
 import { OtpService } from './services/otp.service';
-import { PasswordHistoryRepository } from './repositories/password-history.repository';
 import { PasswordHistoryService } from './services/password-history.service';
 import { PasswordService } from './services/password.service';
+import { PhoneChangeService } from './services/phone-change.service';
+import { PolicyAcceptanceService } from './services/policy-acceptance.service';
 import { SessionService } from './services/session.service';
 import { AppleStrategy } from './strategies/apple.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
@@ -58,12 +62,16 @@ import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy';
     PasswordService,
     PasswordHistoryService,
     OtpService,
+    NewDeviceService,
+    PolicyAcceptanceService,
+    PhoneChangeService,
     UserRepository,
     SessionRepository,
     DeviceRepository,
     OtpRepository,
     LoginHistoryRepository,
     PasswordHistoryRepository,
+    PolicyAcceptanceRepository,
     JwtStrategy,
     RefreshJwtStrategy,
     GoogleStrategy,

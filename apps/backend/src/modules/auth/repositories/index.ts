@@ -3,3 +3,4 @@ export * from './session.repository';
 export * from './otp.repository';
 export * from './login-history.repository';
 export * from './password-history.repository';
+export * from './policy-acceptance.repository';

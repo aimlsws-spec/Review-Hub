@@ -21,6 +21,7 @@ _UserModel _$UserModelFromJson(Map<String, dynamic> json) => _UserModel(
       ? null
       : DateTime.parse(json['phoneVerifiedAt'] as String),
   isTwoFactorEnabled: json['isTwoFactorEnabled'] as bool? ?? false,
+  hasPassword: json['hasPassword'] as bool? ?? true,
   referralCode: json['referralCode'] as String?,
   timezone: json['timezone'] as String?,
   language: json['language'] as String?,
@@ -29,6 +30,11 @@ _UserModel _$UserModelFromJson(Map<String, dynamic> json) => _UserModel(
   countryId: json['countryId'] as String?,
   stateId: json['stateId'] as String?,
   cityId: json['cityId'] as String?,
+  pendingPolicies:
+      (json['pendingPolicies'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const <String>[],
   createdAt: json['createdAt'] == null
       ? null
       : DateTime.parse(json['createdAt'] as String),
@@ -46,6 +52,7 @@ Map<String, dynamic> _$UserModelToJson(_UserModel instance) =>
       'emailVerifiedAt': instance.emailVerifiedAt?.toIso8601String(),
       'phoneVerifiedAt': instance.phoneVerifiedAt?.toIso8601String(),
       'isTwoFactorEnabled': instance.isTwoFactorEnabled,
+      'hasPassword': instance.hasPassword,
       'referralCode': instance.referralCode,
       'timezone': instance.timezone,
       'language': instance.language,
@@ -54,5 +61,6 @@ Map<String, dynamic> _$UserModelToJson(_UserModel instance) =>
       'countryId': instance.countryId,
       'stateId': instance.stateId,
       'cityId': instance.cityId,
+      'pendingPolicies': instance.pendingPolicies,
       'createdAt': instance.createdAt?.toIso8601String(),
     };

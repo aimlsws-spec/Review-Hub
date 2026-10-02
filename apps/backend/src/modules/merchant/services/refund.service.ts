@@ -143,7 +143,7 @@ export class RefundService {
     // failure here doesn't get reversed until Razorpay's webhook reports it
     // definitively failed/reversed (see MerchantRefundPayoutListener), since
     // an API error at this exact moment could just as easily be a transient blip.
-    await this.initiatePayout(refund);
+    await this.initiatePayout(refund.id);
 
     return this.refundRepository.findById(refundId);
   }
@@ -205,7 +205,10 @@ export class RefundService {
    * the bank account, matching the same tradeoff the user withdrawal flow
    * makes (see WithdrawalService.initiatePayout).
    */
-  private async initiatePayout(refund: NonNullable<Awaited<ReturnType<MerchantRefundRepository['findById']>>>) {
+  private async initiatePayout(refundId: string) {
+    // Read with the real account number, which only the payout itself may see.
+    const refund = await this.refundRepository.findByIdForPayout(refundId);
+    if (!refund) return;
     if (!refund.bankAccount) {
       this.logger.error(`Refund ${refund.id} was approved with no bank account on file — payout not attempted`);
       return;

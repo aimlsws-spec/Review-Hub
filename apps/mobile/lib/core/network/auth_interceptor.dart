@@ -27,6 +27,9 @@ class AuthInterceptor extends Interceptor {
 
   static const _authExemptPaths = {
     ApiEndpoints.login,
+    // Both come before any session exists: a 401 here means the sign-in expired, not the (absent) access token.
+    ApiEndpoints.loginVerifyDevice,
+    ApiEndpoints.loginResendDeviceCode,
     ApiEndpoints.register,
     ApiEndpoints.refresh,
     ApiEndpoints.sendOtp,

@@ -1,11 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { OtpType } from '@prisma/client';
-import { IsEnum, IsString, Length } from 'class-validator';
+import { IsIn, IsString, Length } from 'class-validator';
+
+import { GENERIC_OTP_TYPES, GenericOtpType } from '../constants';
 
 export class VerifyOtpDto {
-  @ApiProperty({ enum: OtpType, example: 'REGISTRATION' })
-  @IsEnum(OtpType)
-  type!: OtpType;
+  @ApiProperty({ enum: GENERIC_OTP_TYPES, example: 'EMAIL_VERIFICATION' })
+  @IsIn(GENERIC_OTP_TYPES)
+  type!: GenericOtpType;
 
   @ApiProperty({ example: '123456' })
   @IsString()

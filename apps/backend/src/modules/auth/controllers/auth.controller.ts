@@ -37,10 +37,16 @@ import {
   ChangePasswordDto,
   UpdateProfileDto,
   UpdatePushTokenDto,
+  VerifyNewDeviceDto,
+  LoginChallengeDto,
+  RequestPhoneChangeDto,
+  VerifyPhoneChangeDto,
+  DeleteAccountDto,
 } from '../dto';
 import { MobileSocialLoginDto } from '../dto/mobile-social-login.dto';
 import { AuthService } from '../services/auth.service';
 import { DeviceSignalsInput } from '../services/device.service';
+import { PhoneChangeService } from '../services/phone-change.service';
 import { AppleProfile } from '../strategies/apple.strategy';
 import { GoogleProfile } from '../strategies/google.strategy';
 
@@ -50,7 +56,10 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
   private readonly googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly phoneChangeService: PhoneChangeService,
+  ) {}
 
   /** What the request says about the device it came from. The install id is the app's stable X-Device-ID. */
   private deviceSignals(req: Request, reported: { isRooted?: boolean; isEmulator?: boolean; isAutomationDetected?: boolean } = {}): DeviceSignalsInput {
@@ -82,11 +91,43 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @ApiOperation({ summary: 'Authenticate user with email/phone and password' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiOperation({
+    summary: 'Authenticate user with email/phone and password',
+    description:
+      'Returns tokens, or, from a device this account has not used before (judged by X-Device-ID), ' +
+      '{ requiresVerification: true, challengeToken, expiresIn, sentTo } and sends a code: finish with POST /auth/login/verify-device.',
+  })
+  @ApiResponse({ status: 200, description: 'Login successful, or a new-device challenge' })
   @ApiBody({ type: LoginDto })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authService.login(dto.email, dto.phone, dto.password, req.ip, req.headers['user-agent'], dto.rememberMe, this.deviceSignals(req, dto));
+  }
+
+  @Public()
+  @Post('login/verify-device')
+  @HttpCode(HttpStatus.OK)
+  // Each code also stops working after OTP_MAX_ATTEMPTS wrong guesses; this caps guessing across fresh sign-ins.
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiOperation({ summary: 'Finish a sign-in from a new device with the code that was sent. Must come from the same device (X-Device-ID).' })
+  @ApiBody({ type: VerifyNewDeviceDto })
+  async verifyNewDevice(@Body() dto: VerifyNewDeviceDto, @Req() req: Request) {
+    return this.authService.verifyNewDevice(
+      dto.challengeToken,
+      dto.code,
+      req.headers['x-device-id'] as string | undefined,
+      req.ip,
+      req.headers['user-agent'],
+    );
+  }
+
+  @Public()
+  @Post('login/resend-device-code')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiOperation({ summary: 'Send a new code for a sign-in from a new device' })
+  @ApiBody({ type: LoginChallengeDto })
+  async resendNewDeviceCode(@Body() dto: LoginChallengeDto, @Req() req: Request) {
+    return this.authService.resendNewDeviceCode(dto.challengeToken, req.headers['x-device-id'] as string | undefined);
   }
 
   @Public()
@@ -143,7 +184,7 @@ export class AuthController {
         avatarUrl: dto.avatarUrl || payload.picture,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
-        ...this.deviceSignals(req),
+        ...this.deviceSignals(req, dto),
       });
     } catch (error) {
       this.logger.warn(`Google mobile sign-in rejected: ${error instanceof Error ? error.message : String(error)}`);
@@ -203,7 +244,7 @@ export class AuthController {
         lastName: dto.lastName || 'User',
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
-        ...this.deviceSignals(req),
+        ...this.deviceSignals(req, dto),
       });
     } catch (error) {
       this.logger.warn(`Apple mobile sign-in rejected: ${error instanceof Error ? error.message : String(error)}`);
@@ -358,10 +399,51 @@ export class AuthController {
   @Delete('account')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete user account (soft delete)' })
-  async deleteAccount(@CurrentUser('id') userId: string) {
-    await this.authService.deleteAccount(userId);
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Delete your own account',
+    description: 'Needs the current password when the account has one. Refused while the wallet holds money, a withdrawal is in progress, or the account owns a business.',
+  })
+  @ApiBody({ type: DeleteAccountDto })
+  async deleteAccount(@CurrentUser('id') userId: string, @Body() dto: DeleteAccountDto) {
+    await this.authService.deleteAccount(userId, dto.currentPassword);
     return { message: 'Account deleted successfully' };
+  }
+
+  @Get('policies')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'The policy documents in force, and whether you accepted their current version' })
+  async getPolicies(@CurrentUser('id') userId: string) {
+    return this.authService.getPolicyStatus(userId);
+  }
+
+  @Post('policies/accept')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Accept the current version of every policy document (Terms, Privacy, Reward)' })
+  async acceptPolicies(@CurrentUser('id') userId: string, @Req() req: Request) {
+    return this.authService.acceptPolicies(userId, req.ip, req.headers['user-agent']);
+  }
+
+  @Post('phone/change')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiOperation({ summary: 'Start changing your phone number: sends a code by SMS to the new number' })
+  @ApiBody({ type: RequestPhoneChangeDto })
+  async requestPhoneChange(@CurrentUser('id') userId: string, @Body() dto: RequestPhoneChangeDto) {
+    return this.phoneChangeService.request(userId, dto.newPhone, dto.currentPassword);
+  }
+
+  @Post('phone/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiOperation({ summary: 'Finish changing your phone number with the code sent to the new number' })
+  @ApiBody({ type: VerifyPhoneChangeDto })
+  async verifyPhoneChange(@CurrentUser('id') userId: string, @Body() dto: VerifyPhoneChangeDto) {
+    return this.phoneChangeService.verify(userId, dto.code);
   }
 
   @Post('2fa/enable')

@@ -27,6 +27,7 @@ describe('Auth (e2e)', () => {
       await prisma.loginHistory.deleteMany({ where: { userId: createdUserId } });
       await prisma.userSession.deleteMany({ where: { userId: createdUserId } });
       await prisma.device.deleteMany({ where: { userId: createdUserId } });
+      await prisma.policyAcceptance.deleteMany({ where: { userId: createdUserId } });
       await prisma.user.deleteMany({ where: { id: createdUserId } });
     }
     await app.close();
@@ -35,7 +36,7 @@ describe('Auth (e2e)', () => {
   it('registers a new user and returns access + refresh tokens', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ firstName: 'E2E', lastName: 'Test', email, phone, password })
+      .send({ firstName: 'E2E', lastName: 'Test', email, phone, password, acceptPolicies: true })
       .expect(201);
 
     expect(res.body.data.user).toMatchObject({ email, phone });
@@ -49,7 +50,7 @@ describe('Auth (e2e)', () => {
   it('rejects registering the same email twice', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ firstName: 'E2E', lastName: 'Test', email, phone: `+9197${String(unique).slice(-8)}`, password })
+      .send({ firstName: 'E2E', lastName: 'Test', email, phone: `+9197${String(unique).slice(-8)}`, password, acceptPolicies: true })
       .expect(409);
   });
 

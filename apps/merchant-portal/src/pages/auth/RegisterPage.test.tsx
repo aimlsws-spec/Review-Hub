@@ -56,7 +56,7 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/first name/i), 'Jane')
     await user.type(screen.getByLabelText(/last name/i), 'Doe')
     await user.type(screen.getByLabelText(/email address/i), 'jane@shop.com')
-    await user.type(screen.getByLabelText(/^password/i), 'password123')
+    await user.type(screen.getByLabelText(/^password/i), 'Passw0rd!123')
     await user.type(screen.getByLabelText(/confirm password/i), 'different123')
     await user.click(screen.getByRole('button', { name: /create account/i }))
 
@@ -76,8 +76,9 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/first name/i), 'Jane')
     await user.type(screen.getByLabelText(/last name/i), 'Doe')
     await user.type(screen.getByLabelText(/email address/i), 'jane@shop.com')
-    await user.type(screen.getByLabelText(/^password/i), 'password123')
-    await user.type(screen.getByLabelText(/confirm password/i), 'password123')
+    await user.type(screen.getByLabelText(/^password/i), 'Passw0rd!123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'Passw0rd!123')
+    await user.click(screen.getByRole('checkbox', { name: /accept the/i }))
     await user.click(screen.getByRole('button', { name: /create account/i }))
 
     await waitFor(() => expect(setAuthMock).toHaveBeenCalledWith({ id: 'u1' }, null, 'access', 'refresh'))
@@ -94,10 +95,51 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/first name/i), 'Jane')
     await user.type(screen.getByLabelText(/last name/i), 'Doe')
     await user.type(screen.getByLabelText(/email address/i), 'jane@shop.com')
-    await user.type(screen.getByLabelText(/^password/i), 'password123')
-    await user.type(screen.getByLabelText(/confirm password/i), 'password123')
+    await user.type(screen.getByLabelText(/^password/i), 'Passw0rd!123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'Passw0rd!123')
+    await user.click(screen.getByRole('checkbox', { name: /accept the/i }))
     await user.click(screen.getByRole('button', { name: /create account/i }))
 
     await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Email already registered'))
+  })
+
+  it('will not create an account until the policies are accepted, and says so', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.type(screen.getByLabelText(/first name/i), 'Jane')
+    await user.type(screen.getByLabelText(/last name/i), 'Doe')
+    await user.type(screen.getByLabelText(/email address/i), 'jane@shop.com')
+    await user.type(screen.getByLabelText(/^password/i), 'Passw0rd!123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'Passw0rd!123')
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+
+    expect(await screen.findByText(/please accept the terms/i)).toBeInTheDocument()
+    expect(mutateMock).not.toHaveBeenCalled()
+  })
+
+  it('sends the acceptance with the sign-up', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.type(screen.getByLabelText(/first name/i), 'Jane')
+    await user.type(screen.getByLabelText(/last name/i), 'Doe')
+    await user.type(screen.getByLabelText(/email address/i), 'jane@shop.com')
+    await user.type(screen.getByLabelText(/^password/i), 'Passw0rd!123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'Passw0rd!123')
+    await user.click(screen.getByRole('checkbox', { name: /accept the/i }))
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledWith(expect.objectContaining({ acceptPolicies: true }), expect.any(Object)))
+  })
+
+  it('refuses a password shorter than 10 characters', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.type(screen.getByLabelText(/^password/i), 'Pass@123')
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+
+    expect(await screen.findByText(/minimum 10 characters/i)).toBeInTheDocument()
   })
 })

@@ -264,7 +264,7 @@ export class WithdrawalService {
    * schema change this phase intentionally skips (see project notes).
    */
   private async initiatePayout(withdrawalId: string) {
-    const withdrawal = await this.withdrawalRepository.findById(withdrawalId);
+    const withdrawal = await this.withdrawalRepository.findByIdForPayout(withdrawalId);
     if (!withdrawal) return;
 
     if (!withdrawal.bankAccount) {

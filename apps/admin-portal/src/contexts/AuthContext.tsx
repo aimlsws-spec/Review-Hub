@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast'
 
 import { authApi } from '@/api/auth.api'
 import { useAuthStore } from '@/stores/auth.store'
-import type { User } from '@/types'
+import type { LoginChallenge, LoginResponse, User } from '@/types'
 
 
 interface LoginCredentials {
@@ -15,7 +15,11 @@ interface LoginCredentials {
 interface AuthContextValue {
   loading: boolean
   isInitialized: boolean
-  login: (credentials: LoginCredentials) => Promise<void>
+  /** Signs in. Resolves to null once signed in, or to the challenge to finish with verifyDevice for a new browser. */
+  login: (credentials: LoginCredentials) => Promise<LoginChallenge | null>
+  /** Finishes a sign-in from a new browser with the code that was sent. */
+  verifyDevice: (challenge: LoginChallenge, code: string, rememberMe: boolean) => Promise<void>
+  resendDeviceCode: (challenge: LoginChallenge) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<void>
   user: User | null
@@ -56,11 +60,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const finishLogin = useCallback((session: LoginResponse, rememberMe: boolean) => {
+    setAuth(session.user, session.tokens.accessToken, session.tokens.refreshToken, rememberMe)
+  }, [setAuth])
+
   const login = useCallback(async (credentials: LoginCredentials) => {
     const res = await authApi.login(credentials.email, credentials.password, credentials.rememberMe)
-    const { user, tokens } = res.data.data
-    setAuth(user, tokens.accessToken, tokens.refreshToken, credentials.rememberMe)
-  }, [setAuth])
+    const data = res.data.data
+    if ('requiresVerification' in data) return data
+    finishLogin(data, credentials.rememberMe)
+    return null
+  }, [finishLogin])
+
+  const verifyDevice = useCallback(async (challenge: LoginChallenge, code: string, rememberMe: boolean) => {
+    const res = await authApi.verifyDevice(challenge.challengeToken, code)
+    finishLogin(res.data.data, rememberMe)
+  }, [finishLogin])
+
+  const resendDeviceCode = useCallback(async (challenge: LoginChallenge) => {
+    await authApi.resendDeviceCode(challenge.challengeToken)
+  }, [])
 
   const logout = useCallback(async () => {
     try {
@@ -88,6 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     isInitialized,
     login,
+    verifyDevice,
+    resendDeviceCode,
     logout,
     refresh,
     user,
