@@ -140,7 +140,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// The bookmark: saves the campaign on this phone, or takes it off the saved list.
+/// The bookmark: saves the campaign to the person's account, or takes it off the saved list.
 class _SaveButton extends ConsumerWidget {
   const _SaveButton({required this.campaignId});
 
@@ -160,6 +160,8 @@ class _SaveButton extends ConsumerWidget {
           SaveOutcome.saved => 'Saved. Find it under the bookmark on the Tasks tab.',
           SaveOutcome.removed => 'Removed from saved.',
           SaveOutcome.listFull => 'You can save up to 30 campaigns. Remove one to save this.',
+          SaveOutcome.unavailable => 'This campaign has ended, so it can no longer be saved.',
+          SaveOutcome.failed => 'Could not update your saved campaigns. Check your connection and try again.',
         };
         // Replaces the last message instead of queuing behind it, so quick taps each get an answer at once.
         ScaffoldMessenger.of(context)

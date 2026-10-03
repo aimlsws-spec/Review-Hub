@@ -132,4 +132,16 @@ class TaskRepository {
       return Result.failure(mapDioExceptionToFailure(e));
     }
   }
+
+  Future<Result<void>> reportIssue(String taskId, String description) async {
+    try {
+      await _dio.post<void>(
+        ApiEndpoints.taskReportIssue(taskId),
+        data: {'description': description},
+      );
+      return const Result.success(null);
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
 }

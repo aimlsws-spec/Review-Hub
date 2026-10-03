@@ -48,10 +48,16 @@ class ApiEndpoints {
   static String campaignDetails(String campaignId) => '/campaigns/$campaignId/details';
   static String taskStart(String taskId) => '/tasks/$taskId/start';
   static String taskSubmit(String taskId) => '/tasks/$taskId/submit';
+  static String taskReportIssue(String taskId) => '/tasks/$taskId/report-issue';
   static String taskTextSuggestion(String taskId) => '/tasks/$taskId/text-suggestion';
   static String taskReviewDrafts(String taskId) => '/tasks/$taskId/review-drafts';
   static String taskStory(String taskId) => '/tasks/$taskId/story';
   static const String tasksRecommended = '/tasks/recommended';
+
+  // Saved campaigns — campaign/controllers/saved-campaign.controller.ts
+  static const String savedCampaigns = '/users/me/saved-campaigns';
+  static const String savedCampaignsImport = '/users/me/saved-campaigns/import';
+  static String savedCampaign(String campaignId) => '/users/me/saved-campaigns/$campaignId';
 
   // Submissions — task/controllers/submission.controller.ts
   static const String submissions = '/submissions';

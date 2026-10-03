@@ -11,10 +11,15 @@ export class SupportTicketRepository {
     return this.prisma.supportTicket.create({ data });
   }
 
+  /** A ticket with its thread and, for a task issue, which task (and campaign) and submission it is about. */
   async findById(id: string) {
     return this.prisma.supportTicket.findFirst({
       where: { id, deletedAt: null },
-      include: { messages: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        messages: { orderBy: { createdAt: 'asc' } },
+        campaignTask: { select: { id: true, title: true, campaign: { select: { id: true, title: true } } } },
+        submission: { select: { id: true, status: true, createdAt: true } },
+      },
     });
   }
 

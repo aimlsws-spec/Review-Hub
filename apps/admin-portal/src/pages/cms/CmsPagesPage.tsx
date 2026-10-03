@@ -36,8 +36,9 @@ const STATUS_OPTIONS: { value: CMSPageStatus; label: string }[] = [
   { value: 'ARCHIVED', label: 'Archived' },
 ]
 
+// '&' becomes 'and', so "Terms & Conditions" gets the address the apps link to: terms-and-conditions.
 function slugify(title: string) {
-  return title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  return title.toLowerCase().trim().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 export default function CmsPagesPage() {

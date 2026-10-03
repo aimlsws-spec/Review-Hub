@@ -94,6 +94,37 @@ void main() {
       expect(tokens.savedAccessToken, 'access-1');
     });
 
+    // Regression: Google sign-in expected a session every time, so a new phone failed with a generic error.
+    test('asks a Google sign-in from a new device for the code too, and saves no tokens yet', () async {
+      adapter.replies['/auth/google/mobile'] = (
+        200,
+        {
+          'success': true,
+          'data': {
+            'requiresVerification': true,
+            'challengeToken': 'g' * 64,
+            'expiresIn': 300,
+            'sentTo': ['a****a@gmail.com'],
+          },
+        },
+      );
+
+      final outcome = (await repository.socialLogin('google', 'id-token')).valueOrNull;
+
+      expect(outcome, isA<LoginNeedsDeviceCode>());
+      expect((outcome! as LoginNeedsDeviceCode).challenge.challengeToken, 'g' * 64);
+      expect(tokens.savedAccessToken, isNull);
+    });
+
+    test('saves the session from a Google sign-in on a recognised device', () async {
+      adapter.replies['/auth/google/mobile'] = (200, {'success': true, 'data': _session});
+
+      final outcome = (await repository.socialLogin('google', 'id-token')).valueOrNull;
+
+      expect(outcome, isA<LoginSignedIn>());
+      expect(tokens.savedAccessToken, 'access-1');
+    });
+
     test('finishes with the code and saves the session', () async {
       adapter.replies['/auth/login/verify-device'] = (200, {'success': true, 'data': _session});
 

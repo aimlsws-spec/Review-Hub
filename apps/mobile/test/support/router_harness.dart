@@ -20,5 +20,9 @@ GoRouter routerFor(Widget screen) => GoRouter(
       path: RoutePaths.login,
       builder: (context, state) => const Scaffold(body: Text('Login')),
     ),
+    GoRoute(
+      path: RoutePaths.policyDocument,
+      builder: (context, state) => Scaffold(body: Text('Policy ${state.pathParameters['slug']}')),
+    ),
   ],
 );

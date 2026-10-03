@@ -14,25 +14,31 @@ class PolicyLinks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const textStyle = TextStyle(fontSize: 13.5, color: AppColors.slate600, height: 1.5);
-    final children = <Widget>[Text('$prefix ', style: textStyle)];
+    final linkStyle = textStyle.copyWith(
+      color: AppColors.orange700,
+      fontWeight: FontWeight.w600,
+      decoration: TextDecoration.underline,
+    );
+
+    // One sentence, so it wraps like text. Each title is an inline tap target that opens that document.
+    final spans = <InlineSpan>[TextSpan(text: '$prefix ')];
     for (var i = 0; i < kPolicyDocuments.length; i++) {
       final document = kPolicyDocuments[i];
-      children.add(
-        InkWell(
-          onTap: () => context.push(RoutePaths.policyDocumentPath(document.slug)),
-          child: Text(
-            document.title,
-            style: textStyle.copyWith(
-              color: AppColors.orange700,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.underline,
-            ),
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => context.push(RoutePaths.policyDocumentPath(document.slug)),
+            child: Text(document.title, style: linkStyle),
           ),
         ),
       );
-      if (i < kPolicyDocuments.length - 2) children.add(const Text(', ', style: textStyle));
-      if (i == kPolicyDocuments.length - 2) children.add(const Text(' and ', style: textStyle));
+      if (i < kPolicyDocuments.length - 2) spans.add(const TextSpan(text: ', '));
+      if (i == kPolicyDocuments.length - 2) spans.add(const TextSpan(text: ' and '));
     }
-    return Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: children);
+    spans.add(const TextSpan(text: '.'));
+    return Text.rich(TextSpan(style: textStyle, children: spans));
   }
 }

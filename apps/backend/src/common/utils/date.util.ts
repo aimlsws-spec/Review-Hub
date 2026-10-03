@@ -18,6 +18,19 @@ export function getIstDayBoundaries(now: Date = new Date()): { start: Date; end:
   return { start, end };
 }
 
+/** The current calendar week in IST (Monday to Sunday) as a [start, end) UTC instant range. */
+export function getIstWeekBoundaries(now: Date = new Date()): { start: Date; end: Date } {
+  const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+  const istMidnightUtcMs = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
+  // getUTCDay() is 0 for Sunday, 1 for Monday... 6 for Saturday
+  const dayOfWeek = istNow.getUTCDay();
+  // We want Monday to be 0, Sunday to be 6
+  const daysSinceMonday = (dayOfWeek + 6) % 7;
+  const start = new Date(istMidnightUtcMs - IST_OFFSET_MS - (daysSinceMonday * 24 * 60 * 60 * 1000));
+  const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return { start, end };
+}
+
 /** The current calendar month in IST as a [start, end) UTC instant range, for monthly limits. */
 export function getIstMonthBoundaries(now: Date = new Date()): { start: Date; end: Date } {
   const istNow = new Date(now.getTime() + IST_OFFSET_MS);

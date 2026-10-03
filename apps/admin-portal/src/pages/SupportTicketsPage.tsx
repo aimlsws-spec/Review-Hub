@@ -127,6 +127,20 @@ export default function SupportTicketsPage() {
               </div>
             </div>
 
+            {ticket.campaignTask && (
+              <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-sm text-indigo-900">
+                <p>
+                  About task <span className="font-semibold">{ticket.campaignTask.title}</span> in campaign{' '}
+                  <span className="font-semibold">{ticket.campaignTask.campaign.title}</span>
+                </p>
+                {ticket.submission && (
+                  <p className="mt-1 text-xs text-indigo-700">
+                    Their submission of {formatDateTime(ticket.submission.createdAt)} is {ticket.submission.status.replace(/_/g, ' ').toLowerCase()}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg bg-gray-50 p-4">
               <div className="rounded-lg bg-white p-3 shadow-sm">
                 <p className="text-sm text-gray-700">{ticket.description}</p>

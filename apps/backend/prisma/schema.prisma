@@ -216,6 +216,13 @@ enum CampaignMediaType {
   THUMBNAIL
 }
 
+enum TaskCompletionLimit {
+  ONCE
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
 enum TaskType {
   // Generic proof-based types (SRS Batch 3)
   SCREENSHOT
@@ -435,6 +442,7 @@ enum SupportCategory {
   REWARD
   BUG
   GENERAL
+  TASK_ISSUE
 }
 
 enum CMSPageStatus {
@@ -544,6 +552,7 @@ model User {
   loginHistories         LoginHistory[]
   passwordHistory        PasswordHistory[]
   policyAcceptances      PolicyAcceptance[]
+  savedCampaigns         SavedCampaign[]
   merchant               Merchant?
   merchantTeams          MerchantTeam[]
   wallet                 UserWallet?
@@ -764,6 +773,24 @@ model PasswordHistory {
   @@map("password_history")
 }
 
+
+/// A campaign a person saved for later (the bookmark in the app). Kept on the server so the list follows them to another
+/// phone. Removing a bookmark deletes the row: it is a personal preference, not a record anyone needs to audit, so it is
+/// not soft-deleted. The app allows up to 30 (SAVED_CAMPAIGNS_MAX).
+model SavedCampaign {
+  id         String   @id @default(uuid())
+  userId     String
+  campaignId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, campaignId])
+  @@index([userId, createdAt])
+  @@index([campaignId])
+  @@map("saved_campaigns")
+}
 /// Proof that a person accepted a given version of a legal document, and when (spec FR-008). One row per document
 /// version, so accepting a newer version adds a row instead of overwriting the older one. Not soft-deleted: this is a
 /// legal record, kept even after the account is deleted.
@@ -1135,6 +1162,7 @@ model Campaign {
   audits          CampaignAudit[]
   approvals       CampaignApproval[]
   participants    CampaignParticipant[]
+  savedBy         SavedCampaign[]
   rewards         Reward[]
   analytics       CampaignAnalytics?
   analyticsEvents AnalyticsEvent[]          @relation("CampaignAnalyticsEvents")
@@ -1167,12 +1195,15 @@ model CampaignTask {
   proofRequired      Boolean          @default(true)
   proofType          EvidenceType?
   configuration      Json?
+  completionLimit         TaskCompletionLimit @default(ONCE)
+  maxCompletionsPerPeriod Int                 @default(1)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   deletedAt          DateTime?
 
   campaign    Campaign         @relation(fields: [campaignId], references: [id])
   submissions TaskSubmission[]
+  supportTickets SupportTicket[]
 
   @@index([campaignId])
   @@index([taskOrder])
@@ -1418,6 +1449,7 @@ model TaskSubmission {
   reward      Reward?
   fraudFlags  SubmissionFraudFlag[]
   dispute     Dispute?
+  supportTickets SupportTicket[]
 
   @@unique([participantId, taskId, attemptNumber])
   @@index([userId])
@@ -2179,24 +2211,28 @@ model ReferralReward {
 }
 
 model SupportTicket {
-  id           String              @id @default(uuid())
-  userId       String?
-  merchantId   String?
-  assignedToId String?
-  subject      String
-  description  String              @db.Text
-  category     SupportCategory     @default(GENERAL)
-  priority     SupportPriority     @default(MEDIUM)
-  status       SupportTicketStatus @default(OPEN)
-  resolvedAt   DateTime?
-  closedAt     DateTime?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  deletedAt    DateTime?
+  id             String              @id @default(uuid())
+  userId         String?
+  merchantId     String?
+  assignedToId   String?
+  campaignTaskId String?
+  submissionId   String?
+  subject        String
+  description    String              @db.Text
+  category       SupportCategory     @default(GENERAL)
+  priority       SupportPriority     @default(MEDIUM)
+  status         SupportTicketStatus @default(OPEN)
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  deletedAt      DateTime?
 
-  user     User?            @relation(fields: [userId], references: [id])
-  merchant Merchant?        @relation(fields: [merchantId], references: [id])
-  messages SupportMessage[]
+  user         User?            @relation(fields: [userId], references: [id])
+  merchant     Merchant?        @relation(fields: [merchantId], references: [id])
+  campaignTask CampaignTask?    @relation(fields: [campaignTaskId], references: [id])
+  submission   TaskSubmission?  @relation(fields: [submissionId], references: [id])
+  messages     SupportMessage[]
 
   @@index([status])
   @@index([priority])
@@ -2204,6 +2240,8 @@ model SupportTicket {
   @@index([userId])
   @@index([merchantId])
   @@index([category])
+  @@index([campaignTaskId])
+  @@index([submissionId])
   @@index([createdAt])
   @@index([deletedAt])
   @@map("support_tickets")

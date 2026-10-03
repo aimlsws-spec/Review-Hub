@@ -210,6 +210,7 @@ export const SUPPORT_CATEGORY_LABELS: Record<string, string> = {
   REWARD: 'Reward',
   BUG: 'Bug',
   GENERAL: 'General',
+  TASK_ISSUE: 'Task issue',
 }
 
 export const SUPPORT_PRIORITY_LABELS: Record<string, string> = {

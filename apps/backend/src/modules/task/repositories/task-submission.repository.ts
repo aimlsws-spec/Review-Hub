@@ -2,6 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+import { lockCampaignParticipant } from '../../../database/prisma/row-lock';
+import { BLOCKING_SUBMISSION_STATUSES, IN_FLIGHT_SUBMISSION_STATUSES } from '../constants';
+
+/** A submission to create only if the task's completion limit (FR-016) still allows it. */
+export interface LimitedSubmission {
+  participantId: string;
+  taskId: string;
+  userId: string;
+  /** How many counted submissions are allowed in the period. */
+  maxCompletions: number;
+  /** The current period, or null for a limit over the task's whole life (ONCE). */
+  period: { start: Date; end: Date } | null;
+  data: Prisma.TaskSubmissionCreateInput;
+}
+
+export type LimitedSubmissionResult =
+  | { outcome: 'created'; submission: Prisma.TaskSubmissionGetPayload<object> }
+  | { outcome: 'in-flight' }
+  | { outcome: 'limit-reached' };
 
 @Injectable()
 export class TaskSubmissionRepository {
@@ -9,6 +28,33 @@ export class TaskSubmissionRepository {
 
   async create(data: Prisma.TaskSubmissionCreateInput) {
     return this.prisma.taskSubmission.create({ data });
+  }
+
+  /**
+   * Creates the submission only if nothing for this task is still being checked and the completion limit is not used
+   * up. Both checks run under a lock on the participant row, so two submissions sent at the same moment are counted
+   * one after the other instead of both passing.
+   */
+  async createWithinLimit(input: LimitedSubmission): Promise<LimitedSubmissionResult> {
+    const { participantId, taskId, userId, maxCompletions, period, data } = input;
+    return this.prisma.$transaction(async (tx) => {
+      await lockCampaignParticipant(tx, participantId);
+
+      const base: Prisma.TaskSubmissionWhereInput = { taskId, userId, deletedAt: null };
+      const inFlight = await tx.taskSubmission.count({ where: { ...base, status: { in: [...IN_FLIGHT_SUBMISSION_STATUSES] } } });
+      if (inFlight > 0) return { outcome: 'in-flight' };
+
+      const counted = await tx.taskSubmission.count({
+        where: {
+          ...base,
+          status: { in: [...BLOCKING_SUBMISSION_STATUSES] },
+          ...(period ? { createdAt: { gte: period.start, lt: period.end } } : {}),
+        },
+      });
+      if (counted >= maxCompletions) return { outcome: 'limit-reached' };
+
+      return { outcome: 'created', submission: await tx.taskSubmission.create({ data }) };
+    });
   }
 
   async findById(id: string) {

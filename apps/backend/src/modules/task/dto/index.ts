@@ -7,3 +7,4 @@ export * from './recommended-task.dto';
 export * from './create-dispute.dto';
 export * from './resolve-dispute.dto';
 export * from './dispute-query.dto';
+export * from './task-issue.dto';

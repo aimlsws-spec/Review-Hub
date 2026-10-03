@@ -9,6 +9,7 @@ import 'package:viral_kar/features/campaigns/data/campaign_repository.dart';
 import 'package:viral_kar/features/campaigns/data/models/campaign_browse.dart';
 import 'package:viral_kar/features/campaigns/data/models/campaign_model.dart';
 import 'package:viral_kar/features/campaigns/data/models/campaign_task_model.dart';
+import 'package:viral_kar/features/campaigns/data/saved_campaigns_repository.dart';
 import 'package:viral_kar/features/campaigns/data/saved_campaigns_store.dart';
 import 'package:viral_kar/features/campaigns/presentation/screens/campaign_detail_screen.dart';
 import 'package:viral_kar/features/campaigns/presentation/screens/campaigns_screen.dart';
@@ -66,16 +67,67 @@ class _FakeCampaignRepository extends Fake implements CampaignRepository {
   Future<Result<List<CampaignTaskModel>>> getTasks(String campaignId) async => Result.success(tasks);
 }
 
+/// This phone's copy of the saved list. The signed-in person in these tests is u1.
 class _MemorySavedStore implements SavedCampaignsStore {
   _MemorySavedStore([List<String>? initial]) : saved = [...?initial];
 
+  /// u1's copy.
   List<String> saved;
+  final Map<String, List<String>> others = {};
+
+  /// What the phone kept before saving moved to the server.
+  List<String> legacy = const [];
 
   @override
-  List<String> get ids => saved;
+  List<String> idsFor(String userId) => userId == 'u1' ? saved : others[userId] ?? const [];
 
   @override
-  Future<void> write(List<String> ids) async => saved = [...ids];
+  Future<void> writeFor(String userId, List<String> ids) async =>
+      userId == 'u1' ? saved = [...ids] : others[userId] = [...ids];
+
+  @override
+  List<String> get legacyIds => legacy;
+
+  @override
+  Future<void> clearLegacy() async => legacy = const [];
+}
+
+/// Stands in for the server's saved list: answers with the whole list, like the real one.
+class _FakeSavedServer extends Fake implements SavedCampaignsRepository {
+  List<String> ids = [];
+
+  /// When set, every call fails with it and nothing changes.
+  Failure? failure;
+  final List<List<String>> imported = [];
+  final List<String> removed = [];
+
+  Future<Result<List<String>>> _answer() async {
+    final failure = this.failure;
+    return failure == null ? Result.success([...ids]) : Result.failure(failure);
+  }
+
+  @override
+  Future<Result<List<String>>> list() => _answer();
+
+  @override
+  Future<Result<List<String>>> save(String campaignId) {
+    if (failure == null && !ids.contains(campaignId)) ids = [campaignId, ...ids];
+    return _answer();
+  }
+
+  @override
+  Future<Result<List<String>>> remove(String campaignId) {
+    removed.add(campaignId);
+    if (failure == null) ids = [...ids.where((id) => id != campaignId)];
+    return _answer();
+  }
+
+  @override
+  Future<Result<List<String>>> importIds(List<String> campaignIds) {
+    imported.add(campaignIds);
+    if (failure == null) ids = [...campaignIds.where((id) => !ids.contains(id)), ...ids];
+    return _answer();
+  }
 }
 
 class _FakeAuth extends AuthStateNotifier {
@@ -84,14 +136,21 @@ class _FakeAuth extends AuthStateNotifier {
       const UserModel(id: 'u1', firstName: 'Asha', lastName: 'Patel', status: 'ACTIVE', referralCode: 'ASHA123');
 }
 
+class _SignedOut extends AuthStateNotifier {
+  @override
+  Future<UserModel?> build() async => null;
+}
+
 void main() {
   late _FakeCampaignRepository repository;
   late _MemorySavedStore store;
+  late _FakeSavedServer server;
   late List<String> shared;
 
   setUp(() {
     repository = _FakeCampaignRepository();
     store = _MemorySavedStore();
+    server = _FakeSavedServer();
     shared = [];
   });
 
@@ -100,11 +159,27 @@ void main() {
       overrides: [
         campaignRepositoryProvider.overrideWithValue(repository),
         savedCampaignsStoreProvider.overrideWithValue(store),
+        savedCampaignsRepositoryProvider.overrideWithValue(server),
         shareTextProvider.overrideWithValue((text) async => shared.add(text)),
         authStateProvider.overrideWith(_FakeAuth.new),
       ],
     );
     addTearDown(container.dispose);
+    return container;
+  }
+
+  /// Saved before this test, on the server and in this phone's copy.
+  void savedBefore(List<String> ids) {
+    store.saved = [...ids];
+    server.ids = [...ids];
+  }
+
+  /// A container with u1 signed in, after the saved list has synced with the server.
+  Future<ProviderContainer> signedIn() async {
+    final container = makeContainer();
+    await container.read(authStateProvider.future);
+    container.read(savedCampaignIdsProvider);
+    await Future<void>.delayed(Duration.zero);
     return container;
   }
 
@@ -204,7 +279,7 @@ void main() {
 
   group('saved campaigns', () {
     test('saves newest first, keeps them on the phone, and takes one off when asked again', () async {
-      final container = makeContainer();
+      final container = await signedIn();
       final notifier = container.read(savedCampaignIdsProvider.notifier);
 
       expect(await notifier.toggle('a'), SaveOutcome.saved);
@@ -217,15 +292,15 @@ void main() {
       expect(store.saved, ['a']);
     });
 
-    test('starts from what was saved before', () {
-      store = _MemorySavedStore(['x', 'y']);
+    test('starts from what was saved before', () async {
+      savedBefore(['x', 'y']);
 
-      expect(makeContainer().read(savedCampaignIdsProvider), ['x', 'y']);
+      expect((await signedIn()).read(savedCampaignIdsProvider), ['x', 'y']);
     });
 
     test('stops at the limit, so the saved view stays quick to open, and says so', () async {
-      store = _MemorySavedStore([for (var i = 0; i < SavedCampaignsStore.maxSaved; i++) 'c$i']);
-      final container = makeContainer();
+      savedBefore([for (var i = 0; i < SavedCampaignsStore.maxSaved; i++) 'c$i']);
+      final container = await signedIn();
 
       expect(await container.read(savedCampaignIdsProvider.notifier).toggle('one-more'), SaveOutcome.listFull);
       expect(container.read(savedCampaignIdsProvider), hasLength(SavedCampaignsStore.maxSaved));
@@ -233,8 +308,8 @@ void main() {
     });
 
     test('fetches each saved campaign fresh', () async {
-      store = _MemorySavedStore(['a', 'b']);
-      final container = makeContainer();
+      savedBefore(['a', 'b']);
+      final container = await signedIn();
 
       final result = await container.read(savedCampaignsProvider.future);
 
@@ -243,9 +318,9 @@ void main() {
     });
 
     test('drops a campaign that has ended from the saved list for good, and keeps the rest', () async {
-      store = _MemorySavedStore(['a', 'gone', 'b']);
+      savedBefore(['a', 'gone', 'b']);
       repository.byId['gone'] = const Result.failure(NotFoundFailure());
-      final container = makeContainer();
+      final container = await signedIn();
 
       final result = await container.read(savedCampaignsProvider.future);
       await Future<void>.delayed(Duration.zero);
@@ -257,9 +332,9 @@ void main() {
     test(
       'keeps a campaign it could not reach because of the connection: it is missing from the view, not lost',
       () async {
-        store = _MemorySavedStore(['a', 'offline']);
+        savedBefore(['a', 'offline']);
         repository.byId['offline'] = const Result.failure(NetworkFailure());
-        final container = makeContainer();
+        final container = await signedIn();
 
         final result = await container.read(savedCampaignsProvider.future);
         await Future<void>.delayed(Duration.zero);
@@ -270,10 +345,10 @@ void main() {
     );
 
     test('reports a connection problem, and forgets nothing, when none could be reached', () async {
-      store = _MemorySavedStore(['a', 'b']);
+      savedBefore(['a', 'b']);
       repository.byId['a'] = const Result.failure(NetworkFailure());
       repository.byId['b'] = const Result.failure(NetworkFailure());
-      final container = makeContainer();
+      final container = await signedIn();
 
       final result = await container.read(savedCampaignsProvider.future);
 
@@ -282,10 +357,126 @@ void main() {
     });
 
     test('is empty, without asking the server, when nothing is saved', () async {
-      final result = await makeContainer().read(savedCampaignsProvider.future);
+      final result = await (await signedIn()).read(savedCampaignsProvider.future);
 
       expect(result.valueOrNull, isEmpty);
       expect(repository.fetched, isEmpty);
+    });
+
+    group('on the server', () {
+      test('takes the server list over this phone’s copy, so a save made on another phone shows here', () async {
+        store.saved = ['old'];
+        server.ids = ['from-other-phone', 'old'];
+
+        final container = await signedIn();
+
+        expect(container.read(savedCampaignIdsProvider), ['from-other-phone', 'old']);
+        expect(store.saved, ['from-other-phone', 'old']);
+      });
+
+      test('shows this phone’s copy when the server can not be reached', () async {
+        store.saved = ['a'];
+        server.failure = const NetworkFailure();
+
+        expect((await signedIn()).read(savedCampaignIdsProvider), ['a']);
+      });
+
+      test('uploads what the phone saved before saving moved to the server, once', () async {
+        store.legacy = ['l1', 'l2'];
+        server.ids = ['s1'];
+
+        final container = await signedIn();
+
+        expect(server.imported, [
+          ['l1', 'l2'],
+        ]);
+        expect(container.read(savedCampaignIdsProvider), ['l1', 'l2', 's1']);
+        expect(store.legacy, isEmpty);
+      });
+
+      test('keeps the old list for next time when the upload could not reach the server', () async {
+        store.legacy = ['l1'];
+        server.failure = const NetworkFailure();
+
+        await signedIn();
+
+        expect(store.legacy, ['l1']);
+      });
+
+      test('keeps each person’s list apart on a shared phone', () async {
+        store.others['u2'] = ['theirs'];
+        server.ids = ['mine'];
+
+        final container = await signedIn();
+
+        expect(container.read(savedCampaignIdsProvider), ['mine']);
+        expect(store.others['u2'], ['theirs']);
+      });
+
+      test('is empty when nobody is signed in', () async {
+        store.saved = ['a'];
+        final container = ProviderContainer(
+          overrides: [
+            savedCampaignsStoreProvider.overrideWithValue(store),
+            savedCampaignsRepositoryProvider.overrideWithValue(server),
+            authStateProvider.overrideWith(_SignedOut.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(authStateProvider.future);
+
+        expect(container.read(savedCampaignIdsProvider), isEmpty);
+        expect(await container.read(savedCampaignIdsProvider.notifier).toggle('a'), SaveOutcome.failed);
+      });
+
+      test('undoes a save the server could not take, and says so', () async {
+        savedBefore(['a']);
+        final container = await signedIn();
+        server.failure = const NetworkFailure();
+
+        expect(await container.read(savedCampaignIdsProvider.notifier).toggle('b'), SaveOutcome.failed);
+
+        expect(container.read(savedCampaignIdsProvider), ['a']);
+        expect(store.saved, ['a']);
+      });
+
+      test('puts a removed campaign back in its place when the server could not be told', () async {
+        savedBefore(['a', 'b', 'c']);
+        final container = await signedIn();
+        server.failure = const NetworkFailure();
+
+        expect(await container.read(savedCampaignIdsProvider.notifier).toggle('b'), SaveOutcome.failed);
+
+        expect(container.read(savedCampaignIdsProvider), ['a', 'b', 'c']);
+      });
+
+      test('says a campaign that has ended can not be saved', () async {
+        final container = await signedIn();
+        server.failure = const NotFoundFailure();
+
+        expect(await container.read(savedCampaignIdsProvider.notifier).toggle('ended'), SaveOutcome.unavailable);
+        expect(container.read(savedCampaignIdsProvider), isEmpty);
+      });
+
+      test('says the list is full when the server’s list is, even if this phone’s copy was behind', () async {
+        final container = await signedIn();
+        server.failure = const ValidationFailure('You can save up to 30 campaigns.');
+
+        expect(await container.read(savedCampaignIdsProvider.notifier).toggle('new'), SaveOutcome.listFull);
+        expect(container.read(savedCampaignIdsProvider), isEmpty);
+      });
+
+      test('tells the server when an ended campaign drops off the list', () async {
+        savedBefore(['a', 'gone']);
+        repository.byId['gone'] = const Result.failure(NotFoundFailure());
+        final container = await signedIn();
+
+        await container.read(savedCampaignsProvider.future);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(server.removed, ['gone']);
+        expect(server.ids, ['a']);
+      });
     });
   });
 
@@ -386,7 +577,7 @@ void main() {
     });
 
     testWidgets('shows the saved campaigns from the bookmark, and hides the search and filters there', (tester) async {
-      store = _MemorySavedStore(['s1']);
+      savedBefore(['s1']);
       repository.byId['s1'] = Result.success(_campaign('s1', title: 'Saved Cafe'));
       await show(tester, const CampaignsScreen());
       expect(find.text('Brew Bar'), findsOneWidget);
@@ -502,7 +693,7 @@ void main() {
     });
 
     testWidgets('shows a campaign as saved when it already was', (tester) async {
-      store = _MemorySavedStore(['c1']);
+      savedBefore(['c1']);
 
       await show(tester, const CampaignDetailScreen(campaignId: 'c1'));
 
@@ -510,7 +701,7 @@ void main() {
     });
 
     testWidgets('says the saved list is full, and does not save', (tester) async {
-      store = _MemorySavedStore([for (var i = 0; i < SavedCampaignsStore.maxSaved; i++) 'x$i']);
+      savedBefore([for (var i = 0; i < SavedCampaignsStore.maxSaved; i++) 'x$i']);
       final container = await show(tester, const CampaignDetailScreen(campaignId: 'c1'));
 
       await tester.tap(find.byTooltip('Save for later'));
@@ -518,6 +709,18 @@ void main() {
 
       expect(find.textContaining('up to 30'), findsOneWidget);
       expect(container.read(savedCampaignIdsProvider), isNot(contains('c1')));
+    });
+
+    testWidgets('says so when the save could not reach the server, and leaves the bookmark empty', (tester) async {
+      server.failure = const NetworkFailure();
+      final container = await show(tester, const CampaignDetailScreen(campaignId: 'c1'));
+
+      await tester.tap(find.byTooltip('Save for later'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Check your connection'), findsOneWidget);
+      expect(find.byTooltip('Save for later'), findsOneWidget);
+      expect(container.read(savedCampaignIdsProvider), isEmpty);
     });
 
     testWidgets('shares the campaign with the person’s referral code', (tester) async {

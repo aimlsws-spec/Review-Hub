@@ -78,3 +78,8 @@ export async function lockManualTopUpAndWallet(tx: Tx, topUpId: string): Promise
   if (walletId) await lockMerchantWalletById(tx, walletId);
   return walletId;
 }
+
+/** A participant, so two tasks or simultaneous submissions cannot conflict on limits or totals. */
+export async function lockCampaignParticipant(tx: Tx, participantId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM campaign_participants WHERE id = ${participantId} FOR UPDATE`;
+}

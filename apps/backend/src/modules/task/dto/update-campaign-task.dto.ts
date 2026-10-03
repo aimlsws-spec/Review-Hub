@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { EvidenceType, VerificationType } from '@prisma/client';
+import { EvidenceType, TaskCompletionLimit, VerificationType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
@@ -64,4 +64,16 @@ export class UpdateCampaignTaskDto {
   @IsOptional()
   @IsObject()
   configuration?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ enum: TaskCompletionLimit })
+  @IsOptional()
+  @IsEnum(TaskCompletionLimit)
+  completionLimit?: TaskCompletionLimit;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  maxCompletionsPerPeriod?: number;
 }

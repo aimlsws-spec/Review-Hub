@@ -21,6 +21,8 @@ abstract class CampaignTaskModel with _$CampaignTaskModel {
     @Default(true) bool proofRequired,
     String? proofType,
     Map<String, dynamic>? configuration,
+    @Default('ONCE') String completionLimit,
+    @Default(1) int maxCompletionsPerPeriod,
   }) = _CampaignTaskModel;
 
   factory CampaignTaskModel.fromJson(Map<String, dynamic> json) => _$CampaignTaskModelFromJson(json);

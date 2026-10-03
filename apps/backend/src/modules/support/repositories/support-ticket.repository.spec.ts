@@ -36,7 +36,11 @@ describe('SupportTicketRepository', () => {
       await repository.findById('ticket-1');
       expect(mockPrisma.supportTicket.findFirst).toHaveBeenCalledWith({
         where: { id: 'ticket-1', deletedAt: null },
-        include: { messages: { orderBy: { createdAt: 'asc' } } },
+        include: {
+          messages: { orderBy: { createdAt: 'asc' } },
+          campaignTask: { select: { id: true, title: true, campaign: { select: { id: true, title: true } } } },
+          submission: { select: { id: true, status: true, createdAt: true } },
+        },
       });
     });
   });

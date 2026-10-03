@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
 import { MerchantModule } from '../merchant/merchant.module';
 import { RiskModule } from '../risk/risk.module';
+import { SupportModule } from '../support/support.module';
 
 import {
   CampaignTaskController,
@@ -31,7 +32,7 @@ import {
 import { DisputeService } from './services/dispute.service';
 
 @Module({
-  imports: [CampaignModule, AuthModule, MerchantModule, AiAssistModule, RiskModule],
+  imports: [CampaignModule, AuthModule, MerchantModule, AiAssistModule, RiskModule, SupportModule],
   controllers: [
     MerchantCampaignTaskController,
     CampaignTaskController,

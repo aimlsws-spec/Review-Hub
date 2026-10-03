@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -8,10 +9,12 @@ import '../../../core/errors/failure.dart';
 import '../../../core/errors/result.dart';
 import '../../../shared/models/api_response.dart';
 import '../../../shared/providers/core_providers.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../data/campaign_repository.dart';
 import '../data/models/campaign_browse.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_task_model.dart';
+import '../data/saved_campaigns_repository.dart';
 import '../data/saved_campaigns_store.dart';
 
 final campaignRepositoryProvider = Provider<CampaignRepository>((ref) {
@@ -89,44 +92,135 @@ final savedCampaignsStoreProvider = Provider<SavedCampaignsStore>((ref) {
   return SavedCampaignsStore(ref.watch(settingsBoxProvider));
 });
 
-/// What happened when the person tapped save.
-enum SaveOutcome { saved, removed, listFull }
+final savedCampaignsRepositoryProvider = Provider<SavedCampaignsRepository>((ref) {
+  return SavedCampaignsRepository(ref.watch(dioProvider));
+});
 
-/// The ids of the campaigns the person saved, newest first.
+/// What happened when the person tapped save.
+enum SaveOutcome {
+  saved,
+  removed,
+  listFull,
+
+  /// The campaign has ended or was taken down, so it can not be saved any more.
+  unavailable,
+
+  /// The server could not be reached. Nothing changed.
+  failed,
+}
+
+/// The ids of the campaigns the signed-in person saved, newest first. Empty when nobody is signed in.
+///
+/// The server holds the list, so it follows the person to another phone. This phone keeps a copy so the bookmark shows
+/// at once; the server's list replaces the copy as soon as it arrives.
 final savedCampaignIdsProvider = NotifierProvider<SavedCampaignIdsNotifier, List<String>>(SavedCampaignIdsNotifier.new);
 
 class SavedCampaignIdsNotifier extends Notifier<List<String>> {
+  String? _userId;
+
+  /// Counts the person's own changes, so a slower answer from the server never undoes a newer tap.
+  var _changes = 0;
+
   @override
-  List<String> build() => ref.read(savedCampaignsStoreProvider).ids;
+  List<String> build() {
+    final userId = ref.watch(authStateProvider.select((auth) => auth.value?.id));
+    _userId = userId;
+    if (userId == null) return const [];
+    // After build: the state can not be set while it is still being built.
+    unawaited(Future.microtask(() => _sync(userId)));
+    return ref.read(savedCampaignsStoreProvider).idsFor(userId);
+  }
 
   /// Saves the campaign, or takes it off the list if it is already there.
+  ///
+  /// The bookmark changes at once; if the server then says no, the change is undone and the outcome says why.
   Future<SaveOutcome> toggle(String campaignId) async {
-    if (state.contains(campaignId)) {
-      await _set([
-        for (final id in state)
-          if (id != campaignId) id,
-      ]);
-      return SaveOutcome.removed;
-    }
-    if (state.length >= SavedCampaignsStore.maxSaved) return SaveOutcome.listFull;
-    await _set([campaignId, ...state]);
-    return SaveOutcome.saved;
+    final userId = _userId;
+    if (userId == null) return SaveOutcome.failed;
+    final removing = state.contains(campaignId);
+    if (!removing && state.length >= SavedCampaignsStore.maxSaved) return SaveOutcome.listFull;
+
+    final position = state.indexOf(campaignId);
+    await _change(userId, removing ? _without(state, {campaignId}) : [campaignId, ...state]);
+    final change = _changes;
+
+    final repository = ref.read(savedCampaignsRepositoryProvider);
+    final result = removing ? await repository.remove(campaignId) : await repository.save(campaignId);
+    if (!ref.mounted || _userId != userId) return removing ? SaveOutcome.removed : SaveOutcome.saved;
+
+    return result.when(
+      success: (ids) {
+        if (change == _changes) _accept(userId, ids);
+        return removing ? SaveOutcome.removed : SaveOutcome.saved;
+      },
+      failure: (failure) {
+        // Undo only this campaign's change: the person may have tapped others since.
+        if (removing) {
+          final restored = [...state]..insert(position.clamp(0, state.length), campaignId);
+          unawaited(_change(userId, restored));
+        } else {
+          unawaited(_change(userId, _without(state, {campaignId})));
+        }
+        return switch (failure) {
+          NotFoundFailure() => SaveOutcome.unavailable,
+          // The only reason the server refuses a valid save: the list on the server is already full.
+          ValidationFailure() when !removing => SaveOutcome.listFull,
+          _ => SaveOutcome.failed,
+        };
+      },
+    );
   }
 
+  /// Drops campaigns that have ended. The server is told too, but the saved view does not wait for it.
   Future<void> forget(Iterable<String> campaignIds) async {
+    final userId = _userId;
     final gone = campaignIds.toSet();
-    if (gone.isEmpty) return;
-    await _set([
-      for (final id in state)
-        if (!gone.contains(id)) id,
-    ]);
+    if (userId == null || gone.isEmpty) return;
+    await _change(userId, _without(state, gone));
+    final repository = ref.read(savedCampaignsRepositoryProvider);
+    for (final id in gone) {
+      unawaited(repository.remove(id));
+    }
   }
 
-  /// The screen changes first, so the bookmark responds at once, and the phone's storage catches up.
-  Future<void> _set(List<String> ids) async {
-    state = ids;
-    await ref.read(savedCampaignsStoreProvider).write(ids);
+  /// Uploads what this phone saved before saving moved to the server (once), then takes the server's list.
+  Future<void> _sync(String userId) async {
+    final store = ref.read(savedCampaignsStoreProvider);
+    final repository = ref.read(savedCampaignsRepositoryProvider);
+    final change = _changes;
+
+    final legacy = store.legacyIds;
+    var result = legacy.isEmpty ? await repository.list() : await repository.importIds(legacy);
+    if (legacy.isNotEmpty) {
+      final failure = result.failureOrNull;
+      // Kept for next time only when the server could not be reached; anything else would fail again forever.
+      if (failure is! NetworkFailure && failure is! ServerFailure) await store.clearLegacy();
+      if (failure != null) result = await repository.list();
+    }
+
+    if (!ref.mounted || _userId != userId || change != _changes) return;
+    final ids = result.valueOrNull;
+    if (ids != null) _accept(userId, ids);
   }
+
+  /// The server's list, which is the real one.
+  void _accept(String userId, List<String> ids) {
+    if (listEquals(ids, state)) return;
+    state = ids;
+    unawaited(ref.read(savedCampaignsStoreProvider).writeFor(userId, ids));
+  }
+
+  /// The screen changes first, so the bookmark responds at once, and the phone's copy catches up.
+  Future<void> _change(String userId, List<String> ids) async {
+    _changes++;
+    state = ids;
+    await ref.read(savedCampaignsStoreProvider).writeFor(userId, ids);
+  }
+
+  static List<String> _without(List<String> ids, Set<String> remove) => [
+    for (final id in ids)
+      if (!remove.contains(id)) id,
+  ];
 }
 
 /// The saved campaigns themselves, fetched now so an ended campaign is not shown from an old copy.

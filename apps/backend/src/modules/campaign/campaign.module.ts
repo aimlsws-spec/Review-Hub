@@ -2,9 +2,9 @@ import { Logger, Module } from '@nestjs/common';
 
 import { MerchantModule } from '../merchant/merchant.module';
 
-import { CampaignController, MerchantCampaignController, PublicCampaignController, UserCampaignController } from './controllers';
+import { CampaignController, MerchantCampaignController, PublicCampaignController, SavedCampaignController, UserCampaignController } from './controllers';
 import { CampaignOwnershipGuard } from './guards';
-import { CampaignRepository } from './repositories';
+import { CampaignRepository, SavedCampaignRepository } from './repositories';
 import {
   CampaignBuilderService,
   CampaignPerformanceService,
@@ -13,12 +13,13 @@ import {
   MerchantAnalyticsService,
   MerchantInsightsService,
   MerchantReportExportService,
+  SavedCampaignService,
 } from './services';
 
 @Module({
   imports: [MerchantModule],
-  controllers: [MerchantCampaignController, CampaignController, PublicCampaignController, UserCampaignController],
-  providers: [CampaignService, CampaignBuilderService, CampaignPerformanceService, CampaignPolicyService, MerchantAnalyticsService, MerchantInsightsService, MerchantReportExportService, CampaignRepository, CampaignOwnershipGuard],
+  controllers: [MerchantCampaignController, CampaignController, PublicCampaignController, UserCampaignController, SavedCampaignController],
+  providers: [CampaignService, CampaignBuilderService, CampaignPerformanceService, CampaignPolicyService, MerchantAnalyticsService, MerchantInsightsService, MerchantReportExportService, SavedCampaignService, CampaignRepository, SavedCampaignRepository, CampaignOwnershipGuard],
   exports: [CampaignService, CampaignPolicyService, CampaignRepository, CampaignOwnershipGuard],
 })
 export class CampaignModule {

@@ -898,7 +898,7 @@ export interface PlatformConfiguration {
 
 export type SupportTicketStatus = 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'WAITING_USER' | 'RESOLVED' | 'CLOSED'
 export type SupportPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-export type SupportCategory = 'ACCOUNT' | 'CAMPAIGN' | 'PAYMENT' | 'WITHDRAWAL' | 'REWARD' | 'BUG' | 'GENERAL'
+export type SupportCategory = 'ACCOUNT' | 'CAMPAIGN' | 'PAYMENT' | 'WITHDRAWAL' | 'REWARD' | 'BUG' | 'GENERAL' | 'TASK_ISSUE'
 
 export interface SupportMessage {
   id: string
@@ -915,6 +915,11 @@ export interface SupportTicket {
   userId: string | null
   merchantId: string | null
   assignedToId: string | null
+  campaignTaskId: string | null
+  submissionId: string | null
+  /** On the ticket detail only: what a task-issue ticket is about. */
+  campaignTask?: { id: string; title: string; campaign: { id: string; title: string } } | null
+  submission?: { id: string; status: string; createdAt: string } | null
   subject: string
   description: string
   category: SupportCategory

@@ -246,5 +246,17 @@ describe('Campaign lifecycle (e2e)', () => {
       const campaign = await api.get(`/campaigns/${campaignId}`, poor.token).expect(200);
       expect(campaign.body.data.status).not.toBe('ACTIVE');
     });
+
+    it('refuses to fund a campaign that belongs to another merchant (IDOR fix)', async () => {
+      const attacker = await api.registerApprovedMerchant(adminToken);
+      await api.rechargeMerchant(attacker, 5000);
+
+      const victimCampaign = await createCampaign({ totalBudget: 1000 });
+      await addTask(victimCampaign.id);
+      await api.post(`/campaigns/${victimCampaign.id}/submit`, merchant.token).expect(200);
+      await api.post(`/admin/campaigns/${victimCampaign.id}/approve`, adminToken).send({}).expect(200);
+
+      await api.post(`/merchants/${attacker.merchantId}/campaigns/${victimCampaign.id}/fund`, attacker.token).expect(404);
+    });
   });
 });

@@ -19,6 +19,7 @@ describe('MerchantCampaignController', () => {
   const mockCampaignService = {
     create: jest.fn(),
     listByMerchant: jest.fn(),
+    fundForMerchant: jest.fn(),
   };
 
   const mockCampaignBuilderService = { recommend: jest.fn() };
@@ -51,6 +52,13 @@ describe('MerchantCampaignController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('fund', () => {
+    it("funds through the service's ownership check, never by campaign id alone", async () => {
+      await controller.fund('merchant-1', 'campaign-1');
+      expect(mockCampaignService.fundForMerchant).toHaveBeenCalledWith('merchant-1', 'campaign-1');
+    });
   });
 
   describe('create', () => {

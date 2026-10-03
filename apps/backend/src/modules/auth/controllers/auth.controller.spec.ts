@@ -164,11 +164,27 @@ describe('AuthController', () => {
     const req = { ip: '127.0.0.1', headers: { 'user-agent': 'Mozilla/5.0' } } as unknown as import('express').Request;
 
     const mockedVerifyIdToken = () => mockGoogleVerifyIdToken;
+    const originalClientId = process.env.GOOGLE_CLIENT_ID;
+
+    beforeEach(() => {
+      process.env.GOOGLE_CLIENT_ID = 'expected-client-id.apps.googleusercontent.com';
+    });
+
+    afterAll(() => {
+      process.env.GOOGLE_CLIENT_ID = originalClientId;
+    });
+
+    it('refuses every token while the server has no Google client id, instead of skipping the audience check', async () => {
+      delete process.env.GOOGLE_CLIENT_ID;
+      mockedVerifyIdToken().mockResolvedValue({ getPayload: () => ({ sub: 'google-sub-1', email: 'a@example.com' }) });
+
+      await expect(controller.googleMobileAuth({ idToken: 'token-1' }, req)).rejects.toThrow('Google sign-in');
+      expect(mockAuthService.socialLogin).not.toHaveBeenCalled();
+    });
 
     it('verifies the token against this app\'s own client id, not just any Google client', async () => {
       mockedVerifyIdToken().mockResolvedValue({ getPayload: () => ({ sub: 'google-sub-1', email: 'a@example.com' }) });
       mockAuthService.socialLogin.mockResolvedValue({ user: {}, tokens: {} });
-      process.env.GOOGLE_CLIENT_ID = 'expected-client-id.apps.googleusercontent.com';
 
       await controller.googleMobileAuth({ idToken: 'token-1' }, req);
 

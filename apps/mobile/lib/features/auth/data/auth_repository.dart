@@ -144,7 +144,8 @@ class AuthRepository {
     }
   }
 
-  Future<Result<AuthSessionModel>> socialLogin(String provider, String idToken, {String? firstName, String? lastName, String? avatarUrl}) async {
+  /// Like [login]: signed in, or held for the code sent to the account when this device is new to it.
+  Future<Result<LoginOutcome>> socialLogin(String provider, String idToken, {String? firstName, String? lastName, String? avatarUrl}) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         '/auth/$provider/mobile',
@@ -156,9 +157,9 @@ class AuthRepository {
           ...await _deviceSignals(),
         },
       );
-      final session = AuthSessionModel.fromJson(response.data!['data'] as Map<String, dynamic>);
-      await _persistSession(session);
-      return Result.success(session);
+      final outcome = LoginOutcome.fromJson(response.data!['data'] as Map<String, dynamic>);
+      if (outcome is LoginSignedIn) await _persistSession(outcome.session);
+      return Result.success(outcome);
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));
     }

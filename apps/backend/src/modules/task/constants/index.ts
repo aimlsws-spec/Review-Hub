@@ -27,11 +27,14 @@ export const SUBMISSION_STORAGE = {
   MAX_FILE_SIZE: 20 * 1024 * 1024,
 } as const;
 
+/** A submission still being checked. While one exists, the same person can not submit that task again. */
+export const IN_FLIGHT_SUBMISSION_STATUSES = ['PENDING', 'AI_PROCESSING', 'PENDING_MANUAL'] as const;
+
 /**
- * Submission statuses that block a new submission attempt on the same task.
- * A REJECTED submission is the only one that allows resubmission.
+ * Submissions that count towards a task's completion limit (FR-016): in flight or approved. Rejected, replaced
+ * (RESUBMITTED) and expired ones do not. For a once-only task this is also what blocks a new attempt.
  */
-export const BLOCKING_SUBMISSION_STATUSES = ['PENDING', 'AI_PROCESSING', 'PENDING_MANUAL', 'APPROVED'];
+export const BLOCKING_SUBMISSION_STATUSES = [...IN_FLIGHT_SUBMISSION_STATUSES, 'APPROVED'] as const;
 
 /**
  * Home screen "AI Recommended Tasks" scoring — a transparent, rule-based

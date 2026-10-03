@@ -10,6 +10,7 @@ import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { CampaignRepository } from '../../campaign/repositories';
 import { MerchantRepository } from '../../merchant/repositories';
 import { SubmissionRiskService } from '../../risk/services';
+import { SupportService } from '../../support/services/support.service';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
 import { LocationCheckinVerificationService } from './location-checkin-verification.service';
@@ -29,6 +30,7 @@ describe('TaskParticipationService', () => {
   const mockSubmissionRepository = {
     findLatestAttempt: jest.fn(),
     create: jest.fn(),
+    createWithinLimit: jest.fn(),
     findById: jest.fn(),
     createAttachment: jest.fn(),
     findAttachmentByChecksum: jest.fn(),
@@ -54,6 +56,8 @@ describe('TaskParticipationService', () => {
     taskType: 'TEXT',
     title: 'Write a short review',
     instructions: 'Keep it honest',
+    completionLimit: 'ONCE',
+    maxCompletionsPerPeriod: 1,
   };
   const participant = { id: 'participant-1', campaignId: 'campaign-1', userId: 'user-1', status: 'IN_PROGRESS' };
 
@@ -62,6 +66,7 @@ describe('TaskParticipationService', () => {
   const mockSubmissionService = { aiApprove: jest.fn(), aiReject: jest.fn() };
   const mockQrScanVerification = { verify: jest.fn() };
   const mockLocationCheckinVerification = { verify: jest.fn() };
+  const mockSupportService = { createTaskIssueAsUser: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -79,6 +84,7 @@ describe('TaskParticipationService', () => {
         { provide: SubmissionService, useValue: mockSubmissionService },
         { provide: QrScanVerificationService, useValue: mockQrScanVerification },
         { provide: LocationCheckinVerificationService, useValue: mockLocationCheckinVerification },
+        { provide: SupportService, useValue: mockSupportService },
         { provide: getQueueToken(QUEUE_NAMES.AI_VERIFICATION), useValue: mockAiQueue },
       ],
     }).compile();
@@ -277,7 +283,7 @@ describe('TaskParticipationService', () => {
       mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
       mockParticipantRepository.findByCampaignAndUser.mockResolvedValue(participant);
       mockSubmissionRepository.findLatestAttempt.mockResolvedValue(null);
-      mockSubmissionRepository.create.mockResolvedValue({ id: 'submission-1' });
+      mockSubmissionRepository.createWithinLimit.mockResolvedValue({ outcome: 'created', submission: { id: 'submission-1' } });
       mockSubmissionRepository.findById.mockResolvedValue({ id: 'submission-1', status: 'PENDING_MANUAL' });
       mockSubmissionRepository.createVerificationJob.mockResolvedValue({ id: 'job-1' });
     });
@@ -296,9 +302,7 @@ describe('TaskParticipationService', () => {
       const result = await service.submitTask('task-1', 'user-1', { textAnswer: 'Great service!' });
 
       expect(result).toHaveProperty('id', 'submission-1');
-      expect(mockSubmissionRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'PENDING', attemptNumber: 1 }),
-      );
+      expect(mockSubmissionRepository.createWithinLimit).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'PENDING', attemptNumber: 1 }) }));
       expect(mockSubmissionRepository.createVerificationJob).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'QUEUED' }),
       );
@@ -315,9 +319,7 @@ describe('TaskParticipationService', () => {
       mockSubmissionRepository.findLatestAttempt.mockResolvedValue({ attemptNumber: 1, status: 'REJECTED' });
 
       await service.submitTask('task-1', 'user-1', { textAnswer: 'retry' });
-      expect(mockSubmissionRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ attemptNumber: 2 }),
-      );
+      expect(mockSubmissionRepository.createWithinLimit).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ attemptNumber: 2 }) }));
     });
 
     it('should upload a file and flag a checksum match from a different user as HIGH risk', async () => {
@@ -390,9 +392,9 @@ describe('TaskParticipationService', () => {
 
       it('runs after the submission exists and before verification is queued, so its flags are in place when the AI decides', async () => {
         const order: string[] = [];
-        mockSubmissionRepository.create.mockImplementation(async () => {
+        mockSubmissionRepository.createWithinLimit.mockImplementation(async () => {
           order.push('create submission');
-          return { id: 'submission-1' };
+          return { outcome: 'created', submission: { id: 'submission-1' } };
         });
         mockSubmissionRisk.assess.mockImplementation(async () => void order.push('risk check'));
         mockAiQueue.add.mockImplementation(async () => void order.push('queue verification'));
@@ -423,7 +425,7 @@ describe('TaskParticipationService', () => {
       mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
       mockParticipantRepository.findByCampaignAndUser.mockResolvedValue(participant);
       mockSubmissionRepository.findLatestAttempt.mockResolvedValue(null);
-      mockSubmissionRepository.create.mockResolvedValue({ id: 'submission-1' });
+      mockSubmissionRepository.createWithinLimit.mockResolvedValue({ outcome: 'created', submission: { id: 'submission-1' } });
       mockSubmissionRepository.findById.mockResolvedValue({ id: 'submission-1', status: 'APPROVED' });
     });
 
@@ -436,7 +438,7 @@ describe('TaskParticipationService', () => {
       expect(result).toHaveProperty('id', 'submission-1');
       expect(mockAiQueue.add).not.toHaveBeenCalled();
       expect(mockSubmissionRepository.createVerificationJob).not.toHaveBeenCalled();
-      expect(mockSubmissionRepository.create).toHaveBeenCalledWith(expect.objectContaining({ verificationSource: 'SYSTEM' }));
+      expect(mockSubmissionRepository.createWithinLimit).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ verificationSource: 'SYSTEM' }) }));
     });
 
     it('approves a QR_SCAN submission immediately when the scanned code matches', async () => {
@@ -467,9 +469,7 @@ describe('TaskParticipationService', () => {
       await service.submitTask('task-1', 'user-1', { latitude: 12.9716, longitude: 77.5946 });
 
       expect(mockLocationCheckinVerification.verify).toHaveBeenCalledWith(locationTask.configuration, { latitude: 12.9716, longitude: 77.5946 });
-      expect(mockSubmissionRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ metadata: { latitude: 12.9716, longitude: 77.5946 } }),
-      );
+      expect(mockSubmissionRepository.createWithinLimit).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ metadata: { latitude: 12.9716, longitude: 77.5946 } }) }));
       expect(mockSubmissionService.aiApprove).toHaveBeenCalledWith('submission-1');
     });
 
@@ -496,6 +496,104 @@ describe('TaskParticipationService', () => {
         campaignId: 'campaign-1',
         ip: '203.0.113.9',
       });
+    });
+  });
+
+  describe('completion limits (FR-016)', () => {
+    const arrange = (limit: Record<string, unknown>) => {
+      mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, ...limit });
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+      mockParticipantRepository.findByCampaignAndUser.mockResolvedValue(participant);
+    };
+
+    it('no longer treats an approved submission as final: the limit decides whether another is allowed', async () => {
+      arrange({ completionLimit: 'DAILY', maxCompletionsPerPeriod: 1 });
+      mockSubmissionRepository.findLatestAttempt.mockResolvedValue({ attemptNumber: 1, status: 'APPROVED' });
+      mockSubmissionRepository.createWithinLimit.mockResolvedValue({ outcome: 'created', submission: { id: 'submission-2' } });
+      mockSubmissionRepository.findById.mockResolvedValue({ id: 'submission-2', status: 'PENDING' });
+      mockSubmissionRepository.createVerificationJob.mockResolvedValue({ id: 'job-1' });
+
+      await expect(service.submitTask('task-1', 'user-1', { textAnswer: 'today again' })).resolves.toHaveProperty('id', 'submission-2');
+
+      const call = mockSubmissionRepository.createWithinLimit.mock.calls[0][0];
+      expect(call).toEqual(expect.objectContaining({ participantId: 'participant-1', taskId: 'task-1', userId: 'user-1', maxCompletions: 1 }));
+      expect(call.period.end.getTime() - call.period.start.getTime()).toBe(24 * 60 * 60 * 1000);
+    });
+
+    it('limits a once-only task over its whole life, with no period', async () => {
+      arrange({ completionLimit: 'ONCE', maxCompletionsPerPeriod: 1 });
+      mockSubmissionRepository.findLatestAttempt.mockResolvedValue({ attemptNumber: 1, status: 'APPROVED' });
+      mockSubmissionRepository.createWithinLimit.mockResolvedValue({ outcome: 'limit-reached' });
+
+      await expect(service.submitTask('task-1', 'user-1', { textAnswer: 'again' })).rejects.toThrow('You have already completed this task');
+      expect(mockSubmissionRepository.createWithinLimit.mock.calls[0][0].period).toBeNull();
+    });
+
+    it('says how often a periodic task can be done and when it opens again', async () => {
+      arrange({ completionLimit: 'WEEKLY', maxCompletionsPerPeriod: 3 });
+      mockSubmissionRepository.findLatestAttempt.mockResolvedValue(null);
+      mockSubmissionRepository.createWithinLimit.mockResolvedValue({ outcome: 'limit-reached' });
+
+      await expect(service.submitTask('task-1', 'user-1', { textAnswer: 'x' })).rejects.toThrow(/3 times a week\. You can do it again after \d{4}-\d{2}-\d{2} 00:00 IST/);
+    });
+
+    it('refuses while another submission for the task is still being checked', async () => {
+      arrange({ completionLimit: 'DAILY', maxCompletionsPerPeriod: 5 });
+      mockSubmissionRepository.findLatestAttempt.mockResolvedValue(null);
+      mockSubmissionRepository.createWithinLimit.mockResolvedValue({ outcome: 'in-flight' });
+
+      await expect(service.submitTask('task-1', 'user-1', { textAnswer: 'x' })).rejects.toThrow('already has a submission being checked');
+    });
+
+    it('works out IST periods: a day, a Monday-to-Sunday week, a calendar month', () => {
+      // 2026-10-07 is a Wednesday; 20:00 UTC is already 01:30 on the 8th in India.
+      const now = new Date('2026-10-07T20:00:00Z');
+
+      expect(TaskParticipationService.currentPeriod('DAILY', now)).toEqual({ start: new Date('2026-10-07T18:30:00Z'), end: new Date('2026-10-08T18:30:00Z') });
+      expect(TaskParticipationService.currentPeriod('WEEKLY', now)).toEqual({ start: new Date('2026-10-04T18:30:00Z'), end: new Date('2026-10-11T18:30:00Z') });
+      expect(TaskParticipationService.currentPeriod('MONTHLY', now)).toEqual({ start: new Date('2026-09-30T18:30:00Z'), end: new Date('2026-10-31T18:30:00Z') });
+      expect(TaskParticipationService.currentPeriod('ONCE', now)).toBeNull();
+    });
+  });
+
+  describe('reportIssue', () => {
+    beforeEach(() => mockCampaignTaskRepository.findById.mockResolvedValue(task));
+
+    it('opens a task-issue ticket linked to the task', async () => {
+      await service.reportIssue('task-1', 'user-1', { description: 'The app link is broken.' });
+
+      expect(mockSupportService.createTaskIssueAsUser).toHaveBeenCalledWith('user-1', {
+        subject: 'Issue with task: Write a short review',
+        description: 'The app link is broken.',
+        category: 'TASK_ISSUE',
+        campaignTaskId: 'task-1',
+        submissionId: undefined,
+      });
+    });
+
+    it("links the caller's own submission for this task", async () => {
+      mockSubmissionRepository.findById.mockResolvedValue({ id: 'submission-1', userId: 'user-1', taskId: 'task-1' });
+
+      await service.reportIssue('task-1', 'user-1', { description: 'My proof was rejected wrongly.', submissionId: 'submission-1' });
+
+      expect(mockSupportService.createTaskIssueAsUser).toHaveBeenCalledWith('user-1', expect.objectContaining({ submissionId: 'submission-1' }));
+    });
+
+    it.each([
+      ['belongs to someone else', { id: 'submission-1', userId: 'user-2', taskId: 'task-1' }],
+      ['is for another task', { id: 'submission-1', userId: 'user-1', taskId: 'task-9' }],
+      ['does not exist', null],
+    ])('refuses a submission that %s, and opens no ticket', async (_label, submission) => {
+      mockSubmissionRepository.findById.mockResolvedValue(submission);
+
+      await expect(service.reportIssue('task-1', 'user-1', { description: 'Something is wrong here.', submissionId: 'submission-1' })).rejects.toThrow(NotFoundException);
+      expect(mockSupportService.createTaskIssueAsUser).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unknown task', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue(null);
+
+      await expect(service.reportIssue('missing', 'user-1', { description: 'Something is wrong here.' })).rejects.toThrow(NotFoundException);
     });
   });
 });

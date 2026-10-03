@@ -52,7 +52,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         return {
           statusCode: HttpStatus.CONFLICT,
           code: ERROR_CODES.CONFLICT,
-          message: `A record with this ${String((exception.meta?.['target'] as string[])?.join(', ') ?? 'field')} already exists.`,
+          message: 'This record already exists.',
         };
       case 'P2025':
         return {

@@ -116,11 +116,11 @@ export class MerchantCampaignController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Fund and activate a campaign (deducts budget from merchant wallet)' })
   async fund(
+    @Param('merchantId') merchantId: string,
     @Param('campaignId') campaignId: string,
   ) {
-    // Calling activate will automatically reserve the campaign's totalBudget 
-    // from the merchant's wallet.
-    return this.campaignService.activate(campaignId);
+    // Activating reserves the campaign's total budget from the merchant's wallet.
+    return this.campaignService.fundForMerchant(merchantId, campaignId);
   }
 
   @Get(':campaignId/analytics')

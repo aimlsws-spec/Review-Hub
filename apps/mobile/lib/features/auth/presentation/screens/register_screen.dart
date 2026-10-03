@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../../legal/presentation/widgets/policy_links.dart';
 import '../../providers/auth_providers.dart';
+import '../widgets/google_sign_in_button.dart';
 
 final _obscurePasswordProvider = StateProvider.autoDispose<bool>((ref) => true);
 final _obscureConfirmPasswordProvider = StateProvider.autoDispose<bool>((ref) => true);
@@ -232,6 +233,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   // Disabled until the policies are accepted (FR-008).
                   onPressed: acceptedPolicies ? _submit : null,
                 ),
+                const SizedBox(height: 24),
+                const Row(
+                  children: [
+                    Expanded(child: Divider(color: AppColors.slate200)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('OR', style: TextStyle(color: AppColors.slate400, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ),
+                    Expanded(child: Divider(color: AppColors.slate200)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // A new Google account is asked to accept the policies on its first screen, like any other account.
+                const GoogleSignInButton(label: 'Sign up with Google'),
                 const SizedBox(height: 32),
                 Center(
                   child: TextButton(

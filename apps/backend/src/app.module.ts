@@ -9,6 +9,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { CacheModule } from './cache/cache.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor';
 import { RequestIdMiddleware, RequestLoggerMiddleware } from './common/middleware';
@@ -122,6 +123,9 @@ import { StorageModule } from './storage/storage.module';
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
+        // Only the e2e suite (NODE_ENV=test, set by test/setup) skips limits: it signs up many users from one address
+        // within a minute. A real deployment must never run with NODE_ENV=test.
+        skipIf: () => config.get<string>('app.env') === 'test',
         throttlers: [
           {
             ttl: config.get<number>('throttle.ttlMs', 60000),
@@ -132,11 +136,15 @@ import { StorageModule } from './storage/storage.module';
     }),
   ],
   providers: [
-    { provide: APP_FILTER, useClass: PrismaExceptionFilter },
+    // Order matters: Nest gives precedence to the filter registered LAST. The catch-all goes first so the Prisma filter
+    // wins for database errors; the other way round, a duplicate record (P2002) came back as a 500, not a 409.
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
+    { provide: APP_FILTER, useClass: PrismaExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseTransformInterceptor },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // After the sign-in guard, so rate limits can follow the account rather than a shared carrier IP.
+    { provide: APP_GUARD, useClass: AppThrottlerGuard },
     // After the sign-in guard: whether the caller is an administrator is only known once the token has been read.
     { provide: APP_GUARD, useClass: MaintenanceGuard },
   ],

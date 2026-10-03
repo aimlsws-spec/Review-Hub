@@ -9,6 +9,12 @@ import { REPLYABLE_STATUSES, SUPPORT_EVENTS } from '../constants';
 import { AddMessageDto, AssignTicketDto, CreateTicketDto, TicketQueryDto, UpdateTicketStatusDto } from '../dto';
 import { SupportMessageRepository, SupportTicketRepository } from '../repositories';
 
+/** A task-issue ticket: the usual ticket fields plus the task and submission it is about. */
+export interface TaskIssueTicketInput extends CreateTicketDto {
+  campaignTaskId: string;
+  submissionId?: string;
+}
+
 @Injectable()
 export class SupportService {
   constructor(
@@ -22,6 +28,16 @@ export class SupportService {
 
   async createAsUser(userId: string, dto: CreateTicketDto) {
     return this.create({ user: { connect: { id: userId } } }, dto);
+  }
+
+  /**
+   * A ticket about a task, linked to it and optionally to one of the person's submissions. Only for callers that have
+   * already checked those links belong to this user (TaskParticipationService.reportIssue): the public ticket form
+   * can not set them, so nobody can attach a ticket to someone else's submission.
+   */
+  async createTaskIssueAsUser(userId: string, input: TaskIssueTicketInput) {
+    const { campaignTaskId, submissionId, ...dto } = input;
+    return this.create({ user: { connect: { id: userId } } }, dto, { campaignTaskId, submissionId });
   }
 
   async listMineAsUser(userId: string, query: TicketQueryDto) {
@@ -158,13 +174,19 @@ export class SupportService {
 
   // ── Shared ───────────────────────────────────────────────────────────────
 
-  private async create(owner: { user: { connect: { id: string } } } | { merchant: { connect: { id: string } } }, dto: CreateTicketDto) {
+  private async create(
+    owner: { user: { connect: { id: string } } } | { merchant: { connect: { id: string } } },
+    dto: CreateTicketDto,
+    links: { campaignTaskId?: string; submissionId?: string } = {},
+  ) {
     const ticket = await this.ticketRepository.create({
       ...owner,
       subject: dto.subject,
       description: dto.description,
       category: dto.category,
       priority: dto.priority,
+      ...(links.campaignTaskId && { campaignTask: { connect: { id: links.campaignTaskId } } }),
+      ...(links.submissionId && { submission: { connect: { id: links.submissionId } } }),
       status: 'OPEN',
     });
 

@@ -158,6 +158,20 @@ minimum and maximum are not connected to anything") that's since been wired up.
 A withdrawal from a device that scores high-risk (see Fraud & Risk) is **held for
 review** rather than rejected or auto-paid.
 
+
+### Bank details encrypted at rest
+**What**: Bank account numbers and UPI ids (user bank accounts, merchant bank
+details, and the copies on withdrawals and refunds) are stored encrypted with
+AES-256-GCM, plus a keyed hash for lookups such as duplicate checks.
+**Where**: `apps/backend/src/shared/crypto` (`FieldEncryptionService`,
+`BankDetailsProtector`). Keys: `FIELD_ENCRYPTION_KEY`, `FIELD_HASH_KEY`, and
+`FIELD_ENCRYPTION_PREVIOUS_KEYS` for rotation; all three are required in production.
+Existing rows are encrypted by `npm run db:encrypt-bank-details`, which
+`scripts/deploy-backend.sh` runs.
+**Details**: repositories return **masked** numbers by default. Only the payout paths
+(`findByIdForPayout`, `findAwaitingManualPayout`) and the merchant's own revealed view
+decrypt. A new read that needs the full number must go through one of those on purpose.
+
 ### TDS (tax deducted at source)
 **What**: Once a user's payouts in a financial year cross a configured threshold, tax
 is withheld from that payout and every one after it, at a configured rate.
@@ -198,6 +212,18 @@ Admin: `pages/CampaignQueuePage.tsx`.
 campaign. `autoApprove` is a stored field but is **ignored** by
 `CampaignService.submitForApproval` — every submitted campaign goes to a human admin,
 regardless of what the merchant's account settings say.
+
+
+### Saved campaigns
+**What**: A user bookmarks a campaign to come back to it. The list is kept on the
+server per person (up to 30, newest first), so it follows them to another phone.
+**Where**: Backend: `campaign/controllers/saved-campaign.controller.ts`
+(`/users/me/saved-campaigns`), `SavedCampaign` model. Mobile:
+`features/campaigns/data/saved_campaigns_repository.dart`, `savedCampaignIdsProvider`.
+**Details**: the phone keeps a copy per signed-in person so the bookmark responds at
+once; a tap changes the screen first and is undone if the server refuses. Saves made
+on the phone before this moved to the server are uploaded once (`POST .../import`)
+for the first person to sign in. Campaigns that have ended drop off the list.
 
 ### Targeting
 **What**: A campaign can restrict who sees it by age range, gender, minimum follower
@@ -277,6 +303,27 @@ QR/location proof above). It lands `PENDING`, gets queued for AI verification
 `apps/ai-services` that claims queued jobs.
 **Details**: QR/location submissions skip this entire queue — see above, they're
 decided the instant they're created.
+
+
+### Completion limits (FR-016)
+**What**: Each task says how often one person may complete it: once, or up to N times
+a day, week, or month (`completionLimit`, `maxCompletionsPerPeriod`).
+**Where**: `task/services/task-participation.service.ts` (`createWithinLimit`),
+`task/repositories/task-submission.repository.ts`.
+**Details**: approved and still-in-review submissions count; rejected ones do not.
+Periods use India time, and weeks start on Monday. The count and the new submission
+happen under a row lock on the participant, so two quick taps can not both get
+through. Only one submission per task can be in review at a time. The refusal says
+when the person can try again. Merchants can not set limits from the portal yet:
+there is no task editor there.
+
+### Report an issue on a task
+**What**: From a task, a user can report a problem (task broken, link not working,
+and so on). This opens a support ticket of category `TASK_ISSUE` linked to the task
+and, optionally, one of the user's own submissions.
+**Where**: `POST /tasks/:taskId/report-issue`, `SupportService.createTaskIssueAsUser`.
+Mobile: `features/tasks/presentation/widgets/report_issue_sheet.dart`. Admin: the task
+and submission show on the ticket in `SupportTicketsPage.tsx`.
 
 ### Disputes
 **What**: A user whose submission was rejected can file a dispute with a reason. An
@@ -566,7 +613,11 @@ would break the tax trail. A mistake is corrected with another note.
 
 ### Webhooks
 **What**: A merchant registers their own endpoint to receive events (campaign
-completed, submission approved, etc.), with delivery tracking and retries.
+completed, submission approved, etc.).
+**Status — not delivered yet**: endpoints and a delivery table exist, but no code
+sends events to them. Delivery, retries, signing, and protection against requests to
+internal addresses (SSRF) are still to be built (security review item, see
+`docs/security/REVIEW-2026-10.md`).
 **Where**: `apps/backend/src/modules/webhooks`. Merchant portal: `pages/WebhooksPage.tsx`.
 
 ---

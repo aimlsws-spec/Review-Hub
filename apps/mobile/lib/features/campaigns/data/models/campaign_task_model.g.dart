@@ -22,6 +22,9 @@ _CampaignTaskModel _$CampaignTaskModelFromJson(Map<String, dynamic> json) =>
       proofRequired: json['proofRequired'] as bool? ?? true,
       proofType: json['proofType'] as String?,
       configuration: json['configuration'] as Map<String, dynamic>?,
+      completionLimit: json['completionLimit'] as String? ?? 'ONCE',
+      maxCompletionsPerPeriod:
+          (json['maxCompletionsPerPeriod'] as num?)?.toInt() ?? 1,
     );
 
 Map<String, dynamic> _$CampaignTaskModelToJson(_CampaignTaskModel instance) =>
@@ -40,4 +43,6 @@ Map<String, dynamic> _$CampaignTaskModelToJson(_CampaignTaskModel instance) =>
       'proofRequired': instance.proofRequired,
       'proofType': instance.proofType,
       'configuration': instance.configuration,
+      'completionLimit': instance.completionLimit,
+      'maxCompletionsPerPeriod': instance.maxCompletionsPerPeriod,
     };

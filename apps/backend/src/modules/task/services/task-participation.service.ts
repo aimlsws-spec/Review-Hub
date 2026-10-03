@@ -3,9 +3,11 @@ import { createHash } from 'crypto';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { SupportCategory, TaskCompletionLimit } from '@prisma/client';
 import { Queue } from 'bullmq';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
+import { formatIstDateTime, getIstDayBoundaries, getIstMonthBoundaries, getIstWeekBoundaries } from '@common/utils';
 
 import { QUEUE_NAMES } from '../../../queues/queue.constants';
 import { LocalStorageService } from '../../../storage/storage.service';
@@ -15,8 +17,9 @@ import { AiAssistService } from '../../ai/services/ai-assist.service';
 import { CampaignRepository } from '../../campaign/repositories';
 import { MerchantRepository } from '../../merchant/repositories';
 import { SubmissionRiskService } from '../../risk/services';
-import { BLOCKING_SUBMISSION_STATUSES, SUBMISSION_STORAGE } from '../constants';
-import { SubmitTaskDto } from '../dto';
+import { SupportService } from '../../support/services/support.service';
+import { IN_FLIGHT_SUBMISSION_STATUSES, SUBMISSION_STORAGE } from '../constants';
+import { SubmitTaskDto, TaskIssueDto } from '../dto';
 import { TaskStartedEvent, TaskSubmittedEvent } from '../events';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
@@ -27,7 +30,12 @@ import { SubmissionService } from './submission.service';
 /** Verified by a deterministic rule instead of the AI/manual review pipeline — see submitDeterministicTask. */
 const DETERMINISTIC_TASK_TYPES = ['QR_SCAN', 'LOCATION_CHECKIN'] as const;
 
-
+/** How a completion limit reads to the person who hit it: "once a day", "3 times a week". */
+const LIMIT_PERIOD_WORDS: Record<Exclude<TaskCompletionLimit, 'ONCE'>, string> = {
+  DAILY: 'a day',
+  WEEKLY: 'a week',
+  MONTHLY: 'a month',
+};
 
 /**
  * Handles a user joining a campaign through its first task, and submitting
@@ -53,8 +61,31 @@ export class TaskParticipationService {
     private readonly submissionService: SubmissionService,
     private readonly qrScanVerification: QrScanVerificationService,
     private readonly locationCheckinVerification: LocationCheckinVerificationService,
+    private readonly supportService: SupportService,
     @InjectQueue(QUEUE_NAMES.AI_VERIFICATION) private readonly aiQueue: Queue,
   ) {}
+
+  /**
+   * Opens a support ticket about a task, linked to it (and to one of the caller's own submissions for it, when given)
+   * so support sees exactly what the person was doing. Someone else's submission is refused as not found.
+   */
+  async reportIssue(taskId: string, userId: string, dto: TaskIssueDto) {
+    const task = await this.campaignTaskRepository.findById(taskId);
+    if (!task) throw new NotFoundException('Task');
+
+    if (dto.submissionId) {
+      const submission = await this.submissionRepository.findById(dto.submissionId);
+      if (!submission || submission.userId !== userId || submission.taskId !== taskId) throw new NotFoundException('Submission');
+    }
+
+    return this.supportService.createTaskIssueAsUser(userId, {
+      subject: `Issue with task: ${task.title}`,
+      description: dto.description,
+      category: SupportCategory.TASK_ISSUE,
+      campaignTaskId: taskId,
+      submissionId: dto.submissionId,
+    });
+  }
 
   async startTask(taskId: string, userId: string) {
     const { task, campaign } = await this.getActiveTask(taskId);
@@ -153,7 +184,7 @@ export class TaskParticipationService {
     }
 
     const latestAttempt = await this.submissionRepository.findLatestAttempt(participant.id, taskId);
-    if (latestAttempt && BLOCKING_SUBMISSION_STATUSES.includes(latestAttempt.status)) {
+    if (latestAttempt && (IN_FLIGHT_SUBMISSION_STATUSES as readonly string[]).includes(latestAttempt.status)) {
       throw new BadRequestException(`This task already has a submission in ${latestAttempt.status} status`);
     }
 
@@ -183,7 +214,7 @@ export class TaskParticipationService {
       fileUrl = upload.path;
     }
 
-    const submission = await this.submissionRepository.create({
+    const submission = await this.createWithinLimit(task, participant.id, userId, {
       participant: { connect: { id: participant.id } },
       task: { connect: { id: taskId } },
       user: { connect: { id: userId } },
@@ -266,7 +297,7 @@ export class TaskParticipationService {
     dto: SubmitTaskDto,
     context: { ip?: string },
   ) {
-    const submission = await this.submissionRepository.create({
+    const submission = await this.createWithinLimit(task, participantId, userId, {
       participant: { connect: { id: participantId } },
       task: { connect: { id: task.id } },
       user: { connect: { id: userId } },
@@ -323,6 +354,53 @@ export class TaskParticipationService {
     }
     if (file.size > SUBMISSION_STORAGE.MAX_FILE_SIZE) {
       throw new BadRequestException('File too large. Maximum 20MB');
+    }
+  }
+
+  /**
+   * Creates the submission if the task's completion limit (FR-016) allows it, or explains when it will again.
+   * ONCE limits over the task's whole life; DAILY, WEEKLY and MONTHLY reset at the start of the IST day, week (Monday)
+   * or month.
+   */
+  private async createWithinLimit(
+    task: { id: string; completionLimit: TaskCompletionLimit; maxCompletionsPerPeriod: number },
+    participantId: string,
+    userId: string,
+    data: Parameters<TaskSubmissionRepository['createWithinLimit']>[0]['data'],
+  ) {
+    const period = TaskParticipationService.currentPeriod(task.completionLimit);
+    const result = await this.submissionRepository.createWithinLimit({
+      participantId,
+      taskId: task.id,
+      userId,
+      maxCompletions: task.maxCompletionsPerPeriod,
+      period,
+      data,
+    });
+
+    if (result.outcome === 'created') return result.submission;
+    if (result.outcome === 'in-flight') throw new BadRequestException('This task already has a submission being checked');
+
+    const times = task.maxCompletionsPerPeriod === 1 ? 'once' : `${task.maxCompletionsPerPeriod} times`;
+    if (task.completionLimit === 'ONCE' || !period) {
+      throw new BadRequestException(task.maxCompletionsPerPeriod === 1 ? 'You have already completed this task' : `This task can be completed ${times} in total, and you have reached that`);
+    }
+    throw new BadRequestException(
+      `You can complete this task ${times} ${LIMIT_PERIOD_WORDS[task.completionLimit]}. You can do it again after ${formatIstDateTime(period.end)} IST.`,
+    );
+  }
+
+  /** The current limit period in IST, or null for a once-only task (limited over its whole life). */
+  static currentPeriod(limit: TaskCompletionLimit, now: Date = new Date()): { start: Date; end: Date } | null {
+    switch (limit) {
+      case 'DAILY':
+        return getIstDayBoundaries(now);
+      case 'WEEKLY':
+        return getIstWeekBoundaries(now);
+      case 'MONTHLY':
+        return getIstMonthBoundaries(now);
+      default:
+        return null;
     }
   }
 }

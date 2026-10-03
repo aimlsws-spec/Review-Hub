@@ -8,7 +8,7 @@ import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
 import { DraftReviewDto } from '../../ai/dto';
-import { SubmitTaskDto } from '../dto';
+import { SubmitTaskDto, TaskIssueDto } from '../dto';
 import { TaskParticipationService } from '../services';
 
 /** Runs a language model plus image composition — same cost profile as ai/assist's own routes, so the same limit. */
@@ -25,6 +25,18 @@ export class TaskParticipationController {
   @ApiOperation({ summary: 'Join the campaign and start this task' })
   async start(@Param('taskId') taskId: string, @CurrentUser('id') userId: string) {
     return this.participationService.startTask(taskId, userId);
+  }
+
+  @Post(':taskId/report-issue')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Report an issue with this task to support' })
+  async reportIssue(
+    @Param('taskId') taskId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: TaskIssueDto,
+  ) {
+    return this.participationService.reportIssue(taskId, userId, dto);
   }
 
   @Get(':taskId/text-suggestion')

@@ -87,6 +87,18 @@ describe('CmsPagesPage', () => {
     )
   })
 
+  // The mobile app and merchant portal link to this exact address for the Terms.
+  it('spells out "&" in the slug, so "Terms & Conditions" lands at terms-and-conditions', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /new page/i }))
+    const dialog = within(screen.getByRole('dialog'))
+    await user.type(dialog.getByLabelText(/^title/i), 'Terms & Conditions')
+
+    expect(dialog.getByLabelText(/slug/i)).toHaveValue('terms-and-conditions')
+  })
+
   it('edits an existing page without changing its slug', async () => {
     const user = userEvent.setup()
     renderPage()

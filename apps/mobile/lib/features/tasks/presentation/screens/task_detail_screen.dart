@@ -9,6 +9,7 @@ import '../../../campaigns/data/models/campaign_task_model.dart';
 import '../../../campaigns/providers/campaign_providers.dart';
 import '../../providers/task_providers.dart';
 import '../widgets/honest_feedback_notice.dart';
+import '../widgets/report_issue_sheet.dart';
 
 final _startTaskSubmitProvider = AsyncNotifierProvider.autoDispose<_StartTaskSubmitNotifier, void>(_StartTaskSubmitNotifier.new);
 
@@ -28,11 +29,26 @@ class _StartTaskSubmitNotifier extends AsyncNotifier<void> {
   }
 }
 
+/// How often a repeatable task can be done, e.g. "Once a day", "3 times a week". Empty for a once-only task.
+String completionLimitLabel(String completionLimit, int maxCompletionsPerPeriod) {
+  const periods = {'DAILY': 'day', 'WEEKLY': 'week', 'MONTHLY': 'month'};
+  final period = periods[completionLimit];
+  if (period == null) return '';
+  return maxCompletionsPerPeriod == 1 ? 'Once a $period' : '$maxCompletionsPerPeriod times a $period';
+}
+
 class TaskDetailScreen extends ConsumerWidget {
   const TaskDetailScreen({super.key, required this.campaignId, required this.taskId});
 
   final String campaignId;
   final String taskId;
+
+  Future<void> _reportIssue(BuildContext context) async {
+    final sent = await showReportIssueSheet(context, taskId);
+    if (sent && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Thanks. Your report was sent to support.')));
+    }
+  }
 
   Future<void> _startAndContinue(BuildContext context, WidgetRef ref, CampaignTaskModel task) async {
     final success = await ref.read(_startTaskSubmitProvider.notifier).start(taskId);
@@ -47,7 +63,16 @@ class TaskDetailScreen extends ConsumerWidget {
     final errorMessage = submitState.hasError ? submitState.error.toString() : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Task details')),
+      appBar: AppBar(
+        title: const Text('Task details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.report_problem_outlined),
+            onPressed: () => _reportIssue(context),
+            tooltip: 'Report an issue',
+          ),
+        ],
+      ),
       body: tasksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(child: Text('$error')),
@@ -82,6 +107,19 @@ class TaskDetailScreen extends ConsumerWidget {
                             if (task.description != null) ...[
                               const SizedBox(height: 16),
                               Text(task.description!, style: const TextStyle(fontSize: 14, color: AppColors.slate600, height: 1.5)),
+                            ],
+                            if (completionLimitLabel(task.completionLimit, task.maxCompletionsPerPeriod).isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  const Icon(Icons.repeat, size: 16, color: AppColors.slate400),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    completionLimitLabel(task.completionLimit, task.maxCompletionsPerPeriod),
+                                    style: const TextStyle(fontSize: 13, color: AppColors.slate500, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
                             ],
                             if (task.instructions != null) ...[
                               const SizedBox(height: 16),

@@ -25,6 +25,19 @@ describe('TaskSubmissionRepository', () => {
     submissionFraudFlag: {
       create: jest.fn(),
     },
+    $queryRaw: jest.fn(),
+    $transaction: jest.fn(),
+  };
+  // The transaction client is the same mock, so what the callback does can be checked directly.
+  const runInTransaction = (callback: (tx: unknown) => unknown): unknown => callback(mockPrisma);
+
+  const input = {
+    participantId: 'participant-1',
+    taskId: 'task-1',
+    userId: 'user-1',
+    maxCompletions: 2,
+    period: { start: new Date('2026-10-04T18:30:00Z'), end: new Date('2026-10-11T18:30:00Z') },
+    data: { status: 'PENDING' } as never,
   };
 
   beforeEach(async () => {
@@ -37,6 +50,7 @@ describe('TaskSubmissionRepository', () => {
 
     repository = module.get<TaskSubmissionRepository>(TaskSubmissionRepository);
     jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(runInTransaction);
   });
 
   describe('updateIfStatusIn', () => {
@@ -103,6 +117,49 @@ describe('TaskSubmissionRepository', () => {
         where: { checksum: 'abc' },
         include: { submission: true },
       });
+    });
+  });
+
+  describe('createWithinLimit', () => {
+    it('locks the participant first, then creates while the limit allows', async () => {
+      mockPrisma.taskSubmission.count.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+      mockPrisma.taskSubmission.create.mockResolvedValue({ id: 'submission-1' });
+
+      await expect(repository.createWithinLimit(input)).resolves.toEqual({ outcome: 'created', submission: { id: 'submission-1' } });
+
+      expect(mockPrisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(mockPrisma.taskSubmission.count.mock.invocationCallOrder[0]);
+      expect(mockPrisma.taskSubmission.count).toHaveBeenLastCalledWith({
+        where: {
+          taskId: 'task-1',
+          userId: 'user-1',
+          deletedAt: null,
+          status: { in: ['PENDING', 'AI_PROCESSING', 'PENDING_MANUAL', 'APPROVED'] },
+          createdAt: { gte: input.period.start, lt: input.period.end },
+        },
+      });
+    });
+
+    it('creates nothing once the limit is used up', async () => {
+      mockPrisma.taskSubmission.count.mockResolvedValueOnce(0).mockResolvedValueOnce(2);
+
+      await expect(repository.createWithinLimit(input)).resolves.toEqual({ outcome: 'limit-reached' });
+      expect(mockPrisma.taskSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it('creates nothing while another submission is still being checked', async () => {
+      mockPrisma.taskSubmission.count.mockResolvedValueOnce(1);
+
+      await expect(repository.createWithinLimit(input)).resolves.toEqual({ outcome: 'in-flight' });
+      expect(mockPrisma.taskSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it('counts over the whole life of a once-only task', async () => {
+      mockPrisma.taskSubmission.count.mockResolvedValue(0);
+      mockPrisma.taskSubmission.create.mockResolvedValue({ id: 'submission-1' });
+
+      await repository.createWithinLimit({ ...input, period: null });
+
+      expect(mockPrisma.taskSubmission.count.mock.calls[1][0].where).not.toHaveProperty('createdAt');
     });
   });
 });

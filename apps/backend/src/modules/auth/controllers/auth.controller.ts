@@ -24,6 +24,7 @@ import { OAuth2Client } from 'google-auth-library';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser, Public } from '@common/decorators';
+import { ServiceUnavailableException } from '@common/exceptions/domain.exceptions';
 
 import {
   RegisterDto,
@@ -165,12 +166,19 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Google sign-in from mobile (ID token)' })
   async googleMobileAuth(@Body() dto: MobileSocialLoginDto, @Req() req: Request) {
+    const audience = process.env.GOOGLE_CLIENT_ID;
+    // With no audience, verifyIdToken skips the audience check altogether and would accept a token issued to any
+    // Google app. Refuse instead of signing anyone in on an unconfigured server.
+    if (!audience) {
+      this.logger.error('Google sign-in refused: GOOGLE_CLIENT_ID is not set');
+      throw new ServiceUnavailableException('Google sign-in');
+    }
     try {
       const ticket = await this.googleClient.verifyIdToken({
         idToken: dto.idToken,
         // Without this, verifyIdToken accepts a valid ID token issued to *any* Google OAuth client, not just
         // this app's — an audience-confusion hole that would let a token from an unrelated app sign someone in.
-        audience: process.env.GOOGLE_CLIENT_ID,
+        audience,
       });
       const payload = ticket.getPayload();
       if (!payload) throw new UnauthorizedException('Invalid Google token');

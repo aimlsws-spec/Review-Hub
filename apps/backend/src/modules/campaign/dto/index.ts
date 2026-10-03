@@ -7,3 +7,4 @@ export * from './recommend-campaign.dto';
 export * from './review-campaign.dto';
 export * from './analytics-query.dto';
 export * from './report-export-query.dto';
+export * from './saved-campaign.dto';

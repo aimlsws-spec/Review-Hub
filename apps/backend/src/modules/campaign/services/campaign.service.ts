@@ -303,6 +303,17 @@ export class CampaignService {
     return this.transitionStatus(campaignId, 'ACTIVE', { publishedAt: new Date() });
   }
 
+  /**
+   * A merchant funding (activating) one of their own campaigns. The campaign must belong to that merchant: the route
+   * guard only proves the caller owns `merchantId`, not the campaign id next to it. Another merchant's campaign is
+   * reported as not found, so its existence is not confirmed either.
+   */
+  async fundForMerchant(merchantId: string, campaignId: string) {
+    const campaign = await this.getById(campaignId);
+    if (campaign.merchantId !== merchantId) throw new NotFoundException('Campaign');
+    return this.activate(campaignId);
+  }
+
   async pause(campaignId: string) {
     return this.transitionStatus(campaignId, 'PAUSED');
   }

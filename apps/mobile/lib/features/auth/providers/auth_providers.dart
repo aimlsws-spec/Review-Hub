@@ -101,7 +101,8 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
     return result;
   }
 
-  Future<Result<UserModel?>> socialLogin({
+  /// Google or Apple sign-in. Like [login], a device new to the account returns the challenge to finish with a code.
+  Future<Result<LoginChallengeModel?>> socialLogin({
     required String provider,
     required String idToken,
     String? firstName,
@@ -109,9 +110,13 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
     String? avatarUrl,
   }) async {
     final repo = ref.read(authRepositoryProvider);
-    final sessionResult = await repo.socialLogin(provider, idToken, firstName: firstName, lastName: lastName, avatarUrl: avatarUrl);
-    if (sessionResult.isFailure) return Result.failure(sessionResult.failureOrNull!);
-    return _loadProfileAfterAuth(repo);
+    final loginResult = await repo.socialLogin(provider, idToken, firstName: firstName, lastName: lastName, avatarUrl: avatarUrl);
+    final outcome = loginResult.valueOrNull;
+    if (outcome == null) return Result.failure(loginResult.failureOrNull!);
+    if (outcome is LoginNeedsDeviceCode) return Result.success(outcome.challenge);
+
+    final profileResult = await _loadProfileAfterAuth(repo);
+    return profileResult.isFailure ? Result.failure(profileResult.failureOrNull!) : const Result.success(null);
   }
 
   /// After a successful register/login, tokens are already saved — fetch the

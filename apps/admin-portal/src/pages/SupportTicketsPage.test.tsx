@@ -90,6 +90,28 @@ describe('SupportTicketsPage', () => {
     expect(replyMock).toHaveBeenCalledWith({ message: 'Reward has been credited manually.', internalNote: false })
   })
 
+  it('shows which task, campaign and submission a task-issue ticket is about', async () => {
+    const taskIssue = {
+      ...ticket,
+      category: 'TASK_ISSUE',
+      campaignTaskId: 'task-1',
+      submissionId: 'submission-1',
+      campaignTask: { id: 'task-1', title: 'Write an honest review', campaign: { id: 'campaign-1', title: 'Cafe launch' } },
+      submission: { id: 'submission-1', status: 'PENDING_MANUAL', createdAt: '2026-01-01T00:00:00Z' },
+    }
+    vi.mocked(useSupportTicketDetailQuery).mockReturnValue({ data: { data: { data: taskIssue } }, isLoading: false } as never)
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByText('Reward missing'))
+    const dialog = within(screen.getByRole('dialog'))
+
+    expect(dialog.getByText('Write an honest review')).toBeInTheDocument()
+    expect(dialog.getByText('Cafe launch')).toBeInTheDocument()
+    expect(dialog.getByText(/is pending manual/)).toBeInTheDocument()
+    expect(dialog.getByText(/Task issue/)).toBeInTheDocument()
+  })
+
   it('sends an internal note when the checkbox is checked', async () => {
     vi.mocked(useSupportTicketDetailQuery).mockReturnValue({ data: { data: { data: ticket } }, isLoading: false } as never)
     const user = userEvent.setup()

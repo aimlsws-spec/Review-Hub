@@ -22,7 +22,7 @@ class PolicyDocumentScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(page.value?.title ?? knownTitle ?? 'Policy')),
       body: SafeArea(
         child: page.when(
-          loading: () => const LoadingIndicator(),
+          loading: () => const PageLoader(),
           error: (error, _) => _PageError(
             // 404 means the admin has not published this page yet, which is not something a retry fixes.
             message: error is NotFoundFailure

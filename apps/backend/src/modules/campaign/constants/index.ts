@@ -6,6 +6,12 @@ export * from './campaign-insights.constants';
 export const DEFAULT_AI_THRESHOLD = 0.8;
 
 /**
+ * How many campaigns one person may save for later. Kept short on purpose: the app's saved view fetches each one when it
+ * opens, so the list must stay quick. The mobile app has the same number (SavedCampaignsStore.maxSaved).
+ */
+export const SAVED_CAMPAIGNS_MAX = 30;
+
+/**
  * Valid status transitions for a campaign. Any transition not listed here
  * is rejected by CampaignService.transitionStatus().
  */

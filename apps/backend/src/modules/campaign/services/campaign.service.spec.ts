@@ -320,6 +320,23 @@ describe('CampaignService', () => {
     });
   });
 
+  describe('fundForMerchant', () => {
+    it("activates the merchant's own campaign", async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'APPROVED' });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'ACTIVE' });
+
+      await expect(service.fundForMerchant('merchant-1', 'campaign-1')).resolves.toHaveProperty('status', 'ACTIVE');
+    });
+
+    it("refuses another merchant's campaign as not found, and touches no wallet", async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'APPROVED' });
+
+      await expect(service.fundForMerchant('merchant-2', 'campaign-1')).rejects.toThrow(NotFoundException);
+      expect(mockMerchantWalletRepository.reserveCampaignBudget).not.toHaveBeenCalled();
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('status transitions', () => {
     it('should activate an APPROVED campaign and reserve its full budget from the merchant wallet', async () => {
       mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'APPROVED' });

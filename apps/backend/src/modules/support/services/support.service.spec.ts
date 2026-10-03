@@ -52,6 +52,39 @@ describe('SupportService', () => {
     });
   });
 
+  describe('createTaskIssueAsUser', () => {
+    it('links the ticket to the task and submission the caller already checked', async () => {
+      mockTicketRepository.create.mockResolvedValue({ id: 'ticket-1' });
+
+      await service.createTaskIssueAsUser('user-1', {
+        subject: 'Issue with task: Review',
+        description: 'The link is broken.',
+        category: 'TASK_ISSUE',
+        campaignTaskId: 'task-1',
+        submissionId: 'submission-1',
+      });
+
+      expect(mockTicketRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: { connect: { id: 'user-1' } },
+          category: 'TASK_ISSUE',
+          campaignTask: { connect: { id: 'task-1' } },
+          submission: { connect: { id: 'submission-1' } },
+        }),
+      );
+    });
+
+    it('never links anything from the ordinary ticket form', async () => {
+      mockTicketRepository.create.mockResolvedValue({ id: 'ticket-1' });
+
+      await service.createAsUser('user-1', { subject: 'Help', description: 'Something is broken' });
+
+      const data = mockTicketRepository.create.mock.calls[0][0];
+      expect(data).not.toHaveProperty('campaignTask');
+      expect(data).not.toHaveProperty('submission');
+    });
+  });
+
   describe('createAsMerchant', () => {
     it('should create a ticket owned by the merchant', async () => {
       mockTicketRepository.create.mockResolvedValue({ id: 'ticket-1' });

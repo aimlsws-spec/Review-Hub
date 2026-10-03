@@ -64,6 +64,22 @@ void main() {
     expect(find.text('Reward Policy'), findsOneWidget);
   });
 
+  testWidgets('opens each policy from its link', (tester) async {
+    await open(tester);
+
+    await tester.tap(find.text('Privacy Policy'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Policy privacy-policy'), findsOneWidget);
+  });
+
+  testWidgets('offers signing up with Google, and only Google', (tester) async {
+    await open(tester);
+
+    expect(find.text('Sign up with Google'), findsOneWidget);
+    expect(find.textContaining('Apple'), findsNothing);
+  });
+
   testWidgets('cannot create an account until the policies are accepted', (tester) async {
     final auth = await open(tester);
     await fillForm(tester);
