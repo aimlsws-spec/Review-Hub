@@ -7,6 +7,7 @@ import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import sharp from 'sharp';
 
+import { AI_CALL_FEATURES, AiCallFeature, AiCallLogService, startAiTimer } from '../../../shared/ai-call-log';
 import { LocalStorageService } from '../../../storage/storage.service';
 import { AI_ASSIST_GENEROUS_TIMEOUT_MS } from '../constants';
 
@@ -70,13 +71,22 @@ export class AiAssistService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly storageService: LocalStorageService,
+    private readonly aiCallLog: AiCallLogService,
   ) {}
+
+  /** Logs one assist call: "llm" is a model answer, "template" the AI service's own fallback, an error a local one. */
+  private logCall(feature: AiCallFeature, elapsed: () => number, input: unknown, outcome: { source?: string; output?: unknown; error?: unknown }) {
+    const timedOut = (outcome.error as AxiosError | undefined)?.code === 'ECONNABORTED';
+    const status = outcome.error ? (timedOut ? 'TIMEOUT' : 'FAILED') : outcome.source === 'llm' ? 'SUCCESS' : 'FALLBACK';
+    void this.aiCallLog.record({ feature, status, latencyMs: elapsed(), input, output: outcome.output });
+  }
 
   async suggestText(context: TextSuggestionContext): Promise<TextSuggestionResult> {
     const baseUrl = this.configService.get<string>('ai.serviceUrl');
     const apiKey = this.configService.get<string>('ai.apiKey');
     const apiSecret = this.configService.get<string>('ai.apiSecret');
     const timeoutMs = this.configService.get<number>('ai.timeoutMs');
+    const elapsed = startAiTimer();
 
     try {
       const response = await firstValueFrom(
@@ -85,8 +95,10 @@ export class AiAssistService {
           timeout: timeoutMs,
         }),
       );
+      this.logCall(AI_CALL_FEATURES.TEXT_SUGGESTION, elapsed, context, { source: response.data.source, output: response.data });
       return response.data;
     } catch (error) {
+      this.logCall(AI_CALL_FEATURES.TEXT_SUGGESTION, elapsed, context, { error });
       this.logger.warn(`AI service unavailable for text suggestion, falling back to a local template: ${(error as AxiosError).message}`);
       return { suggestion: this.buildFallbackTemplate(context), source: 'template' };
     }
@@ -108,6 +120,7 @@ export class AiAssistService {
     const apiKey = this.configService.get<string>('ai.apiKey');
     const apiSecret = this.configService.get<string>('ai.apiSecret');
 
+    const elapsed = startAiTimer();
     try {
       const response = await firstValueFrom(
         this.httpService.post<ReviewDraftResult>(`${baseUrl}/v1/assist/review-drafts`, context, {
@@ -115,8 +128,10 @@ export class AiAssistService {
           timeout: AI_ASSIST_GENEROUS_TIMEOUT_MS,
         }),
       );
+      this.logCall(AI_CALL_FEATURES.REVIEW_DRAFTS, elapsed, context, { source: response.data.source, output: response.data });
       return response.data;
     } catch (error) {
+      this.logCall(AI_CALL_FEATURES.REVIEW_DRAFTS, elapsed, context, { error });
       this.logger.warn(`AI service unavailable for review drafts, falling back to local templates: ${(error as AxiosError).message}`);
       return { drafts: buildReviewDraftTemplates(context), source: 'template' };
     }
@@ -127,6 +142,7 @@ export class AiAssistService {
     const apiKey = this.configService.get<string>('ai.apiKey');
     const apiSecret = this.configService.get<string>('ai.apiSecret');
 
+    const elapsed = startAiTimer();
     try {
       const response = await firstValueFrom(
         this.httpService.post<CaptionResult>(`${baseUrl}/v1/assist/captions`, context, {
@@ -134,8 +150,10 @@ export class AiAssistService {
           timeout: AI_ASSIST_GENEROUS_TIMEOUT_MS,
         }),
       );
+      this.logCall(AI_CALL_FEATURES.CAPTIONS, elapsed, context, { source: response.data.source, output: response.data });
       return response.data;
     } catch (error) {
+      this.logCall(AI_CALL_FEATURES.CAPTIONS, elapsed, context, { error });
       this.logger.warn(`AI service unavailable for captions, falling back to local templates: ${(error as AxiosError).message}`);
       const { captions, hashtags } = this.buildFallbackCaptions(context);
       return { captions, hashtags, source: 'template' };

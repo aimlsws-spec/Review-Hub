@@ -113,4 +113,14 @@ export class UserManagementService {
 
     return updated;
   }
+
+  /** Read-only referral tree, one level at a time: the user's direct referrals and the person who referred them. */
+  async getReferrals(userId: string, page: number, limit: number) {
+    await this.getById(userId);
+    const [referrals, referrer] = await Promise.all([
+      this.userAdminRepository.getReferrals(userId, page, limit),
+      this.userAdminRepository.getReferrer(userId),
+    ]);
+    return { ...referrals, referrer };
+  }
 }

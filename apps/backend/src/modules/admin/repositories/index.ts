@@ -8,3 +8,4 @@ export * from './audit-log.repository';
 export * from './platform-configuration.repository';
 export * from './city.repository';
 export * from './dashboard-metrics.repository';
+export * from './admin-daily-summary.repository';

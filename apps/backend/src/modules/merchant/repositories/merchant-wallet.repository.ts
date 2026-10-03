@@ -37,7 +37,10 @@ export class MerchantWalletRepository {
     return this.prisma.merchantWallet.create({ data });
   }
 
-  /** The merchant's wallet, created on first use. A request that loses the creation race returns the winner's wallet. */
+  /**
+   * The merchant's wallet, created on first use. A request that loses the creation race (P2002 on the unique
+   * merchant, or P2014 through the one-to-one relation) returns the winner's wallet.
+   */
   async getOrCreate(merchantId: string) {
     const existing = await this.findByMerchantId(merchantId);
     if (existing) return existing;
@@ -45,7 +48,7 @@ export class MerchantWalletRepository {
     try {
       return await this.createWallet({ merchant: { connect: { id: merchantId } } });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2014')) {
         const created = await this.findByMerchantId(merchantId);
         if (created) return created;
       }

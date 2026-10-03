@@ -121,6 +121,13 @@ describe('UserWalletRepository', () => {
       expect(result).toEqual({ id: 'wallet-new' });
       expect(mockPrisma.userWallet.create).toHaveBeenCalledWith({ data: { user: { connect: { id: 'user-1' } } } });
     });
+
+    it.each(['P2002', 'P2014'])('returns the wallet another request created at the same moment (%s)', async (code) => {
+      mockPrisma.userWallet.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'wallet-won' });
+      mockPrisma.userWallet.create.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('race', { code, clientVersion: 'test' }));
+
+      await expect(repository.getOrCreate('user-1')).resolves.toEqual({ id: 'wallet-won' });
+    });
   });
 
   describe('creditAvailable', () => {

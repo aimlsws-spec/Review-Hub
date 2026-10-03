@@ -67,6 +67,7 @@ export const QUERY_KEYS = {
   NOTIFICATIONS: ['notifications'],
   WEBHOOKS: ['webhooks'],
   SUBSCRIPTION: ['subscription'],
+  SUGGESTIONS: ['suggestions'],
   POLICIES: ['policies'],
   CONTENT_PAGE: ['content-page'],
   WEBHOOK_DELIVERIES: ['webhook-deliveries'],

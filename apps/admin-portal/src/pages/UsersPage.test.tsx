@@ -11,6 +11,7 @@ import UsersPage from './UsersPage'
 vi.mock('@/hooks/useAccountRisk', () => ({ useAccountRiskQuery: vi.fn() }))
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn(() => ({ user: { roles: ['ADMIN'] } })) }))
 vi.mock('@/components/StaffRolesPanel', () => ({ StaffRolesPanel: () => <div>Staff roles panel</div> }))
+vi.mock('@/components/ReferralTreePanel', () => ({ ReferralTreePanel: () => <div>Referrals panel</div> }))
 vi.mock('@/hooks/useUsers', () => ({
   useUsersQuery: vi.fn(),
   useUserDetailQuery: vi.fn(),

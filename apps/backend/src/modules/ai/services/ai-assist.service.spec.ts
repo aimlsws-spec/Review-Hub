@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { of, throwError } from 'rxjs';
 
+import { AiCallLogService } from '../../../shared/ai-call-log';
 import { LocalStorageService } from '../../../storage/storage.service';
 
 // composeStory's own logic (orchestration: draft captions, compose, save under a unique name) is what these
@@ -19,6 +20,7 @@ jest.mock('sharp', () => ({ __esModule: true, default: jest.fn(() => mockSharpCh
 import { AiAssistService } from './ai-assist.service';
 
 describe('AiAssistService', () => {
+  const mockAiCallLog = { record: jest.fn() };
   let service: AiAssistService;
 
   const mockHttpService = { post: jest.fn() };
@@ -51,6 +53,7 @@ describe('AiAssistService', () => {
         { provide: HttpService, useValue: mockHttpService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: LocalStorageService, useValue: mockStorageService },
+        { provide: AiCallLogService, useValue: mockAiCallLog },
       ],
     }).compile();
 
@@ -71,6 +74,19 @@ describe('AiAssistService', () => {
       }),
     );
     expect(result).toEqual({ suggestion: 'Really enjoyed it!', source: 'llm' });
+    expect(mockAiCallLog.record).toHaveBeenCalledWith(expect.objectContaining({ feature: 'TEXT_SUGGESTION', status: 'SUCCESS' }));
+  });
+
+  it("logs the AI service's own template as a fallback, and an unreachable service as failed", async () => {
+    mockHttpService.post.mockReturnValueOnce(of({ data: { suggestion: 'Plain', source: 'template' } }));
+    await service.suggestText(context);
+    mockHttpService.post.mockReturnValueOnce(throwError(() => new Error('connect ECONNREFUSED')));
+    await service.suggestText(context);
+    mockHttpService.post.mockReturnValueOnce(throwError(() => Object.assign(new Error('timeout'), { code: 'ECONNABORTED' })));
+    await service.suggestText(context);
+
+    const statuses = mockAiCallLog.record.mock.calls.slice(-3).map(([entry]) => entry.status);
+    expect(statuses).toEqual(['FALLBACK', 'FAILED', 'TIMEOUT']);
   });
 
   it('falls back to a local template when the AI service call fails', async () => {

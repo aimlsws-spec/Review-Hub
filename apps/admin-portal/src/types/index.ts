@@ -70,6 +70,32 @@ export interface SubscriptionPlanForm {
   sortOrder: number
 }
 
+/** GET /admin/ai/monitoring: AI calls per India day and per feature. */
+export interface AiMonitoring {
+  days: Array<{ day: string; calls: number; failed: number; fallback: number; tokens: number; cost: number }>
+  features: Array<{
+    feature: string
+    calls: number
+    failed: number
+    fallback: number
+    tokens: number
+    cost: number
+    errorRate: number
+    fallbackRate: number
+    p95LatencyMs: number
+  }>
+  totals: { calls: number; failed: number; fallback: number; tokens: number; cost: number; errorRate: number; fallbackRate: number }
+}
+
+/** One level of a user's referral tree (GET /admin/users/:id/referrals). */
+export interface ReferralLevel {
+  data: Array<{ id: string; referredUserId: string; name: string; joinedAt: string; rewardIssued: boolean; ownReferralCount: number }>
+  total: number
+  page: number
+  limit: number
+  referrer: { id: string; referrerId: string; name: string } | null
+}
+
 /** Staff roles a super admin can give or take away on the Users page. */
 export type StaffRole = 'ADMIN' | 'FINANCE_TEAM'
 

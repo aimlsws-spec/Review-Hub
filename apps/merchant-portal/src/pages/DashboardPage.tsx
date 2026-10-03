@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 
 import { InsightsPanel } from '@/components/InsightsPanel'
 import { StarRating } from '@/components/ReviewCard'
+import { SuggestionsPanel } from '@/components/SuggestionsPanel'
 import { ROUTES } from '@/constants'
 import { useCampaignsQuery, useCampaignAnalyticsQuery } from '@/hooks/useCampaigns'
 import { useDashboardStatsQuery } from '@/hooks/useDashboard'
@@ -459,6 +460,9 @@ export default function DashboardPage() {
 
       {/* What campaigns cost per completed task, and what could work better */}
       <InsightsPanel merchantId={merchant.id} />
+
+      {/* What the daily optimizer noticed, kept until dismissed */}
+      <SuggestionsPanel merchantId={merchant.id} />
 
       {/* Main grid */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

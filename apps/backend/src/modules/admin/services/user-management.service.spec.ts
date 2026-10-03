@@ -19,6 +19,8 @@ describe('UserManagementService', () => {
     grantRole: jest.fn(),
     revokeRole: jest.fn(),
     revokeSessions: jest.fn(),
+    getReferrals: jest.fn(),
+    getReferrer: jest.fn(),
   };
   const mockAuditLogService = { record: jest.fn() };
 
@@ -128,6 +130,28 @@ describe('UserManagementService', () => {
 
       expect(result).toHaveProperty('status', 'ACTIVE');
       expect(mockAuditLogService.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'RESTORE' }));
+    });
+  });
+
+  describe('getReferrals', () => {
+    it('returns the direct referrals and the referrer together', async () => {
+      mockUserAdminRepository.findById.mockResolvedValue(user);
+      mockUserAdminRepository.getReferrals.mockResolvedValue({ data: [{ id: 'r-1' }], total: 1, page: 1, limit: 20 });
+      mockUserAdminRepository.getReferrer.mockResolvedValue({ id: 'r-0', referrerId: 'u-0', name: 'Meena K' });
+
+      await expect(service.getReferrals('user-1', 1, 20)).resolves.toEqual({
+        data: [{ id: 'r-1' }],
+        total: 1,
+        page: 1,
+        limit: 20,
+        referrer: { id: 'r-0', referrerId: 'u-0', name: 'Meena K' },
+      });
+    });
+
+    it('refuses an unknown user', async () => {
+      mockUserAdminRepository.findById.mockResolvedValue(null);
+
+      await expect(service.getReferrals('nobody', 1, 20)).rejects.toThrow(NotFoundException);
     });
   });
 });

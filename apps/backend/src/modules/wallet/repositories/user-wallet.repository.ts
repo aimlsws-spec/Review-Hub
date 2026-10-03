@@ -21,8 +21,8 @@ export class UserWalletRepository {
 
   /**
    * The user's wallet, created on first use. Two requests can both find no wallet and both try to create one; the
-   * loser hits the unique constraint on the user. That is not a failure (the wallet exists now), so it returns the
-   * winner's wallet instead of a 500.
+   * loser hits the unique constraint on the user (P2002) or, through the one-to-one relation, P2014. That is not a
+   * failure (the wallet exists now), so it returns the winner's wallet instead of an error.
    */
   async getOrCreate(userId: string) {
     const existing = await this.findByUserId(userId);
@@ -31,7 +31,7 @@ export class UserWalletRepository {
     try {
       return await this.prisma.userWallet.create({ data: { user: { connect: { id: userId } } } });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2014')) {
         const created = await this.findByUserId(userId);
         if (created) return created;
       }

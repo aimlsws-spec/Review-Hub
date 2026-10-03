@@ -1,6 +1,7 @@
 import { PageHeader, CardSkeleton } from '@reviewhub/shared-ui'
 import { Link } from 'react-router-dom'
 
+import { DailySummaryCard } from '@/components/DailySummaryCard'
 import { DashboardCharts } from '@/components/DashboardCharts'
 import { ROUTES } from '@/constants'
 import { useDashboardStats } from '@/hooks/useDashboardStats'
@@ -93,6 +94,8 @@ export default function DashboardPage() {
           }
         />
       </div>
+
+      <DailySummaryCard />
 
       <DashboardCharts />
 

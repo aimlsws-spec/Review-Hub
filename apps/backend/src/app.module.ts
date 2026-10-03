@@ -45,6 +45,7 @@ import { UserKycModule } from './modules/user-kyc/user-kyc.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { WebhookModule } from './modules/webhooks/webhook.module';
 import { QueueModule } from './queues/queue.module';
+import { AiCallLogModule } from './shared/ai-call-log/ai-call-log.module';
 import { AuditModule } from './shared/audit/audit.module';
 import { CryptoModule } from './shared/crypto/crypto.module';
 import { HealthModule } from './shared/health/health.module';
@@ -94,6 +95,7 @@ import { StorageModule } from './storage/storage.module';
     MailModule,
     SmsModule,
     AuditModule,
+    AiCallLogModule,
     CryptoModule,
     EventEmitterModule.forRoot(),
     AuthModule,

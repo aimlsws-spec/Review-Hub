@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { describeError } from '@common/utils';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+import { AI_CALL_FEATURES, AiCallLogService, startAiTimer } from '../../../shared/ai-call-log';
 import { UserKycDocumentRepository } from '../repositories';
 
 /** What the admin reviewer sees. MATCH/PARTIAL/MISMATCH come from the AI service; the others explain why there is no answer. */
@@ -47,6 +48,7 @@ export class KycOcrService {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
     private readonly documentRepository: UserKycDocumentRepository,
+    private readonly aiCallLog: AiCallLogService,
   ) {}
 
   /** Starts the check without waiting for it. Failures are logged and recorded as UNAVAILABLE, never thrown. */
@@ -70,6 +72,9 @@ export class KycOcrService {
     if (input.documentNumber) form.append('documentNumber', input.documentNumber);
     if (user) form.append('fullName', `${user.firstName} ${user.lastName}`.trim());
     form.append('file', new Blob([new Uint8Array(input.buffer)], { type: input.mimeType }), 'document');
+    const elapsed = startAiTimer();
+    // Only the size of what is sent is logged (an image and a few words), never the document or the number.
+    const sent = { documentType: input.documentType, imageBytes: input.buffer.length };
 
     try {
       const response = await firstValueFrom(
@@ -81,8 +86,19 @@ export class KycOcrService {
           timeout: this.config.get<number>('ai.timeoutMs'),
         }),
       );
-      return this.normalise(response.data);
+      const result = this.normalise(response.data);
+      void this.aiCallLog.record({
+        feature: AI_CALL_FEATURES.KYC_OCR,
+        status: result.status === 'UNAVAILABLE' ? 'FALLBACK' : 'SUCCESS',
+        latencyMs: elapsed(),
+        input: sent,
+        output: result,
+        confidence: result.confidence,
+        userId: input.userId,
+      });
+      return result;
     } catch (error) {
+      void this.aiCallLog.record({ feature: AI_CALL_FEATURES.KYC_OCR, status: 'FAILED', latencyMs: elapsed(), input: sent, userId: input.userId });
       this.logger.warn(`AI service could not read KYC document ${input.documentId}: ${describeError(error)}`);
       return blank('UNAVAILABLE');
     }

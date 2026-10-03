@@ -14,7 +14,11 @@ import DashboardPage from './DashboardPage'
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
 vi.mock('@/hooks/useCampaigns', () => ({ useCampaignsQuery: vi.fn(), useCampaignAnalyticsQuery: vi.fn() }))
 vi.mock('@/hooks/useDashboard', () => ({ useDashboardStatsQuery: vi.fn() }))
-vi.mock('@/hooks/useInsights', () => ({ useMerchantInsightsQuery: vi.fn() }))
+vi.mock('@/hooks/useInsights', () => ({
+  useMerchantInsightsQuery: vi.fn(),
+  useSuggestionsQuery: vi.fn(() => ({ data: [] })),
+  useDismissSuggestionMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}))
 vi.mock('@/hooks/useNotifications', () => ({ useNotificationsQuery: vi.fn() }))
 vi.mock('@/hooks/useReviews', () => ({ useRecentReviewsQuery: vi.fn() }))
 

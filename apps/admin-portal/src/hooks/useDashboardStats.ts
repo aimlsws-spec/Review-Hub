@@ -3,6 +3,11 @@ import { useQuery } from '@tanstack/react-query'
 import { adminApi } from '@/api/admin.api'
 import { QUERY_KEYS } from '@/constants'
 
+/** The latest daily admin summary (yesterday, India time), or null before the first one. */
+export function useDailySummary() {
+  return useQuery({ queryKey: QUERY_KEYS.DAILY_SUMMARY, queryFn: () => adminApi.getDailySummary() })
+}
+
 /** Platform activity per India day for the dashboard charts, over the last `days` days. */
 export function useDashboardSeries(days: number) {
   return useQuery({

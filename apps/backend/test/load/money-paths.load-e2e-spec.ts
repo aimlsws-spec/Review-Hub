@@ -92,6 +92,8 @@ describe('Money paths under load (e2e)', () => {
       const user = await api.registerUser();
       await api.fundWallet(user, BALANCE);
       await api.approvePan(user, adminToken);
+      // Withdrawals also need a verified email, as in the other withdrawal suites.
+      await api.verifyEmail(user);
       const bankAccountId = await api.addBankAccount(user);
 
       const start = Date.now();

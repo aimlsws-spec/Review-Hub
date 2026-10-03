@@ -220,12 +220,22 @@ describe('Manual wallet top-up (e2e)', () => {
     };
 
     beforeAll(async () => {
-      // A second administrator: an ordinary account given the admin role, signed in again so the token carries it.
+      // A second administrator on the finance team: an ordinary account given both roles, signed in again so the
+      // token carries them.
+      const person = await api.registerUser();
+      const roles = await prisma.role.findMany({ where: { slug: { in: ['admin', 'finance-team'] } } });
+      await prisma.userRole.createMany({ data: roles.map((role) => ({ userId: person.id, roleId: role.id })) });
+      secondAdminToken = await api.login(person.email);
+      secondAdminId = person.id;
+    });
+
+    it('is refused to a plain admin who is not on the finance team', async () => {
       const person = await api.registerUser();
       const adminRole = await prisma.role.findUniqueOrThrow({ where: { slug: 'admin' } });
       await prisma.userRole.create({ data: { userId: person.id, roleId: adminRole.id } });
-      secondAdminToken = await api.login(person.email);
-      secondAdminId = person.id;
+      const plainAdminToken = await api.login(person.email);
+
+      await api.post(topUpUrl(), plainAdminToken).send(body({ amount: 100 })).expect(403);
     });
 
     it('is recorded but not credited, and waits in the approval list', async () => {

@@ -90,6 +90,16 @@ Deploy the previous commit: check it out or revert on the branch, push, and depl
   admin (since 3 Oct 2026). Make sure the super admin account can sign in, then give the finance role to the right
   people on the admin portal's Users page.
 
+### Release of 3 Oct 2026 (development tasks 12–24)
+
+- New migrations `20261003140000_badge_achievements` to `20261003190000_admin_daily_summary` were written by hand
+  (no MySQL was available). Run `npx prisma migrate deploy` on **staging first** and check each one applies.
+- Subscription plans are created **switched off**. Set real names, prices and benefits on the admin Subscription
+  Plans page before switching one on. Charges come from the merchant wallet with 18% GST and an invoice each.
+- Six scheduled jobs start on their own (India time) and appear on the Scheduled Jobs page after their first run;
+  any of them can be switched off there. Redis must be running for them.
+- To show AI costs, set input and output prices per 1,000 tokens on the AI provider.
+
 ## Backup and restore
 
 **Tested 23 Sep 2026, against a real MySQL instance — not a dry run.** At the data volume that

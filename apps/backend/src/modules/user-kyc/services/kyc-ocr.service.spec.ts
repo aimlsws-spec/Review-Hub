@@ -9,6 +9,7 @@ describe('KycOcrService', () => {
   };
   const prisma = { user: { findUnique: jest.fn() } };
   const documents = { update: jest.fn() };
+  const aiCallLog = { record: jest.fn() };
   let service: KycOcrService;
 
   const input = {
@@ -23,7 +24,7 @@ describe('KycOcrService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     prisma.user.findUnique.mockResolvedValue({ firstName: 'Rahul', lastName: 'Sharma' });
-    service = new KycOcrService(http as never, config as never, prisma as never, documents as never);
+    service = new KycOcrService(http as never, config as never, prisma as never, documents as never, aiCallLog as never);
   });
 
   it('sends the image, typed number and account name, and stores only the match flags', async () => {
@@ -38,6 +39,10 @@ describe('KycOcrService', () => {
     expect((form as FormData).get('fullName')).toBe('Rahul Sharma');
     expect(options.headers).toEqual({ 'X-Api-Key': 'key', 'X-Api-Secret': 'secret' });
     expect(documents.update).toHaveBeenCalledWith('doc-1', { ocrCheck: result, ocrCheckedAt: expect.any(Date) });
+    // Logged by size only: never the document or the typed number.
+    const logged = aiCallLog.record.mock.calls[0][0];
+    expect(logged).toEqual(expect.objectContaining({ feature: 'KYC_OCR', status: 'SUCCESS', confidence: 1, userId: 'user-1' }));
+    expect(JSON.stringify(logged)).not.toContain('ABCPD1234F');
   });
 
   it('records UNAVAILABLE, and does not throw, when the AI service is down', async () => {

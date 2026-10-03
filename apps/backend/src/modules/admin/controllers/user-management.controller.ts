@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
+import { PaginationQueryDto } from '@common/dto';
 import { AdminRole, SystemRole } from '@common/enums';
 
 import { Roles } from '../../auth/decorators';
@@ -75,5 +76,12 @@ export class UserManagementController {
   @ApiOperation({ summary: 'Reactivate a suspended or banned user' })
   async reactivate(@Param('userId') userId: string, @CurrentUser('id') adminId: string) {
     return this.userManagementService.reactivate(userId, adminId);
+  }
+
+  @Get(':userId/referrals')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'One level of the referral tree: who this user referred, and who referred them' })
+  async getReferrals(@Param('userId') userId: string, @Query() query: PaginationQueryDto) {
+    return this.userManagementService.getReferrals(userId, query.page, query.limit);
   }
 }

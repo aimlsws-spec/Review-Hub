@@ -64,6 +64,8 @@ import type {
   SupportCategory,
   SupportPriority,
   StaffRole,
+  ReferralLevel,
+  AiMonitoring,
   DashboardSeries,
   SubscriptionPlan,
   SubscriptionPlanForm,
@@ -94,8 +96,15 @@ export const adminApi = {
   updateSubscriptionPlan: (planId: string, changes: Omit<SubscriptionPlanForm, 'code'>) =>
     apiClient.patch<ApiResponse<SubscriptionPlan>>(`/admin/subscription-plans/${planId}`, changes),
 
+  getAiMonitoring: (days: number) => apiClient.get<ApiResponse<AiMonitoring>>('/admin/ai/monitoring', { params: { days } }),
+
+  getDailySummary: () => apiClient.get<ApiResponse<{ day: string; text: string } | null>>('/admin/dashboard/summary'),
+
   getDashboardSeries: (days: number) =>
     apiClient.get<ApiResponse<DashboardSeries>>('/admin/dashboard/series', { params: { days } }),
+
+  getUserReferrals: (userId: string, params: { page: number; limit: number } = { page: 1, limit: 50 }) =>
+    apiClient.get<ApiResponse<ReferralLevel>>(`/admin/users/${userId}/referrals`, { params }),
 
   // Super admin only.
   getUserRoles: (userId: string) => apiClient.get<ApiResponse<{ roles: string[] }>>(`/admin/users/${userId}/roles`),
@@ -424,10 +433,10 @@ export const adminApi = {
   // ── AI providers ───────────────────────────────────────────────────────
   listAiProviders: () => apiClient.get<ApiResponse<AiProvider[]>>('/admin/ai-providers'),
 
-  createAiProvider: (data: { name: string; provider: string; apiEndpoint?: string; model?: string; enabled?: boolean; priority?: number; timeout?: number }) =>
+  createAiProvider: (data: { name: string; provider: string; apiEndpoint?: string; model?: string; enabled?: boolean; priority?: number; timeout?: number; configuration?: Record<string, unknown> }) =>
     apiClient.post<ApiResponse<AiProvider>>('/admin/ai-providers', data),
 
-  updateAiProvider: (providerId: string, data: Partial<{ apiEndpoint: string; model: string; enabled: boolean; priority: number; timeout: number }>) =>
+  updateAiProvider: (providerId: string, data: Partial<{ apiEndpoint: string; model: string; enabled: boolean; priority: number; timeout: number; configuration: Record<string, unknown> }>) =>
     apiClient.patch<ApiResponse<AiProvider>>(`/admin/ai-providers/${providerId}`, data),
 
   deleteAiProvider: (providerId: string) => apiClient.delete<ApiResponse<AiProvider>>(`/admin/ai-providers/${providerId}`),

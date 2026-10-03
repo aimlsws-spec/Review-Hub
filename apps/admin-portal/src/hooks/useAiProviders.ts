@@ -13,6 +13,8 @@ export interface AiProviderFormData {
   enabled?: boolean
   priority?: number
   timeout?: number
+  /** Free-form provider settings. Prices for AI cost tracking live here: inputPricePer1kTokens, outputPricePer1kTokens. */
+  configuration?: Record<string, unknown>
 }
 
 /** Fetches every configured AI provider, with their models and prompt templates. */

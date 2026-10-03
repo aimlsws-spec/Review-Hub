@@ -1,13 +1,17 @@
 import { SystemRole } from '@common/enums';
 
 import { ROLES_KEY } from '../../auth/decorators';
-import { AdminDashboardService } from '../services';
+import { AdminDailySummaryService, AdminDashboardService } from '../services';
 
 import { AdminDashboardController } from './admin-dashboard.controller';
 
 describe('AdminDashboardController', () => {
   const service = { getSeries: jest.fn() };
-  const controller = new AdminDashboardController(service as unknown as AdminDashboardService);
+  const summaryService = { getLatest: jest.fn().mockResolvedValue({ day: '2026-10-02', text: 'Summary' }) };
+  const controller = new AdminDashboardController(
+    service as unknown as AdminDashboardService,
+    summaryService as unknown as AdminDailySummaryService,
+  );
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -21,5 +25,9 @@ describe('AdminDashboardController', () => {
 
     expect(service.getSeries).toHaveBeenNthCalledWith(1, 30);
     expect(service.getSeries).toHaveBeenNthCalledWith(2, 7);
+  });
+
+  it('returns the latest daily summary', async () => {
+    await expect(controller.getLatestSummary()).resolves.toEqual({ day: '2026-10-02', text: 'Summary' });
   });
 });

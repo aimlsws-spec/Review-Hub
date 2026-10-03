@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../data/models/notification_model.dart';
+import '../../data/notification_repository.dart';
 import '../../providers/notification_providers.dart';
 
 class NotificationsScreen extends ConsumerWidget {

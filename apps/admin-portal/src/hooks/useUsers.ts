@@ -25,6 +25,14 @@ export function useUserDetailQuery(userId: string | null) {
   })
 }
 
+/** One level of a user's referral tree: their direct referrals (newest 50) and who referred them. */
+export function useReferralsQuery(userId: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.USER_REFERRALS, userId],
+    queryFn: () => adminApi.getUserReferrals(userId),
+  })
+}
+
 /** A user's roles, for the super admin's staff roles panel. */
 export function useUserRolesQuery(userId: string) {
   return useQuery({

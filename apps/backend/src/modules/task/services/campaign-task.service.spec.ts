@@ -53,6 +53,15 @@ describe('CampaignTaskService', () => {
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('task.created', expect.any(Object));
     });
 
+    it('keeps the completion limit the merchant chose', async () => {
+      mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+      mockCampaignTaskRepository.create.mockResolvedValue(task);
+
+      await service.create('campaign-1', { title: 'Visit us', taskType: 'TEXT', completionLimit: 'DAILY', maxCompletionsPerPeriod: 2 } as never);
+
+      expect(mockCampaignTaskRepository.create).toHaveBeenCalledWith(expect.objectContaining({ completionLimit: 'DAILY', maxCompletionsPerPeriod: 2 }));
+    });
+
     it('should reject adding a task to a non-editable campaign', async () => {
       mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
 

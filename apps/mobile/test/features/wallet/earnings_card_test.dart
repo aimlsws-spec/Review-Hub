@@ -11,12 +11,12 @@ import 'package:viral_kar/features/wallet/providers/wallet_providers.dart';
 
 /// Serves the earnings the test sets, and records which chart periods were asked for.
 class _FakeWalletRepository extends Fake implements WalletRepository {
-  Result<EarningsBreakdownModel> earnings = Result.success(
-    const EarningsBreakdownModel(tasks: 120, bonus: 15, referral: 50, total: 185),
+  Result<EarningsBreakdownModel> earnings = const Result.success(
+    EarningsBreakdownModel(tasks: 120, bonus: 15, referral: 50, total: 185),
   );
   Map<EarningsPeriod, Result<EarningsChartModel>> charts = {
-    EarningsPeriod.week: Result.success(
-      const EarningsChartModel(
+    EarningsPeriod.week: const Result.success(
+      EarningsChartModel(
         points: [
           EarningsPointModel(key: '2026-10-02', amount: 40),
           EarningsPointModel(key: '2026-10-03', amount: 10),
@@ -24,8 +24,8 @@ class _FakeWalletRepository extends Fake implements WalletRepository {
         total: 50,
       ),
     ),
-    EarningsPeriod.month: Result.success(
-      const EarningsChartModel(
+    EarningsPeriod.month: const Result.success(
+      EarningsChartModel(
         period: EarningsPeriod.month,
         points: [
           EarningsPointModel(key: '2026-09'),
@@ -86,8 +86,8 @@ void main() {
 
   testWidgets('says when the chart or the earnings could not be loaded', (tester) async {
     final fake = _FakeWalletRepository()
-      ..earnings = Result.failure(const ServerFailure('Earnings are down'))
-      ..charts[EarningsPeriod.week] = Result.failure(const NetworkFailure('No connection'));
+      ..earnings = const Result.failure(ServerFailure('Earnings are down'))
+      ..charts[EarningsPeriod.week] = const Result.failure(NetworkFailure('No connection'));
     await _pump(tester, fake);
 
     expect(find.text('Earnings are down'), findsOneWidget);

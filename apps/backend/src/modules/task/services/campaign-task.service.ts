@@ -45,6 +45,9 @@ export class CampaignTaskService {
       // A QR/location task is only ever verified by its own deterministic check, regardless of what proof type the
       // caller asked for — the submission screen keys off this to show the scanner/check-in UI instead of a file picker.
       proofType: this.forcedProofType(dto.taskType) ?? dto.proofType,
+      // How often one person may complete it (FR-016). Left out, the schema defaults apply: once only.
+      completionLimit: dto.completionLimit,
+      maxCompletionsPerPeriod: dto.maxCompletionsPerPeriod,
       configuration: configuration as never,
     });
 

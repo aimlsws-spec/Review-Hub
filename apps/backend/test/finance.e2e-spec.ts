@@ -115,7 +115,11 @@ describe('Finance: TDS and credit/debit notes (e2e)', () => {
       await approve(id).expect(200);
 
       const deduction = await prisma.tdsDeduction.findUniqueOrThrow({ where: { withdrawalId: id } });
-      expect(deduction.panNumber).toMatch(/^ABCDE\d{4}F$/);
+      // Kept encrypted, like the KYC document it came from; the TDS export used for filing shows it in full.
+      expect(deduction.panNumber).toMatch(/^enc:v1:/);
+      expect(deduction.panNumber).not.toMatch(/ABCDE\d{4}F/);
+      const csv = (await api.get('/admin/tds/export', adminToken).expect(200)).text;
+      expect(csv).toMatch(/ABCDE\d{4}F/);
       expect(Number(deduction.grossAmount)).toBe(1000);
       expect(Number(deduction.tdsAmount)).toBe(100);
       expect(Number(deduction.netAmount)).toBe(900);

@@ -1,12 +1,21 @@
 import { Logger, Module } from '@nestjs/common';
 
 import { MerchantModule } from '../merchant/merchant.module';
+import { NotificationModule } from '../notification/notification.module';
 
-import { CampaignController, MerchantCampaignController, PublicCampaignController, SavedCampaignController, UserCampaignController } from './controllers';
+import {
+  CampaignController,
+  MerchantCampaignController,
+  MerchantSuggestionController,
+  PublicCampaignController,
+  SavedCampaignController,
+  UserCampaignController,
+} from './controllers';
 import { CampaignOwnershipGuard } from './guards';
-import { CampaignRepository, SavedCampaignRepository } from './repositories';
+import { CampaignRepository, MerchantSuggestionRepository, SavedCampaignRepository } from './repositories';
 import {
   CampaignBuilderService,
+  CampaignOptimizerService,
   CampaignPerformanceService,
   CampaignPolicyService,
   CampaignService,
@@ -17,10 +26,31 @@ import {
 } from './services';
 
 @Module({
-  imports: [MerchantModule],
-  controllers: [MerchantCampaignController, CampaignController, PublicCampaignController, UserCampaignController, SavedCampaignController],
-  providers: [CampaignService, CampaignBuilderService, CampaignPerformanceService, CampaignPolicyService, MerchantAnalyticsService, MerchantInsightsService, MerchantReportExportService, SavedCampaignService, CampaignRepository, SavedCampaignRepository, CampaignOwnershipGuard],
-  exports: [CampaignService, CampaignPolicyService, CampaignRepository, CampaignOwnershipGuard],
+  imports: [MerchantModule, NotificationModule],
+  controllers: [
+    MerchantCampaignController,
+    CampaignController,
+    PublicCampaignController,
+    UserCampaignController,
+    SavedCampaignController,
+    MerchantSuggestionController,
+  ],
+  providers: [
+    CampaignService,
+    CampaignBuilderService,
+    CampaignPerformanceService,
+    CampaignPolicyService,
+    MerchantAnalyticsService,
+    MerchantInsightsService,
+    MerchantReportExportService,
+    SavedCampaignService,
+    CampaignOptimizerService,
+    CampaignRepository,
+    SavedCampaignRepository,
+    MerchantSuggestionRepository,
+    CampaignOwnershipGuard,
+  ],
+  exports: [CampaignService, CampaignPolicyService, CampaignRepository, CampaignOwnershipGuard, CampaignOptimizerService, CampaignPerformanceService],
 })
 export class CampaignModule {
   private readonly logger = new Logger(CampaignModule.name);

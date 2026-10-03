@@ -32,6 +32,7 @@ import type {
   WebhookDelivery,
   SubscriptionOverview,
   MerchantSubscription,
+  StoredSuggestion,
 } from '@/types'
 import type { Customer, CustomerType, CustomerStatus } from '@/types/customer'
 import type { ApiReview, ApiReviewSource, ApiReviewStatus, ReviewStats } from '@/types/review'
@@ -317,6 +318,13 @@ export const merchantApi = {
       averageLifetimeValue: number
       retentionRate: number
     }>>(`/merchants/${merchantId}/customers/stats`),
+
+  // Suggestions from the daily campaign optimizer
+  listSuggestions: (merchantId: string) =>
+    apiClient.get<ApiResponse<StoredSuggestion[]>>(`/merchants/${merchantId}/suggestions`),
+
+  dismissSuggestion: (merchantId: string, suggestionId: string) =>
+    apiClient.post<ApiResponse<{ dismissed: boolean }>>(`/merchants/${merchantId}/suggestions/${suggestionId}/dismiss`),
 
   // Plan and featured campaigns
   getSubscription: (merchantId: string) =>

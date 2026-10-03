@@ -88,4 +88,64 @@ export class UserAdminRepository {
       data: { status: 'REVOKED', revokedAt: new Date() },
     });
   }
+
+  /**
+   * One level of the referral tree: the people this user referred, newest first, each with how many people they
+   * referred in turn so the admin page can offer to open that level. At most 50 per page.
+   */
+  async getReferrals(userId: string, page: number, limit: number) {
+    const cappedLimit = Math.min(limit, 50);
+    const [data, total] = await Promise.all([
+      this.prisma.referral.findMany({
+        where: { referrerId: userId, deletedAt: null },
+        include: {
+          referredUser: {
+            select: { id: true, firstName: true, lastName: true, createdAt: true },
+          },
+        },
+        skip: (page - 1) * cappedLimit,
+        take: cappedLimit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.referral.count({ where: { referrerId: userId, deletedAt: null } }),
+    ]);
+
+    const referredUserIds = data.map((r) => r.referredUserId);
+    const counts =
+      referredUserIds.length === 0
+        ? []
+        : await this.prisma.referral.groupBy({
+            by: ['referrerId'],
+            where: { referrerId: { in: referredUserIds }, deletedAt: null },
+            _count: { _all: true },
+          });
+    const countMap = Object.fromEntries(counts.map(c => [c.referrerId, c._count._all]));
+
+    const mapped = data.map((ref) => ({
+      id: ref.id,
+      referredUserId: ref.referredUserId,
+      name: `${ref.referredUser.firstName} ${ref.referredUser.lastName}`.trim(),
+      joinedAt: ref.referredUser.createdAt,
+      rewardIssued: ref.rewardIssued,
+      ownReferralCount: countMap[ref.referredUserId] ?? 0,
+    }));
+
+    return { data: mapped, total, page, limit: cappedLimit };
+  }
+
+  /** Who referred this user, if anyone: the level above in the tree. */
+  async getReferrer(userId: string) {
+    const ref = await this.prisma.referral.findFirst({
+      where: { referredUserId: userId, deletedAt: null },
+      include: {
+        referrer: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+    if (!ref) return null;
+    return {
+      id: ref.id,
+      referrerId: ref.referrerId,
+      name: `${ref.referrer.firstName} ${ref.referrer.lastName}`.trim(),
+    };
+  }
 }

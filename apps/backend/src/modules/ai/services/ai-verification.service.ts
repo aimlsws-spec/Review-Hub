@@ -3,6 +3,7 @@ import { FraudRiskLevel, Prisma } from '@prisma/client';
 
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { AI_CALL_FEATURES, AiCallLogService } from '../../../shared/ai-call-log';
 import { LocalStorageService } from '../../../storage/storage.service';
 import { FraudFlagRepository } from '../../admin/repositories';
 import { SubmissionSignalRepository } from '../../risk/repositories';
@@ -23,6 +24,7 @@ export class AiVerificationService {
     private readonly fraudFlagRepository: FraudFlagRepository,
     private readonly duplicateImageService: DuplicateImageService,
     private readonly signalRepository: SubmissionSignalRepository,
+    private readonly aiCallLog: AiCallLogService,
   ) {}
 
   /** Claims the oldest queued job, if any, for the calling worker to process. */
@@ -72,6 +74,15 @@ export class AiVerificationService {
     await this.jobRepository.markCompleted(jobId, {
       rawResponse: dto.rawResponse as Prisma.InputJsonValue | undefined,
       processingTimeMs: dto.processingTimeMs ?? 0,
+    });
+    void this.aiCallLog.record({
+      feature: AI_CALL_FEATURES.SUBMISSION_VERIFICATION,
+      status: 'SUCCESS',
+      latencyMs: dto.processingTimeMs ?? this.elapsedSince(job.startedAt),
+      output: { decision: dto.decision, explanation: dto.explanation },
+      model: [job.engine, job.model].filter(Boolean).join('/') || null,
+      confidence: dto.confidence,
+      submissionId: job.submissionId,
     });
 
     if (fraudScore > AI_VERIFICATION_THRESHOLDS.MAX_FRAUD_SCORE) {
@@ -126,11 +137,22 @@ export class AiVerificationService {
     }
   }
 
+  private elapsedSince(startedAt: Date | null | undefined): number {
+    return startedAt ? Date.now() - startedAt.getTime() : 0;
+  }
+
   async markFailed(jobId: string, errorMessage: string) {
     const job = await this.jobRepository.findById(jobId);
     if (!job) throw new NotFoundException('AI verification job');
 
     await this.jobRepository.markFailed(jobId, errorMessage);
+    void this.aiCallLog.record({
+      feature: AI_CALL_FEATURES.SUBMISSION_VERIFICATION,
+      status: 'FAILED',
+      latencyMs: this.elapsedSince(job.startedAt),
+      model: [job.engine, job.model].filter(Boolean).join('/') || null,
+      submissionId: job.submissionId,
+    });
     await this.submissionService.deferToManualReview(job.submissionId);
     return { submissionId: job.submissionId, outcome: 'PENDING_MANUAL' as const };
   }

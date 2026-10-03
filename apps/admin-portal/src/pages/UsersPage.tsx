@@ -13,6 +13,7 @@ import {
 import { useState } from 'react'
 
 import { AccountRiskPanel } from '@/components/AccountRiskPanel'
+import { ReferralTreePanel } from '@/components/ReferralTreePanel'
 import { StaffRolesPanel } from '@/components/StaffRolesPanel'
 import { ITEMS_PER_PAGE, USER_STATUS_LABELS } from '@/constants'
 import { useAuth } from '@/contexts/AuthContext'
@@ -221,6 +222,8 @@ export default function UsersPage() {
             </div>
 
             <AccountRiskPanel userId={detail.id} />
+
+            <ReferralTreePanel userId={detail.id} />
 
             {isSuperAdmin && <StaffRolesPanel userId={detail.id} />}
 

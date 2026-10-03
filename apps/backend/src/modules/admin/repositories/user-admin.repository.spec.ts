@@ -17,6 +17,7 @@ describe('UserAdminRepository', () => {
     userRole: { findMany: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
     role: { findFirst: jest.fn() },
     userSession: { updateMany: jest.fn() },
+    referral: { findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn(), findFirst: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -101,6 +102,46 @@ describe('UserAdminRepository', () => {
         where: { userId: 'user-1', status: 'ACTIVE' },
         data: { status: 'REVOKED', revokedAt: expect.any(Date) },
       });
+    });
+  });
+
+  describe('referral tree', () => {
+    it('lists one level of referrals, each with how many people they referred in turn', async () => {
+      mockPrisma.referral.findMany.mockResolvedValue([
+        { id: 'r-1', referredUserId: 'u-2', rewardIssued: true, referredUser: { firstName: 'Asha', lastName: 'Rao', createdAt: new Date('2026-09-01') } },
+        { id: 'r-2', referredUserId: 'u-3', rewardIssued: false, referredUser: { firstName: 'Ravi', lastName: '', createdAt: new Date('2026-09-02') } },
+      ]);
+      mockPrisma.referral.count.mockResolvedValue(2);
+      mockPrisma.referral.groupBy.mockResolvedValue([{ referrerId: 'u-2', _count: { _all: 4 } }]);
+
+      const result = await repository.getReferrals('u-1', 1, 200);
+
+      expect(mockPrisma.referral.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { referrerId: 'u-1', deletedAt: null }, take: 50, skip: 0 }));
+      expect(result).toEqual({
+        data: [
+          { id: 'r-1', referredUserId: 'u-2', name: 'Asha Rao', joinedAt: new Date('2026-09-01'), rewardIssued: true, ownReferralCount: 4 },
+          { id: 'r-2', referredUserId: 'u-3', name: 'Ravi', joinedAt: new Date('2026-09-02'), rewardIssued: false, ownReferralCount: 0 },
+        ],
+        total: 2,
+        page: 1,
+        limit: 50,
+      });
+    });
+
+    it('skips the count query when there are no referrals', async () => {
+      mockPrisma.referral.findMany.mockResolvedValue([]);
+      mockPrisma.referral.count.mockResolvedValue(0);
+
+      await repository.getReferrals('u-1', 1, 20);
+
+      expect(mockPrisma.referral.groupBy).not.toHaveBeenCalled();
+    });
+
+    it('finds who referred the user, or nobody', async () => {
+      mockPrisma.referral.findFirst.mockResolvedValueOnce({ id: 'r-0', referrerId: 'u-0', referrer: { firstName: 'Meena', lastName: 'K' } }).mockResolvedValueOnce(null);
+
+      await expect(repository.getReferrer('u-1')).resolves.toEqual({ id: 'r-0', referrerId: 'u-0', name: 'Meena K' });
+      await expect(repository.getReferrer('u-9')).resolves.toBeNull();
     });
   });
 });

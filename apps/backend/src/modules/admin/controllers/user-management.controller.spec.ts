@@ -19,6 +19,7 @@ describe('UserManagementController', () => {
     getRoles: jest.fn(),
     grantRole: jest.fn(),
     revokeRole: jest.fn(),
+    getReferrals: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -71,5 +72,11 @@ describe('UserManagementController', () => {
   it('reactivate should delegate to the service', async () => {
     await controller.reactivate('user-1', 'admin-1');
     expect(mockUserManagementService.reactivate).toHaveBeenCalledWith('user-1', 'admin-1');
+  });
+
+  it('passes the page of referrals asked for', async () => {
+    await controller.getReferrals('user-1', { page: 2, limit: 10 } as never);
+
+    expect(mockUserManagementService.getReferrals).toHaveBeenCalledWith('user-1', 2, 10);
   });
 });

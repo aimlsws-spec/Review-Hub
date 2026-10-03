@@ -9,3 +9,4 @@ export * from './platform-configuration.service';
 export * from './kyc-management.service';
 export * from './city.service';
 export * from './admin-dashboard.service';
+export * from './admin-daily-summary.service';

@@ -5,7 +5,7 @@ import { RiskModule } from '../risk/risk.module';
 import { TaskModule } from '../task/task.module';
 
 import { AiAssistModule } from './ai-assist.module';
-import { AdminAiProviderController, AiVerificationController, AiAssistController } from './controllers';
+import { AdminAiMonitoringController, AdminAiProviderController, AiVerificationController, AiAssistController } from './controllers';
 import { ApiKeyGuard } from './guards';
 import {
   AiModelRepository,
@@ -18,7 +18,7 @@ import { AiProviderAdminService, AiVerificationService } from './services';
 
 @Module({
   imports: [TaskModule, AdminModule, AiAssistModule, RiskModule],
-  controllers: [AiVerificationController, AdminAiProviderController, AiAssistController],
+  controllers: [AiVerificationController, AdminAiProviderController, AdminAiMonitoringController, AiAssistController],
   providers: [
     AiVerificationService,
     AiVerificationJobRepository,

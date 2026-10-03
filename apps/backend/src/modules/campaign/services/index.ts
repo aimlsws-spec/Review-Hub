@@ -1,4 +1,5 @@
 export * from './campaign-builder.service';
+export * from './campaign-optimizer.service';
 export * from './campaign-performance.service';
 export * from './campaign-policy.service';
 export * from './merchant-insights.service';

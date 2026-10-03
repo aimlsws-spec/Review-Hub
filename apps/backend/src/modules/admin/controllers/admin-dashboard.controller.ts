@@ -7,7 +7,7 @@ import { SystemRole } from '@common/enums';
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
 import { DashboardSeriesQueryDto } from '../dto';
-import { AdminDashboardService } from '../services';
+import { AdminDailySummaryService, AdminDashboardService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.ADMIN)
 @Controller({ path: 'admin/dashboard', version: '1' })
@@ -15,12 +15,22 @@ import { AdminDashboardService } from '../services';
 @Roles(SystemRole.Admin)
 @ApiBearerAuth()
 export class AdminDashboardController {
-  constructor(private readonly dashboardService: AdminDashboardService) {}
+  constructor(
+    private readonly dashboardService: AdminDashboardService,
+    private readonly summaryService: AdminDailySummaryService,
+  ) {}
 
   @Get('series')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Platform activity per India day: commission, new users, campaigns, withdrawals, fraud flags' })
   async getSeries(@Query() query: DashboardSeriesQueryDto) {
     return this.dashboardService.getSeries(query.days ?? 30);
+  }
+
+  @Get('summary')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'The latest daily summary (yesterday in India time), or null before the first one' })
+  async getLatestSummary() {
+    return this.summaryService.getLatest();
   }
 }

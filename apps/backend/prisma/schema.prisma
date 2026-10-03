@@ -908,6 +908,7 @@ model Merchant {
   invoices          Invoice[]
   subscriptions     MerchantSubscription[]
   serviceCharges    MerchantServiceCharge[]
+  suggestions       MerchantSuggestion[]
 
   @@index([businessName])
   @@index([email])
@@ -1691,6 +1692,39 @@ model Settlement {
 }
 
 /// The GST invoice for one Settlement's commission — the platform billing the merchant for its service fee. platformGstNumber is a placeholder until the company's real GSTIN is available; swap it in via PLATFORM_GST_NUMBER.
+/// Yesterday's platform summary for admins, built each morning by the daily-admin-summary job. One per IST day.
+model AdminDailySummary {
+  id        String   @id @default(uuid())
+  /// The IST day it covers, "2026-10-02".
+  day       String   @unique @db.VarChar(10)
+  text      String   @db.Text
+  figures   Json
+  createdAt DateTime @default(now())
+
+  @@map("admin_daily_summaries")
+}
+
+/// A suggestion the daily campaign optimizer found for a merchant (same rules as the on-demand insights). Kept so
+/// the merchant can see it later and is not told the same thing every day.
+model MerchantSuggestion {
+  id          String    @id @default(uuid())
+  merchantId  String
+  campaignId  String?
+  /// InsightCode, e.g. LOW_COMPLETION_RATE.
+  code        String    @db.VarChar(60)
+  severity    String    @db.VarChar(20)
+  title       String    @db.VarChar(200)
+  detail      String    @db.Text
+  createdAt   DateTime  @default(now())
+  dismissedAt DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId, createdAt])
+  @@index([merchantId, code, campaignId])
+  @@map("merchant_suggestions")
+}
+
 /// A plan merchants subscribe to, paid monthly from the merchant wallet. Seeded switched off: prices and benefits are
 /// set by the owner on the admin Subscription Plans page before any is switched on.
 model SubscriptionPlan {
@@ -2569,6 +2603,8 @@ enum AIResponseStatus {
   FAILED
   TIMEOUT
   RATE_LIMITED
+  /// The AI answered with its plain template instead of the model (e.g. no model configured).
+  FALLBACK
 }
 
 enum SettingDataType {
@@ -2854,21 +2890,36 @@ model AIPromptTemplate {
   @@map("ai_prompt_templates")
 }
 
+/// One outbound AI call (AiCallLogService). Never holds prompts, answers or personal data: sizes and ids only.
 model AIUsageLog {
   id             String           @id @default(uuid())
-  providerId     String
+  /// The configured provider whose prices were used, when one is set up.
+  providerId     String?
+  /// What the call was for, e.g. TEXT_SUGGESTION, KYC_OCR (AI_CALL_FEATURES).
+  feature        String           @default("UNKNOWN") @db.VarChar(40)
+  /// The engine/model that answered, when the AI service says.
+  model          String?          @db.VarChar(100)
+  promptVersion  String?          @db.VarChar(40)
   userId         String?
   submissionId   String?
+  /// inputTokens + outputTokens.
   tokens         Int              @default(0)
+  /// Estimated from the size of what was sent (about 4 characters a token): the AI service does not report usage.
+  inputTokens    Int?
+  outputTokens   Int?
+  /// Milliseconds.
   latency        Int              @default(0)
   cost           Decimal          @default(0) @db.Decimal(10, 6)
+  /// 0–1, when the model gives one (submission verification, KYC reading).
+  confidence     Decimal?         @db.Decimal(5, 4)
   responseStatus AIResponseStatus @default(SUCCESS)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
 
-  provider AIProvider @relation(fields: [providerId], references: [id])
+  provider AIProvider? @relation(fields: [providerId], references: [id])
 
+  @@index([feature, createdAt])
   @@index([providerId])
   @@index([createdAt])
   @@index([userId])

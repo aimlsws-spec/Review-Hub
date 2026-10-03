@@ -2,10 +2,13 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 
+import { AdminDailySummaryService } from '../../modules/admin/services';
+import { CampaignOptimizerService } from '../../modules/campaign/services';
 import { GamificationService } from '../../modules/gamification/services';
 import { JobRunRecorder } from '../../modules/scheduled-jobs/services';
 import { MerchantSubscriptionService } from '../../modules/subscription/services';
 import { QUEUE_NAMES } from '../../queues/queue.constants';
+import { AiCallLogService } from '../../shared/ai-call-log';
 import { PLATFORM_JOBS, PlatformJobName } from '../platform-jobs.constants';
 
 type Handler = () => Promise<Record<string, unknown>>;
@@ -19,15 +22,21 @@ export class PlatformJobsProcessor extends WorkerHost {
     private readonly recorder: JobRunRecorder,
     private readonly gamificationService: GamificationService,
     private readonly subscriptionService: MerchantSubscriptionService,
+    private readonly aiCallLog: AiCallLogService,
+    private readonly optimizerService: CampaignOptimizerService,
+    private readonly summaryService: AdminDailySummaryService,
   ) {
     super();
   }
 
-  /** What each job does. Every job in PLATFORM_JOBS has an entry, which the spec checks. */
-  readonly handlers: Partial<Record<PlatformJobName, Handler>> = {
+  /** What each job does. A full Record, so a job added to PLATFORM_JOBS without a handler does not compile. */
+  readonly handlers: Record<PlatformJobName, Handler> = {
     'top-earner-badges': () => this.gamificationService.awardTopEarners(),
     'subscription-renewals': async () => ({ ...(await this.subscriptionService.renewDue()) }),
     'featured-campaign-expiry': () => this.subscriptionService.expireFeaturedCampaigns(),
+    'ai-call-log-cleanup': () => this.aiCallLog.cleanup(),
+    'campaign-optimizer': () => this.optimizerService.run(),
+    'daily-admin-summary': async () => ({ ...(await this.summaryService.buildForYesterday()) }),
   };
 
   async process(job: Job): Promise<void> {

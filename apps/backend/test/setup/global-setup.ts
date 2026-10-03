@@ -40,6 +40,16 @@ export default async function globalSetup(): Promise<void> {
     await prisma.platformConfiguration.updateMany({
       data: { bankCoolingHours: 0, maintenanceMode: false, maintenanceMessage: null, minimumAppVersion: '1.0.0', updateUrl: null },
     });
+
+    // Money actions need the finance team role (or super admin). The seeded admin the flows sign in as is given it, as
+    // a real finance administrator would be; the tests that check a plain admin is refused make their own admin.
+    const admin = await prisma.user.findUniqueOrThrow({ where: { email: 'admin@reviewhub.com' } });
+    const finance = await prisma.role.findUniqueOrThrow({ where: { slug: 'finance-team' } });
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: admin.id, roleId: finance.id } },
+      update: {},
+      create: { userId: admin.id, roleId: finance.id },
+    });
   } finally {
     await prisma.$disconnect();
   }

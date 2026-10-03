@@ -35,9 +35,34 @@ interface ProviderFormState {
   priority: string
   timeout: string
   enabled: boolean
+  /** Rupees per 1,000 tokens, for the AI monitoring cost figures. Empty means not priced. */
+  inputPrice: string
+  outputPrice: string
 }
 
-const EMPTY_FORM: ProviderFormState = { name: '', provider: '', apiEndpoint: '', model: '', priority: '0', timeout: '30000', enabled: true }
+const EMPTY_FORM: ProviderFormState = {
+  name: '',
+  provider: '',
+  apiEndpoint: '',
+  model: '',
+  priority: '0',
+  timeout: '30000',
+  enabled: true,
+  inputPrice: '',
+  outputPrice: '',
+}
+
+/** The provider's settings with the two prices replaced (or removed when empty), keeping everything else. */
+function withPrices(configuration: unknown, form: ProviderFormState): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...((configuration as Record<string, unknown> | null) ?? {}) }
+  delete next.inputPricePer1kTokens
+  delete next.outputPricePer1kTokens
+  if (form.inputPrice.trim() !== '' && form.outputPrice.trim() !== '') {
+    next.inputPricePer1kTokens = Number(form.inputPrice)
+    next.outputPricePer1kTokens = Number(form.outputPrice)
+  }
+  return next
+}
 
 function UsageLogsModal({ provider, onClose }: { provider: AiProvider; onClose: () => void }) {
   const [page, setPage] = useState(1)
@@ -182,6 +207,8 @@ export default function AiProvidersPage() {
       priority: String(provider.priority),
       timeout: String(provider.timeout),
       enabled: provider.enabled,
+      inputPrice: String((provider.configuration as Record<string, unknown> | null)?.inputPricePer1kTokens ?? ''),
+      outputPrice: String((provider.configuration as Record<string, unknown> | null)?.outputPricePer1kTokens ?? ''),
     })
     setEditorOpen(true)
   }
@@ -200,6 +227,7 @@ export default function AiProvidersPage() {
       priority: Number(form.priority) || 0,
       timeout: Number(form.timeout) || 30000,
       enabled: form.enabled,
+      configuration: withPrices(editing?.configuration, form),
     }
     if (editing) {
       update({ providerId: editing.id, data: shared })
@@ -299,6 +327,25 @@ export default function AiProvidersPage() {
             <Input label="Default model" placeholder="gpt-4o-mini" value={form.model} onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))} />
             <Input label="Priority" type="number" value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} />
             <Input label="Timeout (ms)" type="number" min={1000} value={form.timeout} onChange={(e) => setForm((f) => ({ ...f, timeout: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Input price (₹ per 1,000 tokens)"
+                type="number"
+                min={0}
+                step="0.0001"
+                hint="For the AI monitoring cost figures. Leave both empty if free."
+                value={form.inputPrice}
+                onChange={(e) => setForm((f) => ({ ...f, inputPrice: e.target.value }))}
+              />
+              <Input
+                label="Output price (₹ per 1,000 tokens)"
+                type="number"
+                min={0}
+                step="0.0001"
+                value={form.outputPrice}
+                onChange={(e) => setForm((f) => ({ ...f, outputPrice: e.target.value }))}
+              />
+            </div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input type="checkbox" checked={form.enabled} onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))} />
               Enabled

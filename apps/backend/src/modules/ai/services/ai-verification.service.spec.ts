@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { AiCallLogService } from '../../../shared/ai-call-log';
 import { LocalStorageService } from '../../../storage/storage.service';
 import { FraudFlagRepository } from '../../admin/repositories';
 import { SubmissionSignalRepository } from '../../risk/repositories';
@@ -13,6 +14,7 @@ import { AiVerificationJobRepository } from '../repositories';
 import { AiVerificationService } from './ai-verification.service';
 
 describe('AiVerificationService', () => {
+  const mockAiCallLog = { record: jest.fn() };
   let service: AiVerificationService;
   let jobRepository: jest.Mocked<AiVerificationJobRepository>;
   let submissionService: jest.Mocked<SubmissionService>;
@@ -57,6 +59,7 @@ describe('AiVerificationService', () => {
         { provide: FraudFlagRepository, useValue: mockFraudFlagRepository },
         { provide: DuplicateImageService, useValue: mockDuplicateImageService },
         { provide: SubmissionSignalRepository, useValue: mockSignalRepository },
+        { provide: AiCallLogService, useValue: mockAiCallLog },
       ],
     }).compile();
 
@@ -109,6 +112,9 @@ describe('AiVerificationService', () => {
         expect.objectContaining({ confidence: 0.95, fraudScore: 0.1, decision: AiVerificationDecision.APPROVE }),
       );
       expect(jobRepository.markCompleted).toHaveBeenCalledWith('job-1', expect.objectContaining({ processingTimeMs: 500 }));
+      expect(mockAiCallLog.record).toHaveBeenCalledWith(
+        expect.objectContaining({ feature: 'SUBMISSION_VERIFICATION', status: 'SUCCESS', latencyMs: 500, confidence: 0.95, submissionId: 'submission-1' }),
+      );
     });
 
     it('auto-approves when confidence and fraud score both clear the threshold', async () => {

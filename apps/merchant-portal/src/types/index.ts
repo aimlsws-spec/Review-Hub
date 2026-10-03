@@ -492,6 +492,17 @@ export interface MerchantSubscription {
   plan: MerchantPlan
 }
 
+/** A suggestion the daily campaign optimizer stored (GET /merchants/:id/suggestions). */
+export interface StoredSuggestion {
+  id: string
+  campaignId: string | null
+  code: string
+  severity: string
+  title: string
+  detail: string
+  createdAt: string
+}
+
 export interface SubscriptionOverview {
   current: MerchantSubscription | null
   plans: MerchantPlan[]

@@ -4,6 +4,7 @@ import { AppConfigModule } from '../app-config/app-config.module';
 import { AuthModule } from '../auth/auth.module';
 import { CampaignModule } from '../campaign/campaign.module';
 import { MerchantModule } from '../merchant/merchant.module';
+import { NotificationModule } from '../notification/notification.module';
 import { RiskModule } from '../risk/risk.module';
 import { SupportModule } from '../support/support.module';
 import { TaskModule } from '../task/task.module';
@@ -40,6 +41,7 @@ import {
   UserAdminRepository,
   CityRepository,
   DashboardMetricsRepository,
+  AdminDailySummaryRepository,
 } from './repositories';
 import {
   AuditLogViewerService,
@@ -53,6 +55,7 @@ import {
   KycManagementService,
   CityService,
   AdminDashboardService,
+  AdminDailySummaryService,
 } from './services';
 
 @Module({
@@ -66,6 +69,7 @@ import {
     SupportModule,
     UserKycModule,
     RiskModule,
+    NotificationModule,
   ],
   controllers: [
     AdminDisputeController,
@@ -108,8 +112,10 @@ import {
     CityRepository,
     AdminDashboardService,
     DashboardMetricsRepository,
+    AdminDailySummaryService,
+    AdminDailySummaryRepository,
   ],
-  exports: [FraudFlagRepository, AdminDashboardService],
+  exports: [FraudFlagRepository, AdminDashboardService, AdminDailySummaryService],
 })
 export class AdminModule {
   private readonly logger = new Logger(AdminModule.name);

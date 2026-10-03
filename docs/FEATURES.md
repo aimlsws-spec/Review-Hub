@@ -723,6 +723,85 @@ what used to be four separate round-trips from the mobile home screen.
 
 ---
 
+## 17. Added on 3 Oct 2026 (development tasks 12–24)
+
+### Earnings split and charts (wallet)
+**What**: `GET /wallet/earnings?from&to` splits earnings into task rewards (net of clawbacks), bonuses (daily reward)
+and referral rewards; `GET /wallet/earnings/chart?period=week|month` gives the last 7 India days or 6 months.
+**Where**: `wallet/earnings.ts` (rules), `WalletService`; mobile `wallet/presentation/widgets/earnings_card.dart`
+(fl_chart) on the wallet screen.
+**Details**: worked out from the ledger, so it can never disagree with the balance. There is **no cashback** anywhere
+on the platform, so there is no cashback figure. Refunds and test top-ups are not earnings.
+
+### Tiers (Bronze → Platinum)
+**What**: Bronze level 1–4, Silver 5–9, Gold 10–19, Diamond 20–29, Platinum 30+ (owner's thresholds).
+**Where**: `gamification/tiers.ts`; `GET /gamification/profile` adds `tier`, `nextTier`, `xpToNextTier`,
+`progressPercent`. Mobile: tier badge and progress on the gamification screen, "Tier" on home.
+
+### Achievement badges
+**What**: 100 and 1,000 tasks, 100 reviews, 50 paid referrals, 30-day streak, Top Earner (top 10 task earners of an
+India month, fraud-flagged people skipped). Seeded in the migration and the seed; editable on the admin Badges page.
+**Where**: `GamificationService` (`checkBadges` also runs when a referral is paid; `awardTopEarners` monthly).
+
+### Platform jobs (scheduled)
+**What**: one BullMQ queue `platform-jobs` runs: top-earner-badges (00:30 on the 1st), subscription-renewals (01:00),
+ai-call-log-cleanup (03:00), campaign-optimizer (06:00), daily-admin-summary (08:00), featured-campaign-expiry (hourly),
+all India time.
+**Where**: `jobs/platform-jobs.constants.ts`, `platform-jobs.scheduler.ts`, `processors/platform-jobs.processor.ts`.
+**Details**: every run goes through `JobRunRecorder`, so it appears on the admin Scheduled Jobs page with its log, and
+**switching a job off there skips it**. Editing a cron on that page does not reschedule it; change the constant.
+
+### Admin dashboard charts and daily summary
+**What**: commission, new users, campaigns created, withdrawals asked for and paid, fraud flags per India day
+(`GET /admin/dashboard/series?days=7..90`), and yesterday's summary emailed to super admins and admins each morning
+and shown on the dashboard (`GET /admin/dashboard/summary`).
+**Where**: `admin/repositories/dashboard-metrics.repository.ts` (grouped SQL), `AdminDashboardService`,
+`AdminDailySummaryService`; admin `DashboardCharts`, `DailySummaryCard`.
+**Details**: the summary is written from a template: the AI service has no summarising endpoint.
+
+### Subscriptions and featured campaigns
+**What**: monthly plans paid from the merchant wallet with 18% GST and a tax invoice per charge; a running campaign
+can be featured (top of the listings) for the configured days and price, free while the plan has featured slots.
+**Where**: module `subscription/`; `InvoiceService.generateForServiceCharge`; admin Subscription Plans page and
+featured price on Platform Configuration; merchant Plan page and Feature button on Campaigns.
+**Details**: plans are seeded **switched off** (Basic ₹0, Growth ₹999, Premium ₹2,999). Renewals retry for 3 days
+then expire. `maxActiveCampaigns` is shown but **not enforced** yet. No payment gateway is involved.
+
+### Merchant verification levels
+**What**: L1 mobile verified, L2 email too, L3 business documents approved, L4 on a Premium plan. A badge only.
+**Where**: `merchant/verification-level.ts`; `verificationLevel` on merchant profiles; shared-ui
+`VerificationLevelBadge` in both portals.
+
+### Notification opens and clicks
+**What**: the app reports when a notification is opened (in-app tap) or clicked through (push tap); a broadcast shows
+open and click rates out of its push and in-app messages.
+**Where**: `POST /notifications/:id/engagement`; `NotificationBroadcastRepository.engagement`; admin
+`BroadcastDetailModal`; mobile `pushTapReportProvider` (wired in `main.dart`). Email opens are not tracked.
+
+### Referral tree
+**What**: on the admin Users page, who referred a user and whom they referred, one level at a time.
+**Where**: `GET /admin/users/:userId/referrals`; admin `ReferralTreePanel`. Account merge is **not built**: see
+`docs/proposals/account-merge.md`.
+
+### AI call logging and monitoring
+**What**: every outbound AI call (text suggestions, review drafts, captions, KYC reading, submission verification) is
+logged with its outcome (model answer, fallback, failed, timeout), latency, estimated tokens and cost; the admin AI
+Monitoring page shows it per day and per feature with error and fallback rates and p95 latency.
+**Where**: `shared/ai-call-log` (`AiCallLogService`), table `ai_usage_logs`; `GET /admin/ai/monitoring`; admin
+`AiMonitoringPage`. Prices per 1,000 tokens are set on the AI provider form.
+**Details**: prompts, answers and personal data are never stored. Tokens are estimated (about 4 characters a token)
+because the AI service does not report usage. Logs are kept 90 days.
+
+### Daily campaign optimizer
+**What**: each morning, the same rules as the merchant insights run for every merchant with a running campaign; new
+suggestions are stored, shown on the merchant dashboard until dismissed, and the owner is notified. The same advice
+is not repeated within 7 days.
+**Where**: `CampaignOptimizerService`, `merchant_suggestions`, `GET/POST /merchants/:id/suggestions`; merchant
+`SuggestionsPanel`. Numbers come from `CampaignPerformanceService`.
+
+### Proposals waiting on the owner
+`docs/proposals/lucky-draw.md` (legal check needed before anything is built) and `docs/proposals/account-merge.md`.
+
 ## Cross-cutting things worth knowing regardless of which feature you're touching
 
 - **Soft delete everywhere applicable** — most models have `deletedAt`; reads filter it,
@@ -740,6 +819,10 @@ what used to be four separate round-trips from the mobile home screen.
 
 ## Known gaps (as of 3 Oct 2026)
 
+- No cashback on the platform, so the earnings split has none.
+- Subscription plan campaign limits (`maxActiveCampaigns`) are shown, not enforced; plans are seeded switched off.
+- Lucky draw and account merge exist only as proposals in `docs/proposals/`.
+- AI token counts are estimates; the AI service does not report usage.
 - Merchant team members can not use the merchant portal yet: `GET /merchants/me` finds only the owner's merchant and
   there is no accept-invite page, although invitations are sent and the backend enforces team roles (Owner/Admin for
   money, bank, team and webhooks; plus Manager for campaigns, reviews and support).
