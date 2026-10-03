@@ -60,8 +60,10 @@ Push to the branch cPanel tracks, then use **Deploy HEAD Commit** in Git Version
 3. Installs packages with `npm ci` for the backend only
 4. Generates the Prisma client
 5. Applies database migrations (`prisma migrate deploy`)
-6. Builds
-7. Restarts the app by touching `tmp/restart.txt`
+6. Encrypts bank details, KYC document numbers (PAN, Aadhaar) and TDS PANs written before column encryption
+   (`npm run db:encrypt-bank-details`; does nothing once done)
+7. Builds
+8. Restarts the app by touching `tmp/restart.txt`
 
 It stops at the first error. If a **migration fails**, the app is still running the previous build. If the **build fails**, the previous `dist` is already gone (the Nest build clears it first), so the app is down until a good build is deployed.
 
@@ -80,6 +82,13 @@ Deploy the previous commit: check it out or revert on the branch, push, and depl
 - Take a database backup.
 - Read the new migrations in `apps/backend/prisma/migrations/`. A migration that drops or rewrites a column can lose data.
 - Deploy to staging first.
+- `FIELD_ENCRYPTION_KEY` and `FIELD_HASH_KEY` must be set (production refuses to start without them). Generate each once
+  with `openssl rand -base64 32` and **back them up with the database backups**: without the encryption key, stored
+  bank account numbers, UPI IDs, PANs and Aadhaar numbers can not be read. Never change a key in place; to rotate, add
+  the old one to `FIELD_ENCRYPTION_PREVIOUS_KEYS`.
+- Money actions (withdrawals, refunds, top-ups, clawbacks, settlements, TDS) need the **Finance Team** role or super
+  admin (since 3 Oct 2026). Make sure the super admin account can sign in, then give the finance role to the right
+  people on the admin portal's Users page.
 
 ## Backup and restore
 

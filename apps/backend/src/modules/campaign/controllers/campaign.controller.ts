@@ -4,6 +4,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
+import { MERCHANT_TEAM_PERMISSIONS } from '../../merchant/constants';
+import { TeamRoles } from '../../merchant/decorators';
+import { MerchantTeamRoleGuard } from '../../merchant/guards';
 import { UpdateCampaignDto } from '../dto';
 import { CampaignOwnershipGuard } from '../guards';
 import { CampaignService } from '../services';
@@ -23,6 +26,8 @@ export class CampaignController {
   }
 
   @Patch(':campaignId')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a draft campaign' })
@@ -35,6 +40,8 @@ export class CampaignController {
   }
 
   @Post(':campaignId/duplicate')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({
@@ -48,6 +55,8 @@ export class CampaignController {
   }
 
   @Post(':campaignId/submit')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Submit a campaign for approval' })
@@ -56,6 +65,8 @@ export class CampaignController {
   }
 
   @Post(':campaignId/activate')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Activate an approved/scheduled campaign' })
@@ -64,6 +75,8 @@ export class CampaignController {
   }
 
   @Post(':campaignId/pause')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Pause a running campaign' })
@@ -72,6 +85,8 @@ export class CampaignController {
   }
 
   @Post(':campaignId/resume')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Resume a paused campaign' })
@@ -80,6 +95,8 @@ export class CampaignController {
   }
 
   @Post(':campaignId/cancel')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel a campaign' })
@@ -88,6 +105,8 @@ export class CampaignController {
   }
 
   @Delete(':campaignId')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a draft or cancelled campaign' })

@@ -63,6 +63,7 @@ import type {
   SupportTicketStatus,
   SupportCategory,
   SupportPriority,
+  StaffRole,
 } from '@/types'
 
 import { apiClient } from './client'
@@ -81,6 +82,15 @@ export const adminApi = {
     apiClient.post<ApiResponse<AdminUser>>(`/admin/users/${userId}/ban`, { reason }),
 
   reactivateUser: (userId: string) => apiClient.post<ApiResponse<AdminUser>>(`/admin/users/${userId}/reactivate`),
+
+  // Super admin only.
+  getUserRoles: (userId: string) => apiClient.get<ApiResponse<{ roles: string[] }>>(`/admin/users/${userId}/roles`),
+
+  grantUserRole: (userId: string, role: StaffRole) =>
+    apiClient.put<ApiResponse<{ roles: string[] }>>(`/admin/users/${userId}/roles/${role}`),
+
+  revokeUserRole: (userId: string, role: StaffRole) =>
+    apiClient.delete<ApiResponse<{ roles: string[] }>>(`/admin/users/${userId}/roles/${role}`),
 
   // ── Merchant verification queue ───────────────────────────────────────
   listPendingMerchants: () =>

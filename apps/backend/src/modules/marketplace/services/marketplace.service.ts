@@ -59,7 +59,7 @@ export class MarketplaceService {
     const redemptionCode = randomBytes(6).toString('hex').toUpperCase();
     const redemption = await this.redemptionRepository.create({ userId, itemId, costAmount, redemptionCode });
 
-    this.logger.log(`User ${userId} redeemed "${item.title}" for ₹${costAmount} (code ${redemptionCode})`);
+    this.logger.log(`User ${userId} redeemed "${item.title}" for ₹${costAmount} (redemption ${redemption.id})`);
     this.eventEmitter.emit(MARKETPLACE_EVENTS.REDEEMED, new MarketplaceRedeemedEvent(userId, redemption.id, item.title, costAmount));
 
     return redemption;

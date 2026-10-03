@@ -1,5 +1,7 @@
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
+import { testIdentityNumberProtector } from '../../../shared/crypto/testing';
+
 import { csvCell, TdsReportService } from './tds-report.service';
 
 describe('TdsReportService', () => {
@@ -8,6 +10,7 @@ describe('TdsReportService', () => {
     user: { findMany: jest.fn() },
   };
   let service: TdsReportService;
+  const protector = testIdentityNumberProtector();
 
   const row = (overrides: Record<string, unknown> = {}) => ({
     id: 'tds-1',
@@ -31,14 +34,14 @@ describe('TdsReportService', () => {
     prisma.tdsDeduction.count.mockResolvedValue(1);
     prisma.tdsDeduction.aggregate.mockResolvedValue({ _count: 1, _sum: { grossAmount: '5000.00', tdsAmount: '500.00' } });
     prisma.user.findMany.mockResolvedValue([{ id: 'user-1', firstName: 'Asha', lastName: 'Patel' }]);
-    service = new TdsReportService(prisma as never);
+    service = new TdsReportService(prisma as never, protector);
   });
 
   describe('list', () => {
     it('lists a financial year with the deductee name and totals', async () => {
       const result = await service.list({ financialYear: '2026-27', page: 1, limit: 20 });
 
-      expect(result.data[0]).toMatchObject({ withdrawalId: 'wd-1', userName: 'Asha Patel' });
+      expect(result.data[0]).toMatchObject({ withdrawalId: 'wd-1', userName: 'Asha Patel', panNumber: '****234F' });
       expect(result.summary).toEqual({ deductions: 1, grossPaid: 5000, tdsKeptBack: 500 });
       expect(result.financialYear).toBe('2026-27');
     });
@@ -81,6 +84,14 @@ describe('TdsReportService', () => {
       expect(filename).toBe('tds-2026-27.csv');
       expect(header).toBe('Financial year,Date,Deductee,PAN,Section,Amount paid,Rate,TDS,Paid to user,Status,Withdrawal');
       expect(line).toBe('2026-27,2026-09-21,Asha Patel,ABCDE1234F,194R,5000.00,0.1000,500.00,4500.00,DEDUCTED,wd-1');
+    });
+
+    it('writes the full PAN from its encrypted form, since the return is filed from this file', async () => {
+      prisma.tdsDeduction.findMany.mockResolvedValue([row({ panNumber: protector.encrypt('ABCDE1234F') })]);
+
+      const { content } = await service.exportCsv('2026-27');
+
+      expect(content).toContain(',Asha Patel,ABCDE1234F,');
     });
 
     it('lists the oldest first, and still lists reversed ones, marked as such', async () => {

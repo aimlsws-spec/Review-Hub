@@ -167,6 +167,66 @@ describe('TeamService', () => {
 
       await expect(service.acceptInvitation('expired', 'user-new', 'teammate@test.com')).rejects.toThrow(BadRequestException);
     });
+
+    it('matches the invited email regardless of case', async () => {
+      mockInvitationRepository.findByToken.mockResolvedValue(mockInvitation);
+      mockTeamRepository.findByMerchantAndUser.mockResolvedValue(null);
+      mockTeamRepository.create.mockResolvedValue({ id: 'member-new' });
+
+      await expect(service.acceptInvitation('valid-token', 'user-new', 'TeamMate@Test.com')).resolves.toEqual({
+        message: 'Invitation accepted successfully',
+      });
+    });
+
+    it('refuses an account whose email is not the invited one, and one with no email', async () => {
+      mockInvitationRepository.findByToken.mockResolvedValue(mockInvitation);
+
+      await expect(service.acceptInvitation('valid-token', 'user-other', 'other@test.com')).rejects.toThrow(
+        'This invitation was sent to a different email',
+      );
+      await expect(service.acceptInvitation('valid-token', 'user-phone-only', null)).rejects.toThrow(
+        'This invitation was sent to a different email',
+      );
+      expect(mockTeamRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('owner role protection', () => {
+    it('refuses to invite anyone as owner', async () => {
+      mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
+      mockTeamRepository.findByMerchantAndUser.mockResolvedValue({ id: 'member-1', role: 'ADMIN' });
+
+      await expect(service.invite('merchant-1', 'user-admin', { email: 'x@test.com', role: 'OWNER' })).rejects.toThrow(
+        'The owner role can not be given by invitation',
+      );
+    });
+
+    it("refuses to change the owner's role", async () => {
+      mockTeamRepository.findById.mockResolvedValue({ id: 'member-owner', merchantId: 'merchant-1', role: 'OWNER' });
+
+      await expect(service.updateTeamMember('merchant-1', 'member-owner', { role: 'VIEWER' })).rejects.toThrow(
+        "The owner's role can not be changed",
+      );
+      expect(mockTeamRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to make a team member the owner', async () => {
+      mockTeamRepository.findById.mockResolvedValue({ id: 'member-1', merchantId: 'merchant-1', role: 'ADMIN' });
+
+      await expect(service.updateTeamMember('merchant-1', 'member-1', { role: 'OWNER' })).rejects.toThrow(
+        'The owner role can not be given to a team member',
+      );
+      expect(mockTeamRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('changes the role of an ordinary member', async () => {
+      mockTeamRepository.findById.mockResolvedValue({ id: 'member-1', merchantId: 'merchant-1', role: 'VIEWER' });
+      mockTeamRepository.update.mockResolvedValue({ id: 'member-1', role: 'MANAGER' });
+
+      await service.updateTeamMember('merchant-1', 'member-1', { role: 'MANAGER' });
+
+      expect(mockTeamRepository.update).toHaveBeenCalledWith('member-1', { role: 'MANAGER', permissions: undefined });
+    });
   });
 
   describe('removeTeamMember', () => {

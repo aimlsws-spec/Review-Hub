@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast'
 
 import { adminApi } from '@/api/admin.api'
 import { QUERY_KEYS } from '@/constants'
-import type { AdminUser, UserStatus } from '@/types'
+import type { AdminUser, StaffRole, UserStatus } from '@/types'
 import { getApiErrorMessage, requireValue } from '@/utils'
 
 export type UserActionKind = 'suspend' | 'ban' | 'reactivate'
@@ -22,6 +22,29 @@ export function useUserDetailQuery(userId: string | null) {
     queryKey: [...QUERY_KEYS.USER_DETAIL, userId],
     queryFn: () => adminApi.getUser(requireValue(userId, 'userId')),
     enabled: !!userId,
+  })
+}
+
+/** A user's roles, for the super admin's staff roles panel. */
+export function useUserRolesQuery(userId: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.USER_ROLES, userId],
+    queryFn: () => adminApi.getUserRoles(userId),
+  })
+}
+
+/** Gives or removes a staff role. Removing one also signs the person out everywhere (the server does that). */
+export function useUserRoleMutation(userId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ role, grant }: { role: StaffRole; grant: boolean }) =>
+      grant ? adminApi.grantUserRole(userId, role) : adminApi.revokeUserRole(userId, role),
+    onSuccess: (_, { grant }) => {
+      toast.success(grant ? 'Role given' : 'Role removed. They have been signed out.')
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.USER_ROLES, userId] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
   })
 }
 

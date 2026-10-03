@@ -13,7 +13,9 @@ import {
 import { useState } from 'react'
 
 import { AccountRiskPanel } from '@/components/AccountRiskPanel'
+import { StaffRolesPanel } from '@/components/StaffRolesPanel'
 import { ITEMS_PER_PAGE, USER_STATUS_LABELS } from '@/constants'
+import { useAuth } from '@/contexts/AuthContext'
 import { useUserActionMutation, useUserDetailQuery, useUsersQuery } from '@/hooks/useUsers'
 import type { AdminUser, UserStatus } from '@/types'
 import { formatDate, getInitials } from '@/utils'
@@ -37,6 +39,7 @@ export default function UsersPage() {
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))
 
   const detailQuery = useUserDetailQuery(selectedUserId)
+  const isSuperAdmin = useAuth().user?.roles?.includes('SUPER_ADMIN') ?? false
 
   const detail = detailQuery.data?.data.data
 
@@ -218,6 +221,8 @@ export default function UsersPage() {
             </div>
 
             <AccountRiskPanel userId={detail.id} />
+
+            {isSuperAdmin && <StaffRolesPanel userId={detail.id} />}
 
             <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
               {detail.status !== 'SUSPENDED' && detail.status !== 'BANNED' && (

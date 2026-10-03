@@ -4,8 +4,10 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
+import { MERCHANT_TEAM_PERMISSIONS } from '../constants';
+import { TeamRoles } from '../decorators';
 import { CreateReviewDto, ReplyReviewDto, ReviewQueryDto, UpdateReviewStatusDto } from '../dto';
-import { MerchantOwnershipGuard } from '../guards';
+import { MerchantOwnershipGuard, MerchantTeamRoleGuard } from '../guards';
 import { ReviewService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.MERCHANTS)
@@ -39,6 +41,8 @@ export class ReviewController {
   }
 
   @Post()
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Log a review received on an external platform' })
   @ApiBody({ type: CreateReviewDto })
@@ -47,6 +51,8 @@ export class ReviewController {
   }
 
   @Post(':reviewId/reply')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reply to a review' })
   @ApiBody({ type: ReplyReviewDto })
@@ -60,6 +66,8 @@ export class ReviewController {
   }
 
   @Patch(':reviewId/status')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Flag or resolve a review' })
   @ApiBody({ type: UpdateReviewStatusDto })
@@ -72,6 +80,8 @@ export class ReviewController {
   }
 
   @Delete(':reviewId')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a review' })
   async delete(@Param('merchantId') merchantId: string, @Param('reviewId') reviewId: string) {

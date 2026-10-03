@@ -62,6 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const finishLogin = useCallback((session: LoginResponse, rememberMe: boolean) => {
     setAuth(session.user, session.tokens.accessToken, session.tokens.refreshToken, rememberMe)
+    // The sign-in response has no roles; the profile does, and screens show or hide actions by them.
+    authApi
+      .getMe()
+      .then(({ data }) => useAuthStore.getState().setUser(data.data))
+      .catch(() => undefined)
   }, [setAuth])
 
   const login = useCallback(async (credentials: LoginCredentials) => {

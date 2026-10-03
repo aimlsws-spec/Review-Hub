@@ -4,6 +4,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { IdentityNumberProtector } from '../../../shared/crypto';
+import { testIdentityNumberProtector } from '../../../shared/crypto/testing';
 import { LocalStorageService } from '../../../storage/storage.service';
 
 import { KycOcrService } from './kyc-ocr.service';
@@ -54,6 +56,7 @@ describe('UserKycService', () => {
         { provide: UserKycDocumentRepository, useValue: mockDocumentRepository },
         { provide: LocalStorageService, useValue: mockStorageService },
         { provide: KycOcrService, useValue: mockKycOcrService },
+        { provide: IdentityNumberProtector, useValue: testIdentityNumberProtector() },
       ],
     }).compile();
 
@@ -73,7 +76,12 @@ describe('UserKycService', () => {
 
       const result = await service.uploadDocument('user-1', dto as never, mockFile);
 
-      expect(result).toEqual(mockDocument);
+      // The number is stored encrypted with its hash, and comes back masked.
+      const stored = mockDocumentRepository.create.mock.calls[0][0];
+      expect(stored.documentNumber).not.toContain('AAAAA0000A');
+      expect(testIdentityNumberProtector().open(stored.documentNumber)).toBe('AAAAA0000A');
+      expect(stored.documentNumberHash).toBe(testIdentityNumberProtector().hash('AAAAA0000A'));
+      expect(result).toEqual({ ...mockDocument, documentNumber: '****000A' });
       expect(mockStorageService.saveFile).toHaveBeenCalledWith(mockFile.buffer, mockFile.originalname, 'user/user-1/documents', mockFile.mimetype);
       // The OCR comparison is started for the saved document, without the upload waiting on it.
       expect(mockKycOcrService.checkInBackground).toHaveBeenCalledWith(
@@ -116,6 +124,7 @@ describe('UserKycService', () => {
 
       const result = await service.getDocuments('user-1');
       expect(result).toHaveLength(1);
+      expect(result[0].documentNumber).toBe('****000A');
       expect(mockDocumentRepository.findByUserId).toHaveBeenCalledWith('user-1');
     });
   });

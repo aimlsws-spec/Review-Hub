@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { AuditAction, UserStatus } from '@prisma/client';
 
-import { NotFoundException } from '@common/exceptions/domain.exceptions';
+import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
+import { ASSIGNABLE_STAFF_ROLES, AssignableStaffRole, roleClaimForSlug } from '../../auth/constants';
 import { UpdateUserStatusDto, UserQueryDto } from '../dto';
 import { UserAdminRepository } from '../repositories';
 
@@ -39,6 +40,55 @@ export class UserManagementService {
 
   async reactivate(userId: string, adminId: string) {
     return this.changeStatus(userId, 'ACTIVE', adminId, 'RESTORE');
+  }
+
+  /** The user's roles as the token names them, e.g. ['ADMIN', 'FINANCE_TEAM']. */
+  async getRoles(userId: string): Promise<{ roles: string[] }> {
+    await this.getById(userId);
+    const slugs = await this.userAdminRepository.getRoleSlugs(userId);
+    return { roles: slugs.map(roleClaimForSlug) };
+  }
+
+  /**
+   * Gives a staff role (admin or finance team). Only super admins get here (see the controller). The person's next
+   * token refresh picks the role up.
+   */
+  async grantRole(userId: string, role: string, adminId: string): Promise<{ roles: string[] }> {
+    const { roleId, before } = await this.prepareRoleChange(userId, role);
+    await this.userAdminRepository.grantRole(userId, roleId, adminId);
+    return this.recordRoleChange(userId, adminId, before);
+  }
+
+  /** Removes a staff role, and signs the person out everywhere so it stops working straight away. */
+  async revokeRole(userId: string, role: string, adminId: string): Promise<{ roles: string[] }> {
+    const { roleId, before } = await this.prepareRoleChange(userId, role);
+    await this.userAdminRepository.revokeRole(userId, roleId);
+    await this.userAdminRepository.revokeSessions(userId);
+    return this.recordRoleChange(userId, adminId, before);
+  }
+
+  private async prepareRoleChange(userId: string, role: string): Promise<{ roleId: string; before: string[] }> {
+    if (!Object.prototype.hasOwnProperty.call(ASSIGNABLE_STAFF_ROLES, role)) {
+      throw new BadRequestException(`Only these roles can be given here: ${Object.keys(ASSIGNABLE_STAFF_ROLES).join(', ')}`);
+    }
+    const before = (await this.getRoles(userId)).roles;
+    const stored = await this.userAdminRepository.findRoleBySlug(ASSIGNABLE_STAFF_ROLES[role as AssignableStaffRole]);
+    if (!stored) throw new NotFoundException('Role');
+    return { roleId: stored.id, before };
+  }
+
+  private async recordRoleChange(userId: string, adminId: string, before: string[]): Promise<{ roles: string[] }> {
+    const after = await this.getRoles(userId);
+    await this.auditLogService.record({
+      actorId: adminId,
+      actorType: 'ADMIN',
+      entity: 'User',
+      entityId: userId,
+      action: 'UPDATE',
+      before: { roles: before },
+      after: { roles: after.roles },
+    });
+    return after;
   }
 
   private async changeStatus(

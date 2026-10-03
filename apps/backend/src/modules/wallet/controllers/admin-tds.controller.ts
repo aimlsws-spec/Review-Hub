@@ -4,9 +4,9 @@ import { TdsStatus } from '@prisma/client';
 import { Response } from 'express';
 
 import { SWAGGER_TAGS } from '@common/constants';
-import { SystemRole } from '@common/enums';
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
+import { FINANCE_ROLES } from '../../auth/constants';
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
 import { TdsReportService } from '../services';
@@ -14,7 +14,7 @@ import { TdsReportService } from '../services';
 @ApiTags(SWAGGER_TAGS.ADMIN)
 @Controller({ path: 'admin/tds', version: '1' })
 @UseGuards(RolesGuard)
-@Roles(SystemRole.Admin)
+@Roles(...FINANCE_ROLES)
 @ApiBearerAuth()
 export class AdminTdsController {
   constructor(private readonly reportService: TdsReportService) {}

@@ -4,7 +4,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
-import { MerchantOwnershipGuard } from '../../merchant/guards';
+import { MERCHANT_TEAM_PERMISSIONS } from '../../merchant/constants';
+import { TeamRoles } from '../../merchant/decorators';
+import { MerchantOwnershipGuard, MerchantTeamRoleGuard } from '../../merchant/guards';
 import { AddMessageDto, CreateTicketDto, TicketQueryDto } from '../dto';
 import { SupportService } from '../services';
 
@@ -15,6 +17,8 @@ export class MerchantSupportController {
   constructor(private readonly supportService: SupportService) {}
 
   @Post()
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Open a support ticket as this merchant' })
@@ -39,6 +43,8 @@ export class MerchantSupportController {
   }
 
   @Post(':ticketId/messages')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reply on this merchant\'s support ticket' })

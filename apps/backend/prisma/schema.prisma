@@ -950,7 +950,10 @@ model UserKycDocument {
   userId             String
   documentType       UserDocumentType
   fileUploadId       String?
-  documentNumber     String?
+  /// Encrypted at rest (IdentityNumberProtector): PAN and Aadhaar numbers are never stored in plain text.
+  documentNumber     String?                    @db.VarChar(255)
+  /// Keyed hash of the normalised number, for exact lookups such as the shared-PAN fraud check and admin search.
+  documentNumberHash String?                    @db.VarChar(64)
   verificationStatus DocumentVerificationStatus @default(PENDING)
   verifiedBy         String?
   verifiedAt         DateTime?
@@ -968,7 +971,7 @@ model UserKycDocument {
 
   @@index([userId])
   @@index([documentType])
-  @@index([documentType, documentNumber])
+  @@index([documentType, documentNumberHash])
   @@index([verificationStatus])
   @@index([deletedAt])
   @@map("user_kyc_documents")
@@ -1742,8 +1745,8 @@ model TdsDeduction {
   userId        String
   /// The Indian financial year the payout falls in, like 2026-27.
   financialYear String
-  /// The user's PAN when the deduction was made.
-  panNumber     String?
+  /// The user's PAN when the deduction was made, encrypted at rest like the KYC document it was copied from.
+  panNumber     String?   @db.VarChar(255)
   section       String
   grossAmount   Decimal   @db.Decimal(12, 2)
   rate          Decimal   @db.Decimal(5, 4)

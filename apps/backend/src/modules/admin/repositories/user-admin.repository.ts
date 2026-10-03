@@ -57,4 +57,35 @@ export class UserAdminRepository {
   async updateStatus(id: string, status: UserStatus) {
     return this.prisma.user.update({ where: { id }, data: { status }, select: SAFE_USER_SELECT });
   }
+
+  /** Slugs of every role the user holds, e.g. ['admin', 'finance-team']. */
+  async getRoleSlugs(userId: string): Promise<string[]> {
+    const rows = await this.prisma.userRole.findMany({ where: { userId }, select: { role: { select: { slug: true } } } });
+    return rows.map((row) => row.role.slug);
+  }
+
+  async findRoleBySlug(slug: string) {
+    return this.prisma.role.findFirst({ where: { slug, deletedAt: null }, select: { id: true, slug: true } });
+  }
+
+  /** Gives the role; giving one the user already has changes nothing. */
+  async grantRole(userId: string, roleId: string, assignedBy: string): Promise<void> {
+    await this.prisma.userRole.upsert({
+      where: { userId_roleId: { userId, roleId } },
+      update: {},
+      create: { userId, roleId, assignedBy },
+    });
+  }
+
+  async revokeRole(userId: string, roleId: string): Promise<void> {
+    await this.prisma.userRole.deleteMany({ where: { userId, roleId } });
+  }
+
+  /** Ends every session, so a removed role stops working at the next refresh rather than at the session's end. */
+  async revokeSessions(userId: string): Promise<void> {
+    await this.prisma.userSession.updateMany({
+      where: { userId, status: 'ACTIVE' },
+      data: { status: 'REVOKED', revokedAt: new Date() },
+    });
+  }
 }

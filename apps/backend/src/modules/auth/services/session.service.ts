@@ -1,14 +1,17 @@
 import * as crypto from 'crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
-import type { AccessTokenResult } from '../interfaces';
+import { TOKEN_CONFIG } from '../constants';
+import type { AccessTokenResult, RefreshTokenValidation } from '../interfaces';
 import { SessionRepository } from '../repositories/session.repository';
 
 @Injectable()
 export class SessionService {
+  private readonly logger = new Logger(SessionService.name);
+
   constructor(
     private readonly sessionRepository: SessionRepository,
     private readonly jwtService: JwtService,
@@ -38,6 +41,8 @@ export class SessionService {
         issuer: this.configService.get<string>('jwt.issuer', 'viral-kar'),
         audience: this.configService.get<string>('jwt.audience', 'viral-kar-users'),
         algorithm: 'HS256',
+        // Unique per token, so two sessions created in the same second never share a token (or its hash).
+        jwtid: crypto.randomUUID(),
       },
     );
 
@@ -57,7 +62,7 @@ export class SessionService {
     return { sessionId: session.id, refreshToken };
   }
 
-  async validateRefreshToken(refreshToken: string): Promise<{ userId: string; sessionId: string } | null> {
+  async validateRefreshToken(refreshToken: string): Promise<RefreshTokenValidation | null> {
     const refreshSecret = this.configService.get<string>('jwt.refreshSecret');
 
     // Verify JWT signature and expiry first — reject tampered/expired tokens immediately
@@ -77,19 +82,58 @@ export class SessionService {
 
     // Verify the token exists in DB and is not revoked
     const hash = this.hashToken(refreshToken);
-    const session = await this.sessionRepository.findByRefreshTokenHash(hash);
+    const session = await this.sessionRepository.findLatestByRefreshTokenHash(hash);
 
     if (!session) return null;
+    if (session.status === 'REVOKED') {
+      await this.handleRevokedTokenUse(session.userId, session.id, session.revokedAt);
+      return null;
+    }
+    if (session.status !== 'ACTIVE') return null;
     if (session.expiresAt < new Date()) {
       await this.sessionRepository.revoke(session.id);
       return null;
     }
 
-    return { userId: session.userId, sessionId: session.id };
+    return {
+      userId: session.userId,
+      sessionId: session.id,
+      deviceId: session.deviceId ?? undefined,
+      rememberMe: this.wasRememberMe(session.createdAt, session.expiresAt),
+    };
   }
 
   async revokeSession(sessionId: string): Promise<void> {
     await this.sessionRepository.revoke(sessionId);
+  }
+
+  /**
+   * Revokes a session as part of refresh-token rotation. Only one of two simultaneous refreshes with the same
+   * token may win: otherwise both would get a fresh token and the account would have two live chains.
+   */
+  async revokeForRotation(sessionId: string): Promise<boolean> {
+    return this.sessionRepository.revokeIfActive(sessionId);
+  }
+
+  /**
+   * A refresh token is single use. Seeing one again after its session was rotated or revoked means a copy exists
+   * somewhere else (a stolen token used first, or used after the owner signed out), and there is no way to tell
+   * which holder is the owner, so every session of the account is ended. Inside the grace window it is treated as
+   * two tabs racing to refresh and simply refused.
+   */
+  private async handleRevokedTokenUse(userId: string, sessionId: string, revokedAt: Date | null): Promise<void> {
+    const graceMs = TOKEN_CONFIG.REFRESH_REUSE_GRACE_SECONDS * 1000;
+    if (revokedAt && Date.now() - revokedAt.getTime() <= graceMs) return;
+
+    this.logger.warn(`Refresh token reuse on revoked session ${sessionId}; revoking all sessions of user ${userId}`);
+    await this.sessionRepository.revokeAllByUserId(userId);
+  }
+
+  /** "Remember me" is not stored, but its sessions are the ones that live longer than the default. */
+  private wasRememberMe(createdAt: Date, expiresAt: Date): boolean {
+    const defaultExpiry = this.configService.get<string>('jwt.refreshExpiresIn', '7d');
+    const defaultMs = this.parseExpiryToSeconds(defaultExpiry) * 1000;
+    return expiresAt.getTime() - createdAt.getTime() > defaultMs + 60_000;
   }
 
   async revokeAllUserSessions(userId: string, excludeSessionId?: string): Promise<void> {

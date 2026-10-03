@@ -132,8 +132,9 @@ export class AuthService {
   }
 
   /**
-   * Password sign-in. From a device the account has not used before, no session is opened yet: a code goes to the
-   * account's email and phone and the caller gets a challenge to complete with verifyNewDevice.
+   * Password sign-in. When the account has two-factor sign-in on, or the device is one the account has not used
+   * before, no session is opened yet: a code goes to the account's email and phone and the caller gets a challenge
+   * to complete with verifyNewDevice.
    */
   async login(
     email?: string,
@@ -191,15 +192,16 @@ export class AuthService {
       installIdHash: this.deviceService.hashInstallId(deviceSignals?.installId) ?? null,
     };
 
-    if (await this.newDeviceService.isUnrecognised(user.id, context.installIdHash ?? undefined)) {
-      const challenge = await this.startNewDeviceChallenge(user, context);
+    const isNewDevice = await this.newDeviceService.isUnrecognised(user.id, context.installIdHash ?? undefined);
+    if (isNewDevice || user.isTwoFactorEnabled) {
+      const challenge = await this.startLoginChallenge(user, context, isNewDevice);
       if (challenge) return challenge;
     }
 
     return this.completeLogin(user, context, false);
   }
 
-  /** Finishes a sign-in held by login() for a new device, once the person types the code that was sent. */
+  /** Finishes a sign-in held by login() for a new device or two-factor, once the person types the code that was sent. */
   async verifyNewDevice(challengeToken: string, code: string, rawInstallId: string | undefined, ipAddress?: string, userAgent?: string): Promise<LoginResponse> {
     const pending = await this.findPendingLogin(challengeToken, rawInstallId);
 
@@ -214,7 +216,7 @@ export class AuthService {
     await this.otpService.verifyOtp(user.id, OtpType.NEW_DEVICE_LOGIN, code);
     await this.newDeviceService.consumeChallenge(challengeToken);
 
-    return this.completeLogin(user, { ...pending, ipAddress, userAgent }, true);
+    return this.completeLogin(user, { ...pending, ipAddress, userAgent }, pending.isNewDevice ?? true);
   }
 
   /** Sends a fresh code for a sign-in that is waiting for one. The usual resend cooldown applies. */
@@ -230,12 +232,23 @@ export class AuthService {
   }
 
   /**
-   * Holds a sign-in from an unrecognised device and sends the code. Returns null, letting the sign-in through, only
-   * when the account has no email or phone to send a code to: locking such an account out would be worse than the
-   * risk, and the device is still recorded so the next sign-in from it is recognised.
+   * Holds a sign-in and sends the code. For a new device only, it returns null, letting the sign-in through, when the
+   * account has no email or phone to send a code to: locking such an account out would be worse than the risk, and
+   * the device is still recorded so the next sign-in from it is recognised. Two-factor sign-in is never skipped: the
+   * person asked for it, so without somewhere to send the code the sign-in is refused.
    */
-  private async startNewDeviceChallenge(user: User, context: SessionContext): Promise<LoginChallengeResponse | null> {
+  private async startLoginChallenge(
+    user: User,
+    context: SessionContext,
+    isNewDevice: boolean,
+  ): Promise<LoginChallengeResponse | null> {
     if (!user.email && !user.phone) {
+      if (user.isTwoFactorEnabled) {
+        this.logger.warn(`User ${user.id} has two-factor sign-in on but no email or phone for a code`);
+        throw new UnauthorizedException(
+          'Two-factor sign-in needs an email address or phone number on your account. Please contact support.',
+        );
+      }
       this.logger.warn(`User ${user.id} signed in from a new device but has no email or phone for a code`);
       return null;
     }
@@ -248,6 +261,7 @@ export class AuthService {
       isEmulator: context.isEmulator,
       isAutomationDetected: context.isAutomationDetected,
       vpnSuspected: context.vpnSuspected,
+      isNewDevice,
     });
 
     let expiresIn: number;
@@ -260,7 +274,8 @@ export class AuthService {
     }
 
     const sentTo = [user.email && maskEmail(user.email), user.phone && maskPhone(user.phone)].filter((v): v is string => !!v);
-    return { requiresVerification: true, challengeToken, expiresIn, sentTo };
+    const reason = user.isTwoFactorEnabled ? 'TWO_FACTOR' : 'NEW_DEVICE';
+    return { requiresVerification: true, reason, challengeToken, expiresIn, sentTo };
   }
 
   /** Opens the session for a sign-in that has passed every check, and records it. */
@@ -423,8 +438,17 @@ export class AuthService {
 
     this.checkAccountStatus(user);
 
-    await this.sessionService.revokeSession(validation.sessionId);
-    const { sessionId: newSessionId, refreshToken: newRefreshToken } = await this.sessionService.createSession(user.id, ipAddress, userAgent);
+    // Losing this race means another request already rotated the same token.
+    const rotated = await this.sessionService.revokeForRotation(validation.sessionId);
+    if (!rotated) throw new UnauthorizedException('Invalid or expired refresh token');
+
+    const { sessionId: newSessionId, refreshToken: newRefreshToken } = await this.sessionService.createSession(
+      user.id,
+      ipAddress,
+      userAgent,
+      validation.deviceId,
+      validation.rememberMe,
+    );
     const roles = await this.userRepository.getRoleNames(user.id);
     const tokens = this.sessionService.generateTokens(user.id, newSessionId, roles);
 
@@ -456,9 +480,10 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<UserProfile> {
-    const [user, pendingPolicies] = await Promise.all([
+    const [user, pendingPolicies, roles] = await Promise.all([
       this.userRepository.findByIdSimple(userId),
       this.policyAcceptanceService.getPending(userId),
+      this.userRepository.getRoleNames(userId),
     ]);
     if (!user) throw new NotFoundException('User');
 
@@ -484,6 +509,8 @@ export class AuthService {
       stateId: user.stateId,
       cityId: user.cityId,
       pendingPolicies,
+      // So the portals can show only what the person may do, e.g. money actions to the finance team.
+      roles,
       createdAt: user.createdAt,
     };
   }

@@ -6,7 +6,7 @@ import { getIstDayBoundaries, getIstMonthBoundaries } from '@common/utils';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { lockUserWallet, lockWithdrawalAndWallet } from '../../../database/prisma/row-lock';
-import { BankDetailsProtector } from '../../../shared/crypto';
+import { BankDetailsProtector, IdentityNumberProtector } from '../../../shared/crypto';
 import { LIMIT_COUNTED_STATUSES, MANUALLY_SETTLEABLE_STATUS, REVIEWABLE_WITHDRAWAL_STATUSES } from '../constants';
 import { calculateTds, financialYearOf } from '../tds';
 
@@ -38,6 +38,7 @@ export class WithdrawalSettlementRepository {
   constructor(
     private readonly prisma: PrismaService,
     private readonly protector: BankDetailsProtector,
+    private readonly identityNumbers: IdentityNumberProtector,
   ) {}
 
   /**
@@ -295,7 +296,8 @@ export class WithdrawalSettlementRepository {
         withdrawal: { connect: { id: withdrawal.id } },
         userId: withdrawal.wallet.userId,
         financialYear: year.label,
-        panNumber: pan?.documentNumber ?? null,
+        // Stored encrypted like the KYC document; re-sealed, so a row from before the backfill is encrypted here too.
+        panNumber: this.identityNumbers.encrypt(this.identityNumbers.open(pan?.documentNumber ?? null)),
         section: settings.section ?? 'NOT SET',
         grossAmount: amount,
         rate: settings.rate,

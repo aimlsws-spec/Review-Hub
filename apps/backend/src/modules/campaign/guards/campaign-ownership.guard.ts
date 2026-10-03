@@ -2,12 +2,13 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 
 import { NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { resolveMerchantTeamRole } from '../../merchant/guards/merchant-ownership.guard';
 import { MerchantRepository, MerchantTeamRepository } from '../../merchant/repositories';
 import { CampaignRepository } from '../repositories';
 
 /**
  * Resolves the campaign's owning merchant and checks that the current user
- * is either the merchant owner or a member of the merchant's team, mirroring
+ * is either the merchant owner or an active member of the merchant's team, mirroring
  * MerchantOwnershipGuard's checks but keyed off :campaignId instead of :merchantId.
  */
 @Injectable()
@@ -32,14 +33,12 @@ export class CampaignOwnershipGuard implements CanActivate {
     const merchant = await this.merchantRepository.findById(campaign.merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
 
-    const isOwner = merchant.userId === user.id;
-    if (!isOwner) {
-      const teamMember = await this.teamRepository.findByMerchantAndUser(campaign.merchantId, user.id);
-      if (!teamMember) return false;
-    }
+    const role = await resolveMerchantTeamRole(this.teamRepository, merchant, user.id);
+    if (!role) return false;
 
     request.campaign = campaign;
     request.merchant = merchant;
+    request.merchantTeamRole = role;
     return true;
   }
 }

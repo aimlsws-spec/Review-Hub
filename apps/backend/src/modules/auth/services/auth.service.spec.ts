@@ -47,6 +47,7 @@ describe('AuthService', () => {
     generateTokens: jest.fn(),
     validateRefreshToken: jest.fn(),
     revokeSession: jest.fn(),
+    revokeForRotation: jest.fn(),
     revokeAllUserSessions: jest.fn(),
     getActiveSessions: jest.fn(),
     getSessionById: jest.fn(),
@@ -336,18 +337,34 @@ describe('AuthService', () => {
   });
 
   describe('refreshTokens', () => {
-    it('should rotate tokens', async () => {
-      mockSessionService.validateRefreshToken.mockResolvedValue({ userId: 'user-1', sessionId: 'session-1' });
+    it('should rotate tokens, keeping the device and remember-me of the old session', async () => {
+      mockSessionService.validateRefreshToken.mockResolvedValue({
+        userId: 'user-1',
+        sessionId: 'session-1',
+        deviceId: 'device-1',
+        rememberMe: true,
+      });
+      mockSessionService.revokeForRotation.mockResolvedValue(true);
       mockUserRepository.findById.mockResolvedValue(mockUser);
       mockUserRepository.getRoleNames.mockResolvedValue(['USER']);
       mockSessionService.createSession.mockResolvedValue({ sessionId: 'session-2', refreshToken: 'new-refresh' });
       mockSessionService.generateTokens.mockReturnValue({ accessToken: 'new-access', expiresIn: 900 });
 
-      const result = await service.refreshTokens('old-token');
+      const result = await service.refreshTokens('old-token', '1.2.3.4', 'agent');
 
-      expect(mockSessionService.revokeSession).toHaveBeenCalledWith('session-1');
+      expect(mockSessionService.revokeForRotation).toHaveBeenCalledWith('session-1');
+      expect(mockSessionService.createSession).toHaveBeenCalledWith('user-1', '1.2.3.4', 'agent', 'device-1', true);
       expect(result).toHaveProperty('accessToken', 'new-access');
       expect(result).toHaveProperty('refreshToken', 'new-refresh');
+    });
+
+    it('refuses when another request rotated the same token first', async () => {
+      mockSessionService.validateRefreshToken.mockResolvedValue({ userId: 'user-1', sessionId: 'session-1', rememberMe: false });
+      mockSessionService.revokeForRotation.mockResolvedValue(false);
+      mockUserRepository.findById.mockResolvedValue(mockUser);
+
+      await expect(service.refreshTokens('old-token')).rejects.toThrow('Invalid or expired refresh token');
+      expect(mockSessionService.createSession).not.toHaveBeenCalled();
     });
   });
 
@@ -502,6 +519,7 @@ describe('AuthService', () => {
 
       expect(result).toEqual({
         requiresVerification: true,
+        reason: 'NEW_DEVICE',
         challengeToken: 'challenge-token',
         expiresIn: 300,
         sentTo: ['j****n@example.com', '****3210'],
@@ -578,6 +596,34 @@ describe('AuthService', () => {
       expect(mockOtpService.resendOtp).toHaveBeenCalledWith('user-1', 'NEW_DEVICE_LOGIN');
     });
 
+    it('asks for a code on a known device when two-factor sign-in is on, without the new-device alert', async () => {
+      const twoFactorUser = { ...mockUser, isTwoFactorEnabled: true };
+      mockUserRepository.findByEmailOrPhone.mockResolvedValue(twoFactorUser);
+      mockUserRepository.findByIdSimple.mockResolvedValue(twoFactorUser);
+      mockNewDeviceService.isUnrecognised.mockResolvedValue(false);
+
+      const result = await service.login('john@example.com', undefined, 'Passw0rd!23', '1.2.3.4', 'UA', false, { installId: 'install-1' });
+
+      expect(result).toEqual(expect.objectContaining({ requiresVerification: true, reason: 'TWO_FACTOR' }));
+      expect(mockNewDeviceService.createChallenge).toHaveBeenCalledWith(expect.objectContaining({ isNewDevice: false }));
+      expect(mockSessionService.createSession).not.toHaveBeenCalled();
+
+      mockNewDeviceService.findChallenge.mockResolvedValue({ ...pending, isNewDevice: false });
+      mockOtpService.verifyOtp.mockResolvedValue(true);
+      await service.verifyNewDevice('challenge-token', '123456', 'install-2', '1.2.3.4', 'UA');
+
+      expect(mockSessionService.createSession).toHaveBeenCalled();
+      expect(mockEventEmitter.emit).not.toHaveBeenCalledWith('auth.login.new_device', expect.anything());
+    });
+
+    it('refuses a two-factor sign-in when there is nowhere to send the code', async () => {
+      mockUserRepository.findByEmailOrPhone.mockResolvedValue({ ...mockUser, email: null, phone: null, isTwoFactorEnabled: true });
+      mockNewDeviceService.isUnrecognised.mockResolvedValue(false);
+
+      await expect(service.login(undefined, '+919876543210', 'Passw0rd!23')).rejects.toThrow(UnauthorizedException);
+      expect(mockSessionService.createSession).not.toHaveBeenCalled();
+    });
+
     it('sends no alert for a recognised device', async () => {
       mockNewDeviceService.isUnrecognised.mockResolvedValue(false);
 
@@ -638,6 +684,13 @@ describe('AuthService', () => {
 
       expect(result).toHaveProperty('id', 'user-1');
       expect(result).toHaveProperty('email', 'john@example.com');
+    });
+
+    it('includes the roles, so the portals can show only what the person may do', async () => {
+      mockUserRepository.findByIdSimple.mockResolvedValue(mockUser);
+      mockUserRepository.getRoleNames.mockResolvedValue(['ADMIN', 'FINANCE_TEAM']);
+
+      await expect(service.getProfile('user-1')).resolves.toEqual(expect.objectContaining({ roles: ['ADMIN', 'FINANCE_TEAM'] }));
     });
 
     it('should throw if user not found', async () => {

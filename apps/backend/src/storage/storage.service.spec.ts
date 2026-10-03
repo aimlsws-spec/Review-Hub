@@ -10,6 +10,9 @@ import { ServiceUnavailableException } from '@common/exceptions/domain.exception
 import { LocalStorageService } from './storage.service';
 import { VirusScanService } from './virus-scan.service';
 
+/** A real PNG signature followed by filler: enough for the content check, which reads only the opening bytes. */
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]);
+
 describe('LocalStorageService', () => {
   let service: LocalStorageService;
   let tempRoot: string;
@@ -40,16 +43,25 @@ describe('LocalStorageService', () => {
 
   describe('saveFile — extension comes from the validated MIME type, not the client-supplied filename', () => {
     it('stores a validated image/png upload as .png even if the client named it something else', async () => {
-      const result = await service.saveFile(Buffer.from('fake-png-bytes'), 'photo.png', 'profile', 'image/png');
+      const result = await service.saveFile(PNG_BYTES, 'photo.png', 'profile', 'image/png');
       expect(result.path).toMatch(/\/profile\/[0-9a-f-]+\.png$/);
     });
 
     it('ignores an attacker-chosen .html filename once a real MIME type is given: it is never stored as .html', async () => {
       // The exact attack this closes: claim Content-Type: image/png on the multipart part (passes
       // the caller's allowedMimeTypes check) while naming the file something a browser will execute.
-      const result = await service.saveFile(Buffer.from('<script>alert(1)</script>'), 'evil.html', 'profile', 'image/png');
+      const result = await service.saveFile(PNG_BYTES, 'evil.html', 'profile', 'image/png');
       expect(result.path).toMatch(/\.png$/);
       expect(result.path).not.toMatch(/\.html$/);
+    });
+
+    it('refuses content that is not the claimed type, before scanning or writing it', async () => {
+      await expect(
+        service.saveFile(Buffer.from('<script>alert(1)</script>'), 'evil.html', 'profile', 'image/png'),
+      ).rejects.toMatchObject({ code: 'FILE_TYPE_NOT_ALLOWED' });
+      expect(virusScan.scan).not.toHaveBeenCalled();
+      const written = await fs.readdir(path.join(tempRoot, 'profile')).catch(() => [] as string[]);
+      expect(written).toHaveLength(0);
     });
 
     it('throws for a MIME type with no safe extension mapping, rather than falling back to the filename', async () => {
@@ -64,9 +76,9 @@ describe('LocalStorageService', () => {
     });
 
     it('actually writes the file under the configured root at the returned path', async () => {
-      const result = await service.saveFile(Buffer.from('content'), 'a.png', 'profile', 'image/png');
+      const result = await service.saveFile(PNG_BYTES, 'a.png', 'profile', 'image/png');
       const onDisk = await fs.readFile(path.join(tempRoot, result.path));
-      expect(onDisk.toString()).toBe('content');
+      expect(onDisk.equals(PNG_BYTES)).toBe(true);
     });
   });
 
@@ -107,16 +119,16 @@ describe('LocalStorageService', () => {
     it('refuses an infected upload and writes nothing', async () => {
       virusScan.scan.mockResolvedValue({ status: 'infected', signature: 'Eicar-Test-Signature' });
 
-      await expect(service.saveFile(Buffer.from('X5O!P%'), 'pan.pdf', 'kyc', 'application/pdf')).rejects.toMatchObject({ code: 'FILE_INFECTED' });
+      await expect(service.saveFile(Buffer.from('%PDF-1.4 X5O!P%'), 'pan.pdf', 'kyc', 'application/pdf')).rejects.toMatchObject({ code: 'FILE_INFECTED' });
       expect(await filesIn('kyc')).toHaveLength(0);
     });
 
     it('refuses the upload when the scanner is down, unless told to fail open', async () => {
       virusScan.scan.mockResolvedValue({ status: 'error', reason: 'connect ECONNREFUSED' });
-      await expect(service.saveFile(Buffer.from('x'), 'a.png', 'profile', 'image/png')).rejects.toBeInstanceOf(ServiceUnavailableException);
+      await expect(service.saveFile(PNG_BYTES, 'a.png', 'profile', 'image/png')).rejects.toBeInstanceOf(ServiceUnavailableException);
 
       virusScan.failOpen = true;
-      await expect(service.saveFile(Buffer.from('x'), 'a.png', 'profile', 'image/png')).resolves.toMatchObject({ mimeType: 'image/png' });
+      await expect(service.saveFile(PNG_BYTES, 'a.png', 'profile', 'image/png')).resolves.toMatchObject({ mimeType: 'image/png' });
     });
 
     it('does not scan files the server generated itself (no MIME type from a request)', async () => {

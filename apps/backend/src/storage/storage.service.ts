@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ERROR_CODES } from '@common/constants';
 import { BadRequestException, ServiceUnavailableException } from '@common/exceptions/domain.exceptions';
 
+import { contentMatchesMimeType } from './file-signature.util';
 import { VirusScanService } from './virus-scan.service';
 
 export interface UploadResult {
@@ -101,8 +102,11 @@ export class LocalStorageService implements OnModuleInit {
   ): Promise<UploadResult> {
     const safeFolder = folder.replace(/^\/+|\/+$/g, '');
     const ext = this.resolveExtension(originalName, mimeType);
-    // A caller-supplied MIME type means the bytes came from a user, so they are scanned before touching the disk.
-    if (mimeType) await this.assertNotMalware(buffer, safeFolder);
+    // A caller-supplied MIME type means the bytes came from a user, so they are checked before touching the disk.
+    if (mimeType) {
+      this.assertContentMatchesType(buffer, mimeType, safeFolder);
+      await this.assertNotMalware(buffer, safeFolder);
+    }
     const filename = `${uuidv4()}${ext}`;
     const relativePath = `/${safeFolder}/${filename}`;
     const fullPath = this.resolveSafePath(`${safeFolder}/${filename}`);
@@ -121,6 +125,16 @@ export class LocalStorageService implements OnModuleInit {
       mimeType: mimeType ?? this.getMimeType(ext),
       originalName,
     };
+  }
+
+  /** Refuses a file whose bytes are not the type the client claimed, e.g. a program sent as `image/png`. */
+  private assertContentMatchesType(buffer: Buffer, mimeType: string, folder: string): void {
+    if (contentMatchesMimeType(buffer, mimeType)) return;
+    this.logger.warn(`Rejected an upload to ${folder}: its content is not ${mimeType}`);
+    throw new BadRequestException(
+      "This file's content does not match its type. Please upload the original file.",
+      ERROR_CODES.FILE_TYPE_NOT_ALLOWED,
+    );
   }
 
   /**

@@ -17,6 +17,14 @@ export interface AccessTokenResult {
   expiresIn: number;
 }
 
+/** A refresh token that is still usable, and what the rotated session must keep from the old one. */
+export interface RefreshTokenValidation {
+  userId: string;
+  sessionId: string;
+  deviceId?: string;
+  rememberMe: boolean;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -43,6 +51,8 @@ export interface LoginResponse {
  */
 export interface LoginChallengeResponse {
   requiresVerification: true;
+  /** Why a code is needed: the account has two-factor sign-in on, or the device is new to it. */
+  reason: 'TWO_FACTOR' | 'NEW_DEVICE';
   challengeToken: string;
   /** Seconds until the code expires. */
   expiresIn: number;
@@ -142,5 +152,7 @@ export interface UserProfile {
   cityId: string | null;
   /** Legal documents whose current version this person still has to accept. The apps ask before anything else. */
   pendingPolicies: PolicyType[];
+  /** Role names as the token carries them, e.g. ['ADMIN', 'FINANCE_TEAM']. */
+  roles: string[];
   createdAt: Date;
 }

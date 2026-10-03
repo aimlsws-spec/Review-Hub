@@ -19,8 +19,13 @@ export interface User {
   hasPassword?: boolean
   /** Legal documents whose current version is not accepted yet. Only on GET /auth/me. */
   pendingPolicies?: string[]
+  /** Role names as the token carries them, e.g. ['ADMIN', 'FINANCE_TEAM']. Only on GET /auth/me. */
+  roles?: string[]
   createdAt: string
 }
+
+/** Staff roles a super admin can give or take away on the Users page. */
+export type StaffRole = 'ADMIN' | 'FINANCE_TEAM'
 
 export interface AuthTokens {
   accessToken: string
@@ -33,9 +38,10 @@ export interface LoginResponse {
   tokens: AuthTokens
 }
 
-/** What /auth/login returns instead of tokens for a browser this account has not used before. */
+/** What /auth/login returns instead of tokens for a new browser, or for any sign-in when two-factor is on. */
 export interface LoginChallenge {
   requiresVerification: true
+  reason?: 'TWO_FACTOR' | 'NEW_DEVICE'
   challengeToken: string
   expiresIn: number
   sentTo: string[]

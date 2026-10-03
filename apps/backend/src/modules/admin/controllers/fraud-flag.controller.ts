@@ -5,6 +5,7 @@ import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 import { SystemRole } from '@common/enums';
 
+import { FINANCE_ROLES } from '../../auth/constants';
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
 import { FraudFlagQueryDto, HighRiskDeviceQueryDto, ReverseRewardDto } from '../dto';
@@ -40,6 +41,7 @@ export class FraudFlagController {
   }
 
   @Post(':flagId/reverse-reward')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Claw back the flagged submission's reward and restore the merchant's campaign budget" })
   @ApiBody({ type: ReverseRewardDto })

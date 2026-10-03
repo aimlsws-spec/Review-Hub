@@ -15,6 +15,20 @@ export class SessionRepository {
     return this.prisma.userSession.findFirst({ where: { refreshTokenHash: hash, status: 'ACTIVE' } });
   }
 
+  /** Any status, newest first: used to tell a reused (rotated or revoked) refresh token from an unknown one. */
+  async findLatestByRefreshTokenHash(hash: string) {
+    return this.prisma.userSession.findFirst({ where: { refreshTokenHash: hash }, orderBy: { createdAt: 'desc' } });
+  }
+
+  /** Revokes the session only if it is still active. Returns false when another request revoked it first. */
+  async revokeIfActive(id: string): Promise<boolean> {
+    const result = await this.prisma.userSession.updateMany({
+      where: { id, status: 'ACTIVE' },
+      data: { status: 'REVOKED', revokedAt: new Date() },
+    });
+    return result.count === 1;
+  }
+
   async findActiveByUserId(userId: string) {
     return this.prisma.userSession.findMany({
       where: { userId, status: 'ACTIVE', expiresAt: { gt: new Date() } },

@@ -26,6 +26,18 @@ describe('RolesGuard', () => {
     getClass: jest.fn(),
   }) as unknown as import('@nestjs/common').ExecutionContext;
 
+  it('lets a super admin through any role check', async () => {
+    mockReflector.getAllAndOverride.mockReturnValue(['FINANCE_TEAM']);
+
+    await expect(guard.canActivate(mockContext(['SUPER_ADMIN']))).resolves.toBe(true);
+  });
+
+  it('keeps a plain admin out of a finance-only route', async () => {
+    mockReflector.getAllAndOverride.mockReturnValue(['FINANCE_TEAM', 'SUPER_ADMIN']);
+
+    await expect(guard.canActivate(mockContext(['ADMIN']))).rejects.toThrow(ForbiddenException);
+  });
+
   it('should allow access when no roles are required', async () => {
     mockReflector.getAllAndOverride.mockReturnValue(undefined);
 

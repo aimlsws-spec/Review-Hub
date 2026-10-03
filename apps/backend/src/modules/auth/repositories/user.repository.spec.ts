@@ -165,6 +165,12 @@ describe('UserRepository', () => {
       const result = await repository.getRoleNames('user-1');
       expect(result).toEqual(['ADMIN', 'MERCHANT']);
     });
+
+    it('turns dashes into underscores, so multi-word slugs match the AdminRole enum', async () => {
+      mockPrisma.userRole.findMany.mockResolvedValue([{ role: { slug: 'super-admin' } }, { role: { slug: 'finance-team' } }]);
+
+      await expect(repository.getRoleNames('user-1')).resolves.toEqual(['SUPER_ADMIN', 'FINANCE_TEAM']);
+    });
   });
 
   describe('incrementFailedAttempts', () => {

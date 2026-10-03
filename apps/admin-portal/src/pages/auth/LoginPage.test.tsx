@@ -110,6 +110,18 @@ describe('LoginPage', () => {
       expect(screen.queryByText('Dashboard Landing')).not.toBeInTheDocument()
     })
 
+    it('says two-factor sign-in, not a new browser, when that is why the code was sent', async () => {
+      loginMock.mockResolvedValue({ ...challenge, reason: 'TWO_FACTOR' })
+      const user = userEvent.setup()
+      renderPage()
+      await user.type(screen.getByLabelText(/email address/i), 'admin@viralkar.com')
+      await user.type(screen.getByLabelText(/^password/i), 'secret123')
+      await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+      expect(await screen.findByText(/two-factor sign-in is on for this account/i)).toBeInTheDocument()
+      expect(screen.queryByText(/new browser/i)).not.toBeInTheDocument()
+    })
+
     it('finishes the sign-in with the code', async () => {
       verifyDeviceMock.mockResolvedValue(undefined)
       const user = await signInToChallenge()

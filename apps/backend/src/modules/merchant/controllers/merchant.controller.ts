@@ -22,6 +22,8 @@ import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
 import { PaymentSimulationGuard } from '../../payment/guards';
+import { MERCHANT_TEAM_PERMISSIONS } from '../constants';
+import { TeamRoles } from '../decorators';
 import {
   AddBankDto,
   CreateRechargeDto,
@@ -37,7 +39,7 @@ import {
   UpdateTeamDto,
   VerifyRechargeDto,
 } from '../dto';
-import { MerchantOwnershipGuard } from '../guards';
+import { MerchantOwnershipGuard, MerchantTeamRoleGuard } from '../guards';
 import { AutoRechargeService, MerchantService, KycService, TeamService, BankService, WalletService, DashboardService, RefundService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.MERCHANTS)
@@ -82,7 +84,8 @@ export class MerchantController {
 
   @Patch(':merchantId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update merchant profile' })
   @ApiBody({ type: UpdateMerchantDto })
@@ -101,7 +104,8 @@ export class MerchantController {
 
   @Post(':merchantId/kyc/upload')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @UseInterceptors(FileInterceptor('file'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Upload KYC document' })
@@ -117,7 +121,8 @@ export class MerchantController {
 
   @Post(':merchantId/kyc/resubmit')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @UseInterceptors(FileInterceptor('file'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Resubmit a rejected KYC document' })
@@ -155,7 +160,8 @@ export class MerchantController {
 
   @Post(':merchantId/team/invite')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Invite a team member' })
   @ApiBody({ type: InviteTeamDto })
@@ -178,7 +184,8 @@ export class MerchantController {
 
   @Patch(':merchantId/team/:memberId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update team member role' })
   @ApiBody({ type: UpdateTeamDto })
@@ -192,7 +199,8 @@ export class MerchantController {
 
   @Delete(':merchantId/team/:memberId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove a team member' })
   async removeTeamMember(
@@ -213,7 +221,8 @@ export class MerchantController {
 
   @Delete(':merchantId/invitations/:invitationId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel an invitation' })
   async cancelInvitation(
@@ -234,7 +243,8 @@ export class MerchantController {
 
   @Post(':merchantId/bank-accounts')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add a bank account' })
   @ApiBody({ type: AddBankDto })
@@ -244,7 +254,8 @@ export class MerchantController {
 
   @Patch(':merchantId/bank-accounts/:bankId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update bank account' })
   @ApiBody({ type: UpdateBankDto })
@@ -258,7 +269,8 @@ export class MerchantController {
 
   @Delete(':merchantId/bank-accounts/:bankId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete bank account' })
   async deleteBankAccount(
@@ -270,7 +282,8 @@ export class MerchantController {
 
   @Post(':merchantId/bank-accounts/default')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Set default bank account' })
   @ApiBody({ type: SetDefaultBankDto })
@@ -307,7 +320,8 @@ export class MerchantController {
 
   @Post(':merchantId/wallet/recharge')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a Razorpay order to recharge the wallet' })
   @ApiBody({ type: CreateRechargeDto })
@@ -317,7 +331,8 @@ export class MerchantController {
 
   @Post(':merchantId/wallet/recharge/verify')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify a completed Razorpay Checkout payment and credit the wallet' })
   @ApiBody({ type: VerifyRechargeDto })
@@ -327,7 +342,8 @@ export class MerchantController {
 
   @Post(':merchantId/wallet/recharge/simulate')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(PaymentSimulationGuard, MerchantOwnershipGuard)
+  @UseGuards(PaymentSimulationGuard, MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: '[MOCK] Simulate a successful recharge (bypasses Razorpay)' })
   @ApiBody({ type: CreateRechargeDto })
@@ -346,7 +362,8 @@ export class MerchantController {
 
   @Patch(':merchantId/wallet/auto-recharge')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Enable/configure or disable wallet auto-recharge' })
   @ApiBody({ type: UpdateAutoRechargeSettingsDto })
@@ -356,7 +373,8 @@ export class MerchantController {
 
   @Post(':merchantId/refunds')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(MerchantOwnershipGuard)
+  @UseGuards(MerchantOwnershipGuard, MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Request a refund from the wallet balance' })
   @ApiBody({ type: CreateRefundDto })

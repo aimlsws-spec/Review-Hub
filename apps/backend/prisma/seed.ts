@@ -38,6 +38,13 @@ async function main() {
     prisma.role.upsert({ where: { slug: 'user' }, update: {}, create: { name: 'User', slug: 'user', description: 'Regular platform user', isSystem: true } }),
   ]);
   const [superAdminRole, adminRole, merchantRole, userRole] = roles;
+  // Money actions (withdrawals, refunds, top-ups, clawbacks, settlements, TDS) need this role or super admin. Staff
+  // who do that work get it alongside 'admin', from the admin portal's user page.
+  await prisma.role.upsert({
+    where: { slug: 'finance-team' },
+    update: {},
+    create: { name: 'Finance Team', slug: 'finance-team', description: 'Can approve and pay out money', isSystem: true },
+  });
   console.log('✅ Roles seeded');
 
   // ── Permissions ────────────────────────────────────────────

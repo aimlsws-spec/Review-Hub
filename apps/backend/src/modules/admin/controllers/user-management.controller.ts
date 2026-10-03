@@ -1,9 +1,9 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
-import { SystemRole } from '@common/enums';
+import { AdminRole, SystemRole } from '@common/enums';
 
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
@@ -30,6 +30,30 @@ export class UserManagementController {
   @ApiOperation({ summary: 'Get a user (admin view)' })
   async getById(@Param('userId') userId: string) {
     return this.userManagementService.getById(userId);
+  }
+
+  @Get(':userId/roles')
+  @Roles(AdminRole.SuperAdmin)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "List a user's roles (super admin)" })
+  async getRoles(@Param('userId') userId: string) {
+    return this.userManagementService.getRoles(userId);
+  }
+
+  @Put(':userId/roles/:role')
+  @Roles(AdminRole.SuperAdmin)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Give a staff role: ADMIN or FINANCE_TEAM (super admin)' })
+  async grantRole(@Param('userId') userId: string, @Param('role') role: string, @CurrentUser('id') adminId: string) {
+    return this.userManagementService.grantRole(userId, role, adminId);
+  }
+
+  @Delete(':userId/roles/:role')
+  @Roles(AdminRole.SuperAdmin)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove a staff role and sign the person out (super admin)' })
+  async revokeRole(@Param('userId') userId: string, @Param('role') role: string, @CurrentUser('id') adminId: string) {
+    return this.userManagementService.revokeRole(userId, role, adminId);
   }
 
   @Post(':userId/suspend')

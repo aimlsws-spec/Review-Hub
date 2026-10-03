@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { SystemRole } from '@common/enums';
+import { AdminRole, SystemRole } from '@common/enums';
 import { BadRequestException } from '@common/exceptions/domain.exceptions';
 
 import { ROLES_KEY } from '../../auth/decorators';
@@ -45,7 +45,9 @@ describe('AdminTdsController', () => {
     expect(res.send).toHaveBeenCalledWith('a,b\r\n');
   });
 
-  it('is for admins only', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, AdminTdsController)).toContain(SystemRole.Admin);
+  it('is for the finance team and super admins only, since it holds full PANs', () => {
+    const roles = Reflect.getMetadata(ROLES_KEY, AdminTdsController) as string[];
+    expect(roles).toEqual(expect.arrayContaining([AdminRole.FinanceTeam, AdminRole.SuperAdmin]));
+    expect(roles).not.toContain(SystemRole.Admin);
   });
 });

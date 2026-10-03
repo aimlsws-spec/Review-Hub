@@ -3,9 +3,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DocumentVerificationStatus, Prisma } from '@prisma/client';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
-import { maskIdentifier } from '@common/utils';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
+import { IdentityNumberProtector } from '../../../shared/crypto';
 import { UserKycReviewedEvent } from '../../user-kyc/events';
 import { KycDocumentWithUser, UserKycDocumentRepository } from '../../user-kyc/repositories';
 import { UserKycService } from '../../user-kyc/services';
@@ -27,6 +27,7 @@ export class KycManagementService {
     private readonly userKycService: UserKycService,
     private readonly auditLogService: AuditLogService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly identityNumbers: IdentityNumberProtector,
   ) {}
 
   /** Paginated review queue. Oldest first while waiting on a decision, so nothing sits unseen; newest first otherwise. */
@@ -133,7 +134,8 @@ export class KycManagementService {
     if (query.documentType) where.documentType = query.documentType;
     if (query.search) {
       where.OR = [
-        { documentNumber: { contains: query.search } },
+        // Numbers are encrypted, so only an exact number can be searched for, through its hash.
+        { documentNumberHash: this.identityNumbers.hash(query.search) },
         {
           user: {
             is: {
@@ -156,8 +158,9 @@ export class KycManagementService {
     return {
       id: document.id,
       documentType: document.documentType,
-      documentNumber:
-        document.documentNumber && !revealNumber ? maskIdentifier(document.documentNumber) : document.documentNumber,
+      documentNumber: revealNumber
+        ? this.identityNumbers.reveal(document).documentNumber
+        : this.identityNumbers.mask(document).documentNumber,
       status: document.verificationStatus,
       rejectionReason: document.rejectionReason,
       hasFile: Boolean(document.fileUploadId),

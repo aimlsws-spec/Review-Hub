@@ -3,16 +3,16 @@ import { Reflector } from '@nestjs/core';
 import { MerchantTeamRole } from '@prisma/client';
 
 import { MERCHANT_TEAM_ROLES_KEY } from '../constants';
-import { MerchantTeamRepository } from '../repositories';
 
+/**
+ * Checks the caller's team role against @TeamRoles(...). It must run after MerchantOwnershipGuard or
+ * CampaignOwnershipGuard, which resolve that role; put those on the class and this one on the handler.
+ */
 @Injectable()
 export class MerchantTeamRoleGuard implements CanActivate {
-  constructor(
-    private readonly reflector: Reflector,
-    private readonly teamRepository: MerchantTeamRepository,
-  ) {}
+  constructor(private readonly reflector: Reflector) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<MerchantTeamRole[]>(MERCHANT_TEAM_ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -20,13 +20,7 @@ export class MerchantTeamRoleGuard implements CanActivate {
     if (!requiredRoles || requiredRoles.length === 0) return true;
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
-    const merchant = request.merchant;
-    if (!user || !merchant) return false;
-
-    const teamMember = await this.teamRepository.findByMerchantAndUser(merchant.id, user.id);
-    if (!teamMember) return false;
-
-    return requiredRoles.includes(teamMember.role);
+    const role: MerchantTeamRole | undefined = request.merchantTeamRole;
+    return !!role && requiredRoles.includes(role);
   }
 }

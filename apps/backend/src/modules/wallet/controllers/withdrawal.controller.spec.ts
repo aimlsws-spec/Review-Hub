@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { SystemRole } from '@common/enums';
+import { AdminRole, SystemRole } from '@common/enums';
 
 import { ROLES_KEY } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
@@ -53,10 +53,10 @@ describe('WithdrawalController', () => {
       expect(mockWithdrawalService.markFailed).toHaveBeenCalledWith('withdrawal-1', 'admin-1', dto);
     });
 
-    it.each(['markPaid', 'markFailed'] as const)('%s is for admins only', (method) => {
+    it.each(['approve', 'reject', 'markPaid', 'markFailed'] as const)('%s is for the finance team and super admins only', (method) => {
       const roles = Reflect.getMetadata(ROLES_KEY, WithdrawalController.prototype[method]) as string[] | undefined;
-      expect(roles).toBeDefined();
-      expect(roles).toContain(SystemRole.Admin);
+      expect(roles).toEqual(expect.arrayContaining([AdminRole.FinanceTeam, AdminRole.SuperAdmin]));
+      expect(roles).not.toContain(SystemRole.Admin);
     });
   });
 

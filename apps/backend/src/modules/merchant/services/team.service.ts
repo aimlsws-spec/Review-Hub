@@ -31,6 +31,7 @@ export class TeamService {
     if (!currentMember || (currentMember.role !== 'ADMIN' && currentMember.role !== 'OWNER')) {
       throw new ForbiddenException('Only merchant owners and admins can invite team members');
     }
+    if (dto.role === 'OWNER') throw new BadRequestException('The owner role can not be given by invitation');
 
     const memberCount = await this.teamRepository.countByMerchantId(merchantId);
     if (memberCount >= MERCHANT_CONSTANTS.MAX_TEAM_MEMBERS) {
@@ -62,11 +63,17 @@ export class TeamService {
     return invitation;
   }
 
-  async acceptInvitation(token: string, userId: string, userEmail: string) {
+  /**
+   * Adds the signed-in person to the inviting merchant's team. The id and email come from their session, never from
+   * the request: the invitation is only for the account that owns the invited email address.
+   */
+  async acceptInvitation(token: string, userId: string, userEmail: string | null | undefined) {
     const invitation = await this.invitationRepository.findByToken(token);
     if (!invitation) throw new NotFoundException('Invitation not found');
     if (invitation.status !== 'PENDING') throw new BadRequestException('Invitation already processed');
-    if (invitation.email !== userEmail) throw new BadRequestException('This invitation was sent to a different email');
+    if (!userEmail || invitation.email.trim().toLowerCase() !== userEmail.trim().toLowerCase()) {
+      throw new BadRequestException('This invitation was sent to a different email');
+    }
     if (invitation.expiresAt < new Date()) {
       await this.invitationRepository.update(invitation.id, { status: 'EXPIRED' });
       throw new BadRequestException('Invitation has expired');
@@ -98,6 +105,9 @@ export class TeamService {
   async updateTeamMember(merchantId: string, memberId: string, dto: UpdateTeamDto) {
     const member = await this.teamRepository.findById(memberId);
     if (!member || member.merchantId !== merchantId) throw new NotFoundException('Team member not found');
+    // Ownership is tied to the merchant record, not to a team role, so it can neither be granted nor taken here.
+    if (member.role === 'OWNER') throw new BadRequestException("The owner's role can not be changed");
+    if (dto.role === 'OWNER') throw new BadRequestException('The owner role can not be given to a team member');
 
     const updated = await this.teamRepository.update(memberId, { role: dto.role, permissions: dto.permissions });
 

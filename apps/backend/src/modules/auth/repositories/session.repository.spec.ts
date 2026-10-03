@@ -46,6 +46,32 @@ describe('SessionRepository', () => {
     });
   });
 
+  describe('findLatestByRefreshTokenHash', () => {
+    it('finds the newest session with the hash, whatever its status', async () => {
+      mockPrisma.userSession.findFirst.mockResolvedValue({ id: 'session-1', status: 'REVOKED' });
+
+      await repository.findLatestByRefreshTokenHash('hash');
+
+      expect(mockPrisma.userSession.findFirst).toHaveBeenCalledWith({
+        where: { refreshTokenHash: 'hash' },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+
+  describe('revokeIfActive', () => {
+    it('revokes only an active session and says whether it did', async () => {
+      mockPrisma.userSession.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+
+      await expect(repository.revokeIfActive('session-1')).resolves.toBe(true);
+      await expect(repository.revokeIfActive('session-1')).resolves.toBe(false);
+      expect(mockPrisma.userSession.updateMany).toHaveBeenCalledWith({
+        where: { id: 'session-1', status: 'ACTIVE' },
+        data: { status: 'REVOKED', revokedAt: expect.any(Date) },
+      });
+    });
+  });
+
   describe('create', () => {
     it('should create a session', async () => {
       const data = {

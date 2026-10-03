@@ -6,6 +6,7 @@ import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 import { SystemRole } from '@common/enums';
 
+import { FINANCE_ROLES } from '../../auth/constants';
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
 import { AdminInvoiceQueryDto, IssueInvoiceNoteDto } from '../dto';
@@ -39,6 +40,7 @@ export class AdminInvoiceController {
   }
 
   @Post(':invoiceId/notes')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Issue a credit or debit note against an invoice. A tax document only: no money moves.' })

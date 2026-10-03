@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { AdminRole } from '@common/enums';
+
+import { ROLES_KEY } from '../../auth/decorators';
 import { UserManagementService } from '../services';
 
 import { UserManagementController } from './user-management.controller';
@@ -13,6 +16,9 @@ describe('UserManagementController', () => {
     suspend: jest.fn(),
     ban: jest.fn(),
     reactivate: jest.fn(),
+    getRoles: jest.fn(),
+    grantRole: jest.fn(),
+    revokeRole: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -23,6 +29,18 @@ describe('UserManagementController', () => {
 
     controller = module.get<UserManagementController>(UserManagementController);
     jest.clearAllMocks();
+  });
+
+  it.each(['getRoles', 'grantRole', 'revokeRole'] as const)('%s is for super admins only', (method) => {
+    expect(Reflect.getMetadata(ROLES_KEY, UserManagementController.prototype[method])).toEqual([AdminRole.SuperAdmin]);
+  });
+
+  it('passes the role change and the acting super admin to the service', async () => {
+    await controller.grantRole('user-1', 'FINANCE_TEAM', 'super-1');
+    await controller.revokeRole('user-1', 'FINANCE_TEAM', 'super-1');
+
+    expect(mockUserManagementService.grantRole).toHaveBeenCalledWith('user-1', 'FINANCE_TEAM', 'super-1');
+    expect(mockUserManagementService.revokeRole).toHaveBeenCalledWith('user-1', 'FINANCE_TEAM', 'super-1');
   });
 
   it('should be defined', () => {

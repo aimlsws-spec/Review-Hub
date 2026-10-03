@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+import { roleClaimForSlug } from '../constants';
 
 @Injectable()
 export class UserRepository {
@@ -136,9 +137,9 @@ export class UserRepository {
       where: { userId: id },
       include: { role: { select: { slug: true } } },
     });
-    // Uppercased because these feed straight into the JWT's `role` claim, which
-    // RolesGuard compares against the SystemRole enum ('ADMIN', 'MERCHANT', 'USER') —
-    // Role.slug in the DB is lowercase-kebab (e.g. 'admin', 'super-admin').
-    return result.map((ur) => ur.role.slug.toUpperCase());
+    // These feed straight into the JWT's `role` claim, which RolesGuard compares against the SystemRole and
+    // AdminRole enums ('ADMIN', 'SUPER_ADMIN', 'FINANCE_TEAM'). Role.slug in the DB is lowercase-kebab
+    // ('admin', 'super-admin'), so it is upper-cased with dashes turned into underscores.
+    return result.map((ur) => roleClaimForSlug(ur.role.slug));
   }
 }

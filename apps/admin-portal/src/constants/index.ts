@@ -37,6 +37,7 @@ export const QUERY_KEYS = {
   ME: ['me'],
   USERS: ['users'],
   USER_DETAIL: ['users', 'detail'],
+  USER_ROLES: ['users', 'roles'],
   MERCHANTS: ['merchants'],
   MERCHANT_DETAIL: ['merchants', 'detail'],
   MERCHANT_TOP_UPS: ['merchants', 'top-ups'],

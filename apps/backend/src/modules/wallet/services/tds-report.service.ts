@@ -5,6 +5,7 @@ import { BadRequestException } from '@common/exceptions/domain.exceptions';
 import { csvCell } from '@common/utils/csv.util';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+import { IdentityNumberProtector } from '../../../shared/crypto';
 import { financialYearOf } from '../tds';
 
 const FINANCIAL_YEAR_PATTERN = /^\d{4}-\d{2}$/;
@@ -23,7 +24,10 @@ export interface TdsQuery {
  */
 @Injectable()
 export class TdsReportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly identityNumbers: IdentityNumberProtector,
+  ) {}
 
   async list(query: TdsQuery) {
     const financialYear = this.resolveYear(query.financialYear);
@@ -38,7 +42,8 @@ export class TdsReportService {
 
     const names = await this.namesOf(rows.map((row) => row.userId));
     return {
-      data: rows.map((row) => ({ ...row, userName: names.get(row.userId) ?? null })),
+      // The list shows PANs masked; the CSV export, which is what a TDS return is filed from, has them in full.
+      data: rows.map((row) => ({ ...row, panNumber: this.maskPan(row.panNumber), userName: names.get(row.userId) ?? null })),
       total,
       page: query.page,
       limit: query.limit,
@@ -62,7 +67,7 @@ export class TdsReportService {
       row.financialYear,
       row.createdAt.toISOString().slice(0, 10),
       names.get(row.userId) ?? '',
-      row.panNumber ?? '',
+      this.identityNumbers.open(row.panNumber) ?? '',
       row.section,
       Number(row.grossAmount).toFixed(2),
       Number(row.rate).toFixed(4),
@@ -73,6 +78,11 @@ export class TdsReportService {
     ]);
 
     return { filename: `tds-${financialYear}.csv`, content: [header, ...lines].map((line) => line.map(csvCell).join(',')).join('\r\n') + '\r\n' };
+  }
+
+  private maskPan(stored: string | null): string | null {
+    const pan = this.identityNumbers.open(stored);
+    return pan === null ? null : IdentityNumberProtector.maskNumber(pan);
   }
 
   private resolveYear(input?: string): string {

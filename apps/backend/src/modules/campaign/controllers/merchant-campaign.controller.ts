@@ -6,7 +6,9 @@ import { Throttle } from '@nestjs/throttler';
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
-import { MerchantOwnershipGuard } from '../../merchant/guards';
+import { MERCHANT_TEAM_PERMISSIONS } from '../../merchant/constants';
+import { TeamRoles } from '../../merchant/decorators';
+import { MerchantOwnershipGuard, MerchantTeamRoleGuard } from '../../merchant/guards';
 import { AnalyticsQueryDto, CampaignQueryDto, CheckWordingDto, CreateCampaignDto, RecommendCampaignDto, ReportExportQueryDto } from '../dto';
 import {
   CampaignBuilderService,
@@ -31,6 +33,8 @@ export class MerchantCampaignController {
   ) {}
 
   @Post()
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a campaign as this merchant' })
@@ -43,6 +47,8 @@ export class MerchantCampaignController {
   }
 
   @Post('recommend')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiBearerAuth()
@@ -52,6 +58,8 @@ export class MerchantCampaignController {
   }
 
   @Post('check-wording')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @ApiBearerAuth()
@@ -112,6 +120,8 @@ export class MerchantCampaignController {
   }
 
   @Post(':campaignId/fund')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Fund and activate a campaign (deducts budget from merchant wallet)' })

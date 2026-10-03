@@ -4,6 +4,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 
 import { CampaignOwnershipGuard } from '../../campaign/guards';
+import { MERCHANT_TEAM_PERMISSIONS } from '../../merchant/constants';
+import { TeamRoles } from '../../merchant/decorators';
+import { MerchantTeamRoleGuard } from '../../merchant/guards';
 import { CreateCampaignTaskDto, UpdateCampaignTaskDto } from '../dto';
 import { CampaignTaskService } from '../services';
 
@@ -14,6 +17,8 @@ export class MerchantCampaignTaskController {
   constructor(private readonly campaignTaskService: CampaignTaskService) {}
 
   @Post()
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add a task to this campaign' })
@@ -22,6 +27,8 @@ export class MerchantCampaignTaskController {
   }
 
   @Patch(':taskId')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a task on this campaign' })
@@ -34,6 +41,8 @@ export class MerchantCampaignTaskController {
   }
 
   @Delete(':taskId')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove a task from this campaign' })

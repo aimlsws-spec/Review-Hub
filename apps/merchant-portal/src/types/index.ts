@@ -53,9 +53,10 @@ export interface ContentPage {
   updatedAt: string
 }
 
-/** What /auth/login returns instead of tokens for a browser this account has not used before. */
+/** What /auth/login returns instead of tokens for a new browser, or for any sign-in when two-factor is on. */
 export interface LoginChallenge {
   requiresVerification: true
+  reason?: 'TWO_FACTOR' | 'NEW_DEVICE'
   challengeToken: string
   expiresIn: number
   sentTo: string[]

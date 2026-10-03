@@ -16,6 +16,11 @@ export interface PendingLogin {
   isEmulator?: boolean;
   isAutomationDetected?: boolean;
   vpnSuspected: boolean;
+  /**
+   * Whether the device was new to the account (two-factor sign-ins are held on known devices too), so the alert
+   * email goes out only for a new one. Missing on challenges stored before this field existed: those were all new.
+   */
+  isNewDevice?: boolean;
 }
 
 /**

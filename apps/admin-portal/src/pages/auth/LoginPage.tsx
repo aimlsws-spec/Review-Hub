@@ -332,6 +332,7 @@ export default function LoginPage() {
           {pending ? (
             <VerifyDeviceForm
               sentTo={pending.challenge.sentTo}
+              reason={pending.challenge.reason}
               onVerify={async (code) => {
                 await verifyDevice(pending.challenge, code, pending.rememberMe)
                 finish()

@@ -1,6 +1,8 @@
 /**
  * Encrypts bank account numbers and UPI IDs written before column encryption existed, and fills in the hash and
- * last-four columns those rows lack (migration 20261002120000_encrypt_bank_details).
+ * last-four columns those rows lack (migration 20261002120000_encrypt_bank_details). It does the same for KYC
+ * document numbers (PAN, Aadhaar, ...) and the PAN copied onto TDS deductions (migration
+ * 20261003120000_encrypt_kyc_document_numbers). The name stayed, so the deploy script did not have to change.
  *
  *   npm run db:encrypt-bank-details            (from apps/backend)
  *
@@ -17,6 +19,7 @@ import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 
 import { BankDetailsProtector } from '../../src/shared/crypto/bank-details-protector';
+import { IdentityNumberProtector } from '../../src/shared/crypto/identity-number-protector';
 import { DEVELOPMENT_ENCRYPTION_KEY, DEVELOPMENT_HASH_KEY, FieldCipher } from '../../src/shared/crypto/field-cipher';
 import type { FieldEncryptionService } from '../../src/shared/crypto/field-encryption.service';
 
@@ -65,6 +68,43 @@ interface StoredRow {
 }
 
 /** The columns to write for one row: everything encrypted, decrypting first whatever already is. */
+/** A KYC document still needs work while it has a number but no hash, or a number still in plain text. */
+const kycNeedsWork = {
+  documentNumber: { not: null },
+  OR: [{ documentNumberHash: null }, { NOT: { documentNumber: { startsWith: ENCRYPTED_PREFIX } } }],
+};
+
+/** Encrypts KYC document numbers and the PANs copied onto TDS deductions. Returns how many rows of each changed. */
+async function encryptIdentityNumbers(prisma: PrismaClient, cipher: FieldCipher): Promise<{ documents: number; deductions: number }> {
+  const identity = new IdentityNumberProtector(cipher as FieldEncryptionService);
+
+  let documents = 0;
+  for (;;) {
+    const rows = await prisma.userKycDocument.findMany({ where: kycNeedsWork, select: { id: true, documentNumber: true }, take: BATCH });
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      await prisma.userKycDocument.update({ where: { id: row.id }, data: identity.seal(identity.open(row.documentNumber)) });
+    }
+    documents += rows.length;
+  }
+
+  let deductions = 0;
+  for (;;) {
+    const rows = await prisma.tdsDeduction.findMany({
+      where: { panNumber: { not: null }, NOT: { panNumber: { startsWith: ENCRYPTED_PREFIX } } },
+      select: { id: true, panNumber: true },
+      take: BATCH,
+    });
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      await prisma.tdsDeduction.update({ where: { id: row.id }, data: { panNumber: identity.encrypt(row.panNumber) } });
+    }
+    deductions += rows.length;
+  }
+
+  return { documents, deductions };
+}
+
 function sealRow(row: StoredRow, protector: BankDetailsProtector, cipher: FieldCipher) {
   return protector.seal({
     accountNumber: cipher.decrypt(row.accountNumber),
@@ -99,6 +139,9 @@ async function main(): Promise<void> {
     }
 
     console.log(`Bank details encrypted: ${users} user account(s), ${merchants} merchant account(s).`);
+
+    const { documents, deductions } = await encryptIdentityNumbers(prisma, cipher);
+    console.log(`Identity numbers encrypted: ${documents} KYC document(s), ${deductions} TDS deduction(s).`);
   } finally {
     await prisma.$disconnect();
   }

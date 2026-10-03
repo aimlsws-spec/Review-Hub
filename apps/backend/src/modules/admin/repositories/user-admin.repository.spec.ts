@@ -14,6 +14,9 @@ describe('UserAdminRepository', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    userRole: { findMany: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
+    role: { findFirst: jest.fn() },
+    userSession: { updateMany: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -63,6 +66,41 @@ describe('UserAdminRepository', () => {
       expect(mockPrisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'user-1' }, data: { status: 'BANNED' } }),
       );
+    });
+  });
+
+  describe('roles', () => {
+    it('reads the slugs of the roles a user holds', async () => {
+      mockPrisma.userRole.findMany.mockResolvedValue([{ role: { slug: 'admin' } }, { role: { slug: 'finance-team' } }]);
+
+      await expect(repository.getRoleSlugs('user-1')).resolves.toEqual(['admin', 'finance-team']);
+    });
+
+    it('finds only a role that has not been deleted', async () => {
+      await repository.findRoleBySlug('finance-team');
+
+      expect(mockPrisma.role.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { slug: 'finance-team', deletedAt: null } }));
+    });
+
+    it('gives a role without failing when the user already has it, recording who gave it', async () => {
+      await repository.grantRole('user-1', 'role-1', 'super-1');
+
+      expect(mockPrisma.userRole.upsert).toHaveBeenCalledWith({
+        where: { userId_roleId: { userId: 'user-1', roleId: 'role-1' } },
+        update: {},
+        create: { userId: 'user-1', roleId: 'role-1', assignedBy: 'super-1' },
+      });
+    });
+
+    it('removes a role, and ends only active sessions', async () => {
+      await repository.revokeRole('user-1', 'role-1');
+      await repository.revokeSessions('user-1');
+
+      expect(mockPrisma.userRole.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1', roleId: 'role-1' } });
+      expect(mockPrisma.userSession.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', status: 'ACTIVE' },
+        data: { status: 'REVOKED', revokedAt: expect.any(Date) },
+      });
     });
   });
 });

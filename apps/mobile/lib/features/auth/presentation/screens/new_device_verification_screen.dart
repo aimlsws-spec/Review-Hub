@@ -162,9 +162,11 @@ class _NewDeviceVerificationScreenState extends ConsumerState<NewDeviceVerificat
                   children: [
                     const Icon(Icons.phonelink_lock_outlined, size: 40, color: AppColors.orange500),
                     const SizedBox(height: 16),
-                    const Text(
-                      'You are signing in on a new device',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.slate900),
+                    Text(
+                      challenge.reason == LoginChallengeReason.twoFactor
+                          ? 'Two-factor sign-in is on for this account'
+                          : 'You are signing in on a new device',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.slate900),
                     ),
                     const SizedBox(height: 8),
                     Text(

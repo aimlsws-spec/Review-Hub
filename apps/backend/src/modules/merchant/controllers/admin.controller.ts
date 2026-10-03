@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { CurrentUser } from '@common/decorators';
 import { SystemRole } from '@common/enums';
 
+import { FINANCE_ROLES } from '../../auth/constants';
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
 import { ApproveMerchantDto, ManualTopUpDto, RejectMerchantDto, RejectRefundDto, RequestDocumentsDto, TopUpReasonDto } from '../dto';
@@ -108,6 +109,7 @@ export class AdminMerchantController {
   }
 
   @Post('refunds/:refundId/approve')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Approve a merchant refund request' })
@@ -116,6 +118,7 @@ export class AdminMerchantController {
   }
 
   @Post('refunds/:refundId/reject')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reject a merchant refund request' })
@@ -129,6 +132,7 @@ export class AdminMerchantController {
   }
 
   @Post(':merchantId/wallet/top-ups')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiBearerAuth()
@@ -154,6 +158,7 @@ export class AdminMerchantController {
   }
 
   @Post('top-ups/:topUpId/approve')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiBearerAuth()
@@ -163,6 +168,7 @@ export class AdminMerchantController {
   }
 
   @Post('top-ups/:topUpId/reject')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiBearerAuth()
@@ -173,6 +179,7 @@ export class AdminMerchantController {
   }
 
   @Post('top-ups/:topUpId/reverse')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiBearerAuth()

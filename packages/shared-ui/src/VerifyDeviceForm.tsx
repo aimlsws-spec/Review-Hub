@@ -5,6 +5,8 @@ import { Spinner } from './Spinner'
 interface VerifyDeviceFormProps {
   /** Masked email and/or phone the code went to, as the sign-in response lists them. */
   sentTo: string[]
+  /** Why the server asked for a code. Older servers leave it out, which means a new browser. */
+  reason?: 'TWO_FACTOR' | 'NEW_DEVICE'
   /** Finishes the sign-in. Rejects with the API error when the code is wrong or the sign-in expired. */
   onVerify: (code: string) => Promise<void>
   /** Sends a new code. Rejects with the API error, e.g. when asked again too soon. */
@@ -20,11 +22,13 @@ interface VerifyDeviceFormProps {
 const CODE_LENGTH = 6
 
 /**
- * The second step of a sign-in from a browser this account has not used before: the server has sent a code to the
- * account's email and phone, and only finishes the sign-in once it comes back from this same browser.
+ * The second step of a sign-in from a browser this account has not used before, or of any sign-in when the account
+ * has two-factor sign-in on: the server has sent a code to the account's email and phone, and only finishes the
+ * sign-in once it comes back from this same browser.
  */
 export function VerifyDeviceForm({
   sentTo,
+  reason = 'NEW_DEVICE',
   onVerify,
   onResend,
   onCancel,
@@ -73,7 +77,7 @@ export function VerifyDeviceForm({
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Confirm it's you</h2>
         <p className="mt-2 text-sm text-gray-500">
-          You are signing in from a new browser.{' '}
+          {reason === 'TWO_FACTOR' ? 'Two-factor sign-in is on for this account.' : 'You are signing in from a new browser.'}{' '}
           {sentTo.length > 0 ? `Enter the code we sent to ${sentTo.join(' and ')}.` : 'Enter the code we sent you.'}
         </p>
       </div>

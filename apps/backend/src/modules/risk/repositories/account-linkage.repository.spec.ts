@@ -105,24 +105,24 @@ describe('AccountLinkageRepository', () => {
   });
 
   describe('PAN numbers', () => {
-    it('reads the live PAN numbers, upper-cased and trimmed so the same PAN typed differently still matches', async () => {
-      mockPrisma.userKycDocument.findMany.mockResolvedValue([{ documentNumber: ' abcde1234f ' }, { documentNumber: 'PQRST5678U' }]);
+    it('reads the hashes of the live PAN numbers, never the encrypted numbers themselves', async () => {
+      mockPrisma.userKycDocument.findMany.mockResolvedValue([{ documentNumberHash: 'hash-1' }, { documentNumberHash: 'hash-2' }]);
 
-      await expect(repository.panNumbersOf('user-1')).resolves.toEqual(['ABCDE1234F', 'PQRST5678U']);
+      await expect(repository.panNumbersOf('user-1')).resolves.toEqual(['hash-1', 'hash-2']);
       expect(mockPrisma.userKycDocument.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1', documentType: 'PAN', deletedAt: null, documentNumber: { not: null } },
-        select: { documentNumber: true },
+        where: { userId: 'user-1', documentType: 'PAN', deletedAt: null, documentNumberHash: { not: null } },
+        select: { documentNumberHash: true },
       });
     });
 
-    it('finds other users holding the same PAN', async () => {
+    it('finds other users holding the same PAN, by hash', async () => {
       mockPrisma.userKycDocument.findMany.mockResolvedValue([{ userId: 'u2' }]);
 
-      await expect(repository.usersSharingPan(['ABCDE1234F'], scope)).resolves.toEqual(['u2']);
+      await expect(repository.usersSharingPan(['hash-1'], scope)).resolves.toEqual(['u2']);
       expect(mockPrisma.userKycDocument.findMany.mock.calls[0][0].where).toEqual({
         documentType: 'PAN',
         deletedAt: null,
-        documentNumber: { in: ['ABCDE1234F'] },
+        documentNumberHash: { in: ['hash-1'] },
         userId: { not: 'user-1' },
       });
     });

@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 import { SystemRole } from '@common/enums';
 
+import { FINANCE_ROLES } from '../../auth/constants';
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
 import { GenerateSettlementDto, SettlementQueryDto } from '../dto';
@@ -30,6 +31,7 @@ export class AdminSettlementController {
   }
 
   @Post('generate')
+  @Roles(...FINANCE_ROLES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate settlements + invoices for a period (defaults to the prior UTC day)' })
   async generate(@Body() dto: GenerateSettlementDto) {

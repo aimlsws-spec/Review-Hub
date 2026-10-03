@@ -1,3 +1,5 @@
+import type { MerchantTeamRole } from '@prisma/client';
+
 export const MERCHANT_ERRORS = {
   NOT_FOUND: 'MERCHANT_NOT_FOUND',
   ALREADY_EXISTS: 'MERCHANT_ALREADY_EXISTS',
@@ -23,6 +25,16 @@ export const MERCHANT_ERRORS = {
 } as const;
 
 export const MERCHANT_TEAM_ROLES_KEY = 'merchantTeamRoles';
+
+/**
+ * Who on a merchant's team may change what. Reading is open to every active member; these lists gate the writes.
+ * Money, bank details, the team itself, webhooks and the business profile stay with owners and admins, because a
+ * mistake there moves money or hands out access. Day-to-day campaign work is also open to managers.
+ */
+export const MERCHANT_TEAM_PERMISSIONS = {
+  MANAGE_ACCOUNT: ['OWNER', 'ADMIN'],
+  MANAGE_CAMPAIGNS: ['OWNER', 'ADMIN', 'MANAGER'],
+} as const satisfies Record<string, readonly MerchantTeamRole[]>;
 
 export const MERCHANT_EVENTS = {
   REGISTERED: 'merchant.registered',

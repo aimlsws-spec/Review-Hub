@@ -1,6 +1,7 @@
 import { BankDetailsProtector } from './bank-details-protector';
 import { FieldCipher } from './field-cipher';
 import { FieldEncryptionService } from './field-encryption.service';
+import { IdentityNumberProtector } from './identity-number-protector';
 
 /** Fixed keys for tests only. */
 export const TEST_FIELD_KEYS = {
@@ -15,4 +16,8 @@ export function testFieldCipher(): FieldEncryptionService {
 
 export function testBankDetailsProtector(): BankDetailsProtector {
   return new BankDetailsProtector(testFieldCipher());
+}
+
+export function testIdentityNumberProtector(): IdentityNumberProtector {
+  return new IdentityNumberProtector(testFieldCipher());
 }

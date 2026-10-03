@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+import { AdminRole } from '@common/enums';
 import { ForbiddenException, UnauthorizedException } from '@common/exceptions/domain.exceptions';
 
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -32,7 +33,8 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('You do not have the required role');
     }
 
-    const hasRole = requiredRoles.some((role) => userRoles.includes(role));
+    // A super admin passes every role check: that is what the role is for.
+    const hasRole = userRoles.includes(AdminRole.SuperAdmin) || requiredRoles.some((role) => userRoles.includes(role));
     if (!hasRole) {
       this.logger.warn(`Permission denial: User ${request.user.id} lacks required roles: ${requiredRoles.join(', ')}`);
       throw new ForbiddenException('You do not have the required role');

@@ -3,8 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
-import { SystemRole } from '@common/enums';
 
+import { FINANCE_ROLES } from '../../auth/constants';
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
 import { CreateWithdrawalDto, MarkWithdrawalFailedDto, MarkWithdrawalPaidDto, RejectWithdrawalDto } from '../dto';
@@ -46,7 +46,7 @@ export class WithdrawalController {
   @Post(':withdrawalId/approve')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles(SystemRole.Admin)
+  @Roles(...FINANCE_ROLES)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Approve a withdrawal request (reviewer only)' })
   async approve(@Param('withdrawalId') withdrawalId: string, @CurrentUser('id') reviewerId: string) {
@@ -56,7 +56,7 @@ export class WithdrawalController {
   @Post(':withdrawalId/mark-paid')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles(SystemRole.Admin)
+  @Roles(...FINANCE_ROLES)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Record that the money was sent by bank transfer, with the bank reference (admin only). Each reference works once.' })
   async markPaid(
@@ -70,7 +70,7 @@ export class WithdrawalController {
   @Post(':withdrawalId/mark-failed')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles(SystemRole.Admin)
+  @Roles(...FINANCE_ROLES)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Record that the money could not be sent; it goes back to the user (admin only)' })
   async markFailed(
@@ -84,7 +84,7 @@ export class WithdrawalController {
   @Post(':withdrawalId/reject')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles(SystemRole.Admin)
+  @Roles(...FINANCE_ROLES)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reject a withdrawal request (reviewer only)' })
   async reject(

@@ -4,7 +4,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 import { PaginationQueryDto } from '@common/dto';
 
-import { MerchantOwnershipGuard } from '../../merchant/guards';
+import { MERCHANT_TEAM_PERMISSIONS } from '../../merchant/constants';
+import { TeamRoles } from '../../merchant/decorators';
+import { MerchantOwnershipGuard, MerchantTeamRoleGuard } from '../../merchant/guards';
 import { CreateWebhookDto, UpdateWebhookDto } from '../dto';
 import { WebhookService } from '../services';
 
@@ -23,6 +25,8 @@ export class WebhookController {
   }
 
   @Post()
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a webhook' })
   async create(@Param('merchantId') merchantId: string, @Body() dto: CreateWebhookDto) {
@@ -30,6 +34,8 @@ export class WebhookController {
   }
 
   @Patch(':webhookId')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update a webhook' })
   async update(
@@ -41,6 +47,8 @@ export class WebhookController {
   }
 
   @Delete(':webhookId')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_ACCOUNT)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Remove a webhook' })
   async remove(@Param('merchantId') merchantId: string, @Param('webhookId') webhookId: string) {

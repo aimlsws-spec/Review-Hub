@@ -4,6 +4,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
+import { IdentityNumberProtector } from '../../../shared/crypto';
+import { testIdentityNumberProtector } from '../../../shared/crypto/testing';
 import { UserKycReviewedEvent } from '../../user-kyc/events';
 import { UserKycDocumentRepository } from '../../user-kyc/repositories';
 import { UserKycService } from '../../user-kyc/services';
@@ -49,6 +51,7 @@ describe('KycManagementService', () => {
         { provide: UserKycService, useValue: mockUserKycService },
         { provide: AuditLogService, useValue: mockAuditLogService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: IdentityNumberProtector, useValue: testIdentityNumberProtector() },
       ],
     }).compile();
 
@@ -104,12 +107,12 @@ describe('KycManagementService', () => {
       );
     });
 
-    it('searches the document number and the user name, email and phone', async () => {
+    it('searches the exact document number (by its hash) and the user name, email and phone', async () => {
       await service.list(query({ search: 'priya' }));
 
       const { where } = mockKycRepository.findManyForReview.mock.calls[0][0];
       expect(where.OR).toEqual([
-        { documentNumber: { contains: 'priya' } },
+        { documentNumberHash: testIdentityNumberProtector().hash('priya') },
         {
           user: {
             is: {
@@ -136,6 +139,16 @@ describe('KycManagementService', () => {
       mockKycRepository.findByIdForReview.mockResolvedValue(pendingDocument);
       const result = await service.getById('doc-1');
       expect(result.documentNumber).toBe('ABCDE1234F');
+    });
+
+    it('decrypts an encrypted number for the reviewer, and masks it in the list', async () => {
+      const encrypted = { ...pendingDocument, ...testIdentityNumberProtector().seal('ABCDE1234F') };
+      mockKycRepository.findByIdForReview.mockResolvedValue(encrypted);
+      mockKycRepository.findManyForReview.mockResolvedValue([encrypted]);
+      mockKycRepository.countForReview.mockResolvedValue(1);
+
+      expect((await service.getById('doc-1')).documentNumber).toBe('ABCDE1234F');
+      expect((await service.list(query({}))).data[0].documentNumber).toBe('****234F');
     });
 
     it('throws NotFoundException for an unknown or deleted document', async () => {

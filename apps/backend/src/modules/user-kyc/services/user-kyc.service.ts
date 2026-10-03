@@ -5,6 +5,7 @@ import { DocumentVerificationStatus } from '@prisma/client';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
+import { IdentityNumberProtector } from '../../../shared/crypto';
 import { LocalStorageService } from '../../../storage/storage.service';
 import { USER_DOCUMENT_STORAGE } from '../constants';
 import { UserKycUploadDto } from '../dto';
@@ -18,6 +19,7 @@ export class UserKycService {
     private readonly documentRepository: UserKycDocumentRepository,
     private readonly storageService: LocalStorageService,
     private readonly kycOcrService: KycOcrService,
+    private readonly identityNumbers: IdentityNumberProtector,
   ) {}
 
   async uploadDocument(userId: string, dto: UserKycUploadDto, file: Express.Multer.File) {
@@ -40,7 +42,7 @@ export class UserKycService {
     const document = await this.documentRepository.create({
       user: { connect: { id: userId } },
       documentType: dto.documentType,
-      documentNumber: dto.documentNumber,
+      ...this.identityNumbers.seal(dto.documentNumber),
       fileUploadId: uploadResult.path,
       verificationStatus: 'PENDING' as DocumentVerificationStatus,
     });
@@ -60,11 +62,13 @@ export class UserKycService {
       mimeType: file.mimetype,
     });
 
-    return document;
+    return this.identityNumbers.mask(document);
   }
 
+  /** The person's own documents. Numbers are masked even here: the full number is never sent back to a phone. */
   async getDocuments(userId: string) {
-    return this.documentRepository.findByUserId(userId);
+    const documents = await this.documentRepository.findByUserId(userId);
+    return documents.map((document) => this.identityNumbers.mask(document));
   }
 
   /** PAN is the specific document withdrawals gate on — matches the product's own "PAN verification (before withdrawals)" requirement. */

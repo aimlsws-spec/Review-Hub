@@ -78,18 +78,20 @@ export class AccountLinkageRepository {
 
   // ── Same PAN ──────────────────────────────────────────────────────────────
 
+  /** Keyed hashes of the user's PANs: the numbers themselves are encrypted, and equal numbers have equal hashes. */
   async panNumbersOf(userId: string): Promise<string[]> {
     const documents = await this.prisma.userKycDocument.findMany({
-      where: { userId, documentType: 'PAN', deletedAt: null, documentNumber: { not: null } },
-      select: { documentNumber: true },
+      where: { userId, documentType: 'PAN', deletedAt: null, documentNumberHash: { not: null } },
+      select: { documentNumberHash: true },
     });
-    return documents.map((d) => (d.documentNumber as string).trim().toUpperCase());
+    return documents.map((d) => d.documentNumberHash as string);
   }
 
-  async usersSharingPan(numbers: string[], scope: Scope): Promise<string[]> {
-    if (numbers.length === 0) return [];
+  /** `hashes` as panNumbersOf returns them. */
+  async usersSharingPan(hashes: string[], scope: Scope): Promise<string[]> {
+    if (hashes.length === 0) return [];
     const rows = await this.prisma.userKycDocument.findMany({
-      where: { documentType: 'PAN', deletedAt: null, documentNumber: { in: numbers }, ...otherUsers(scope) },
+      where: { documentType: 'PAN', deletedAt: null, documentNumberHash: { in: hashes }, ...otherUsers(scope) },
       distinct: ['userId'],
       select: { userId: true },
       take: scope.limit,

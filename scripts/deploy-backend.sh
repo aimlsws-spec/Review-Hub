@@ -88,7 +88,7 @@ run npx prisma generate
 log "Applying database migrations"
 run npx prisma migrate deploy
 
-log "Encrypting bank details written before column encryption (does nothing once done)"
+log "Encrypting bank details and identity numbers written before column encryption (does nothing once done)"
 run npm run db:encrypt-bank-details
 
 log "Building"

@@ -15,7 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LoginChallengeModel {
 
- String get challengeToken;/// Seconds until the code expires.
+ String get challengeToken;/// Older servers leave this out; they only ever asked for a code on a new device.
+@JsonKey(unknownEnumValue: LoginChallengeReason.newDevice) LoginChallengeReason get reason;/// Seconds until the code expires.
  int get expiresIn;/// Masked email and/or phone the code went to, e.g. `j****n@example.com`.
  List<String> get sentTo;
 /// Create a copy of LoginChallengeModel
@@ -30,16 +31,16 @@ $LoginChallengeModelCopyWith<LoginChallengeModel> get copyWith => _$LoginChallen
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginChallengeModel&&(identical(other.challengeToken, challengeToken) || other.challengeToken == challengeToken)&&(identical(other.expiresIn, expiresIn) || other.expiresIn == expiresIn)&&const DeepCollectionEquality().equals(other.sentTo, sentTo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginChallengeModel&&(identical(other.challengeToken, challengeToken) || other.challengeToken == challengeToken)&&(identical(other.reason, reason) || other.reason == reason)&&(identical(other.expiresIn, expiresIn) || other.expiresIn == expiresIn)&&const DeepCollectionEquality().equals(other.sentTo, sentTo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,challengeToken,expiresIn,const DeepCollectionEquality().hash(sentTo));
+int get hashCode => Object.hash(runtimeType,challengeToken,reason,expiresIn,const DeepCollectionEquality().hash(sentTo));
 
 @override
 String toString() {
-  return 'LoginChallengeModel(challengeToken: $challengeToken, expiresIn: $expiresIn, sentTo: $sentTo)';
+  return 'LoginChallengeModel(challengeToken: $challengeToken, reason: $reason, expiresIn: $expiresIn, sentTo: $sentTo)';
 }
 
 
@@ -50,7 +51,7 @@ abstract mixin class $LoginChallengeModelCopyWith<$Res>  {
   factory $LoginChallengeModelCopyWith(LoginChallengeModel value, $Res Function(LoginChallengeModel) _then) = _$LoginChallengeModelCopyWithImpl;
 @useResult
 $Res call({
- String challengeToken, int expiresIn, List<String> sentTo
+ String challengeToken,@JsonKey(unknownEnumValue: LoginChallengeReason.newDevice) LoginChallengeReason reason, int expiresIn, List<String> sentTo
 });
 
 
@@ -67,10 +68,11 @@ class _$LoginChallengeModelCopyWithImpl<$Res>
 
 /// Create a copy of LoginChallengeModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? challengeToken = null,Object? expiresIn = null,Object? sentTo = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? challengeToken = null,Object? reason = null,Object? expiresIn = null,Object? sentTo = null,}) {
   return _then(_self.copyWith(
 challengeToken: null == challengeToken ? _self.challengeToken : challengeToken // ignore: cast_nullable_to_non_nullable
-as String,expiresIn: null == expiresIn ? _self.expiresIn : expiresIn // ignore: cast_nullable_to_non_nullable
+as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as LoginChallengeReason,expiresIn: null == expiresIn ? _self.expiresIn : expiresIn // ignore: cast_nullable_to_non_nullable
 as int,sentTo: null == sentTo ? _self.sentTo : sentTo // ignore: cast_nullable_to_non_nullable
 as List<String>,
   ));
@@ -157,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String challengeToken,  int expiresIn,  List<String> sentTo)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String challengeToken, @JsonKey(unknownEnumValue: LoginChallengeReason.newDevice)  LoginChallengeReason reason,  int expiresIn,  List<String> sentTo)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LoginChallengeModel() when $default != null:
-return $default(_that.challengeToken,_that.expiresIn,_that.sentTo);case _:
+return $default(_that.challengeToken,_that.reason,_that.expiresIn,_that.sentTo);case _:
   return orElse();
 
 }
@@ -178,10 +180,10 @@ return $default(_that.challengeToken,_that.expiresIn,_that.sentTo);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String challengeToken,  int expiresIn,  List<String> sentTo)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String challengeToken, @JsonKey(unknownEnumValue: LoginChallengeReason.newDevice)  LoginChallengeReason reason,  int expiresIn,  List<String> sentTo)  $default,) {final _that = this;
 switch (_that) {
 case _LoginChallengeModel():
-return $default(_that.challengeToken,_that.expiresIn,_that.sentTo);case _:
+return $default(_that.challengeToken,_that.reason,_that.expiresIn,_that.sentTo);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +200,10 @@ return $default(_that.challengeToken,_that.expiresIn,_that.sentTo);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String challengeToken,  int expiresIn,  List<String> sentTo)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String challengeToken, @JsonKey(unknownEnumValue: LoginChallengeReason.newDevice)  LoginChallengeReason reason,  int expiresIn,  List<String> sentTo)?  $default,) {final _that = this;
 switch (_that) {
 case _LoginChallengeModel() when $default != null:
-return $default(_that.challengeToken,_that.expiresIn,_that.sentTo);case _:
+return $default(_that.challengeToken,_that.reason,_that.expiresIn,_that.sentTo);case _:
   return null;
 
 }
@@ -213,10 +215,12 @@ return $default(_that.challengeToken,_that.expiresIn,_that.sentTo);case _:
 @JsonSerializable()
 
 class _LoginChallengeModel implements LoginChallengeModel {
-  const _LoginChallengeModel({required this.challengeToken, required this.expiresIn, final  List<String> sentTo = const <String>[]}): _sentTo = sentTo;
+  const _LoginChallengeModel({required this.challengeToken, @JsonKey(unknownEnumValue: LoginChallengeReason.newDevice) this.reason = LoginChallengeReason.newDevice, required this.expiresIn, final  List<String> sentTo = const <String>[]}): _sentTo = sentTo;
   factory _LoginChallengeModel.fromJson(Map<String, dynamic> json) => _$LoginChallengeModelFromJson(json);
 
 @override final  String challengeToken;
+/// Older servers leave this out; they only ever asked for a code on a new device.
+@override@JsonKey(unknownEnumValue: LoginChallengeReason.newDevice) final  LoginChallengeReason reason;
 /// Seconds until the code expires.
 @override final  int expiresIn;
 /// Masked email and/or phone the code went to, e.g. `j****n@example.com`.
@@ -242,16 +246,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginChallengeModel&&(identical(other.challengeToken, challengeToken) || other.challengeToken == challengeToken)&&(identical(other.expiresIn, expiresIn) || other.expiresIn == expiresIn)&&const DeepCollectionEquality().equals(other._sentTo, _sentTo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginChallengeModel&&(identical(other.challengeToken, challengeToken) || other.challengeToken == challengeToken)&&(identical(other.reason, reason) || other.reason == reason)&&(identical(other.expiresIn, expiresIn) || other.expiresIn == expiresIn)&&const DeepCollectionEquality().equals(other._sentTo, _sentTo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,challengeToken,expiresIn,const DeepCollectionEquality().hash(_sentTo));
+int get hashCode => Object.hash(runtimeType,challengeToken,reason,expiresIn,const DeepCollectionEquality().hash(_sentTo));
 
 @override
 String toString() {
-  return 'LoginChallengeModel(challengeToken: $challengeToken, expiresIn: $expiresIn, sentTo: $sentTo)';
+  return 'LoginChallengeModel(challengeToken: $challengeToken, reason: $reason, expiresIn: $expiresIn, sentTo: $sentTo)';
 }
 
 
@@ -262,7 +266,7 @@ abstract mixin class _$LoginChallengeModelCopyWith<$Res> implements $LoginChalle
   factory _$LoginChallengeModelCopyWith(_LoginChallengeModel value, $Res Function(_LoginChallengeModel) _then) = __$LoginChallengeModelCopyWithImpl;
 @override @useResult
 $Res call({
- String challengeToken, int expiresIn, List<String> sentTo
+ String challengeToken,@JsonKey(unknownEnumValue: LoginChallengeReason.newDevice) LoginChallengeReason reason, int expiresIn, List<String> sentTo
 });
 
 
@@ -279,10 +283,11 @@ class __$LoginChallengeModelCopyWithImpl<$Res>
 
 /// Create a copy of LoginChallengeModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? challengeToken = null,Object? expiresIn = null,Object? sentTo = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? challengeToken = null,Object? reason = null,Object? expiresIn = null,Object? sentTo = null,}) {
   return _then(_LoginChallengeModel(
 challengeToken: null == challengeToken ? _self.challengeToken : challengeToken // ignore: cast_nullable_to_non_nullable
-as String,expiresIn: null == expiresIn ? _self.expiresIn : expiresIn // ignore: cast_nullable_to_non_nullable
+as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as LoginChallengeReason,expiresIn: null == expiresIn ? _self.expiresIn : expiresIn // ignore: cast_nullable_to_non_nullable
 as int,sentTo: null == sentTo ? _self._sentTo : sentTo // ignore: cast_nullable_to_non_nullable
 as List<String>,
   ));

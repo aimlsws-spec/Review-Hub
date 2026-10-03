@@ -1,5 +1,7 @@
 import type { OtpType, PolicyType } from '@prisma/client';
 
+import { AdminRole } from '@common/enums';
+
 export const AUTH_ERRORS = {
   USER_NOT_FOUND: 'USER_NOT_FOUND',
   USER_EXISTS: 'USER_EXISTS',
@@ -103,11 +105,40 @@ export const LOGIN_CHALLENGE_TTL_SECONDS = 10 * 60;
 /** How long a requested phone number change stays open for its code. */
 export const PHONE_CHANGE_TTL_SECONDS = 10 * 60;
 
+/**
+ * The admin roles that may move money: decide withdrawals, refunds and wallet top-ups, claw back rewards, generate
+ * settlements, issue credit and debit notes, and read the TDS register (it holds full PANs). Plain admins keep
+ * moderation and support; one compromised admin account can no longer pay money out.
+ */
+export const FINANCE_ROLES = [AdminRole.FinanceTeam, AdminRole.SuperAdmin] as const;
+
+/**
+ * Staff roles a super admin can grant or remove from the admin portal: the name in the token, and the role's slug in
+ * the database. Super admin itself is deliberately not here: it is set up by hand, never handed out from a screen.
+ */
+export const ASSIGNABLE_STAFF_ROLES = {
+  ADMIN: 'admin',
+  [AdminRole.FinanceTeam]: 'finance-team',
+} as const;
+
+export type AssignableStaffRole = keyof typeof ASSIGNABLE_STAFF_ROLES;
+
+/** A role's slug as it appears in the token and in @Roles(...): `super-admin` → `SUPER_ADMIN`. */
+export function roleClaimForSlug(slug: string): string {
+  return slug.toUpperCase().replace(/-/g, '_');
+}
+
 export const TOKEN_CONFIG = {
   ACCESS_TOKEN_EXPIRY: '15m',
   REFRESH_TOKEN_EXPIRY: '7d',
   REFRESH_TOKEN_EXPIRY_SECONDS: 7 * 24 * 60 * 60,
   RESET_TOKEN_EXPIRY: 60,
+  /**
+   * A refresh token whose session was rotated or revoked less than this long ago is refused quietly. Two browser
+   * tabs can refresh with the same token at once, and the loser of that race is not an attacker. After the window,
+   * presenting it again means someone else holds a copy, so every session of the account is revoked.
+   */
+  REFRESH_REUSE_GRACE_SECONDS: 30,
 } as const;
 
 /**

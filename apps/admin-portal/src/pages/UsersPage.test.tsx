@@ -2,12 +2,15 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAuth } from '@/contexts/AuthContext'
 import { useAccountRiskQuery } from '@/hooks/useAccountRisk'
 import { useUserActionMutation, useUserDetailQuery, useUsersQuery } from '@/hooks/useUsers'
 
 import UsersPage from './UsersPage'
 
 vi.mock('@/hooks/useAccountRisk', () => ({ useAccountRiskQuery: vi.fn() }))
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn(() => ({ user: { roles: ['ADMIN'] } })) }))
+vi.mock('@/components/StaffRolesPanel', () => ({ StaffRolesPanel: () => <div>Staff roles panel</div> }))
 vi.mock('@/hooks/useUsers', () => ({
   useUsersQuery: vi.fn(),
   useUserDetailQuery: vi.fn(),
@@ -110,6 +113,18 @@ describe('UsersPage', () => {
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByText('SAM123')).toBeInTheDocument()
     expect(dialog.getByText('Not verified')).toBeInTheDocument()
+    // Only a super admin manages staff roles.
+    expect(dialog.queryByText('Staff roles panel')).not.toBeInTheDocument()
+  })
+
+  it('shows the staff roles panel to a super admin', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { roles: ['SUPER_ADMIN'] } } as never)
+    vi.mocked(useUserDetailQuery).mockReturnValue({ data: { data: { data: activeUser } }, isLoading: false } as never)
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByText('Sam Lee'))
+    expect(within(screen.getByRole('dialog')).getByText('Staff roles panel')).toBeInTheDocument()
   })
 
   it('shows a reactivate action for a suspended user', async () => {

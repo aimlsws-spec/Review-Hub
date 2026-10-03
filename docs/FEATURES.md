@@ -47,7 +47,10 @@ Mobile: `apps/mobile/lib/features/auth`.
   `User`).
 - OTP verification for phone/email (`send-otp`/`verify-otp`/`resend-otp`), backed by
   Redis with expiry + attempt limits.
-- Optional 2FA (`enable`/`disable`/`verify-two-factor`).
+- Optional 2FA (`enable`/`disable`/`verify-two-factor`). When it is on, every password sign-in asks for a code,
+  even on a known device (see "New-device sign-in check"). Google/Apple sign-in does not.
+- Refresh tokens are single use. Presenting one again more than 30 seconds after it was rotated signs the account
+  out everywhere (`SessionService`), since someone else must hold a copy.
 
 ### Google / Apple sign-in — web
 **What**: Browser-redirect OAuth for the two portals (`GET /auth/google`, `/auth/apple`
@@ -106,7 +109,9 @@ completes on a new device (including Google/Apple, which skip the code) emails a
 **Details — read before changing**: a device is recognised by its install id (`X-Device-ID`; the portals keep one
 in localStorage), never by IP. The challenge is bound to that id, so a stolen challenge token is useless elsewhere.
 The first device an account ever reports is trusted without a code. An account with no email or phone is let
-through rather than locked out. 2FA (`isTwoFactorEnabled`) is still **not** checked at sign-in; that is separate.
+through rather than locked out. The same challenge serves two-factor sign-in: with `isTwoFactorEnabled` every
+password sign-in is held for a code, the response carries `reason: TWO_FACTOR` (otherwise `NEW_DEVICE`), the alert
+email goes out only for a new device, and an account with two-factor on and nowhere to send a code is refused.
 
 ### Phone number change and account deletion
 **What**: `POST /auth/phone/change` + `/auth/phone/verify` change the number only after a code sent by SMS to the
@@ -171,6 +176,24 @@ Existing rows are encrypted by `npm run db:encrypt-bank-details`, which
 **Details**: repositories return **masked** numbers by default. Only the payout paths
 (`findByIdForPayout`, `findAwaitingManualPayout`) and the merchant's own revealed view
 decrypt. A new read that needs the full number must go through one of those on purpose.
+
+### PAN and Aadhaar numbers encrypted at rest
+**What**: KYC document numbers (PAN, Aadhaar and the rest) and the PAN copied onto each TDS deduction are stored
+encrypted with the same keys as bank details, plus a keyed hash (`documentNumberHash`) for exact lookups.
+**Where**: `shared/crypto/identity-number-protector.ts`. Backfilled by `npm run db:encrypt-bank-details`.
+**Details**: shown masked (`****234F`) everywhere, including the person's own KYC list. Only the admin reviewing
+the document (`GET /admin/kyc/:id`) and the TDS CSV export see the full number. The shared-PAN fraud check and the
+admin KYC search compare hashes, so search finds an exact number only. `Merchant.panNumber` is **not** encrypted yet.
+
+### Staff roles: finance team
+**What**: Money actions need the **Finance Team** role or super admin: deciding and paying withdrawals, refund
+decisions, manual top-ups and their review, reward clawback, settlement generation, credit/debit notes and the TDS
+register. Plain admins keep moderation, support, users and campaigns.
+**Where**: `FINANCE_ROLES` in `auth/constants`; `finance-routes.spec.ts` lists every such route. Super admins give and
+remove `ADMIN` / `FINANCE_TEAM` on the admin portal's Users page (`StaffRolesPanel`,
+`PUT/DELETE /admin/users/:id/roles/:role`).
+**Details**: role slugs become token names with dashes as underscores (`super-admin` → `SUPER_ADMIN`). A super admin
+passes every role check. Removing a role signs the person out everywhere. Changes are audited.
 
 ### TDS (tax deducted at source)
 **What**: Once a user's payouts in a financial year cross a configured threshold, tax
@@ -715,7 +738,13 @@ what used to be four separate round-trips from the mobile home screen.
   choice (this happened once, 22 Sep 2026, and broke the entire Dispute feature until
   fixed).
 
-## Known gaps (as of 24 Sep 2026)
+## Known gaps (as of 3 Oct 2026)
+
+- Merchant team members can not use the merchant portal yet: `GET /merchants/me` finds only the owner's merchant and
+  there is no accept-invite page, although invitations are sent and the backend enforces team roles (Owner/Admin for
+  money, bank, team and webhooks; plus Manager for campaigns, reviews and support).
+- The admin portal still shows money buttons to plain admins, who get a "required role" error. See
+  `docs/security/REVIEW-2026-10.md` for the other open security items.
 
 - Razorpay is test-mode only — see §15.
 - Referral program is single-level, not the 3-tier structure in the original spec — see §6
