@@ -30,6 +30,7 @@ export const ROUTES = {
   SETTINGS: '/settings',
   SUPPORT: '/support',
   WEBHOOKS: '/webhooks',
+  SUBSCRIPTION: '/plan',
 } as const
 
 /** The legal documents a person accepts (backend: POLICY_DOCUMENTS in auth/constants), and the page holding each. */
@@ -65,6 +66,7 @@ export const QUERY_KEYS = {
   ANALYTICS: ['analytics'],
   NOTIFICATIONS: ['notifications'],
   WEBHOOKS: ['webhooks'],
+  SUBSCRIPTION: ['subscription'],
   POLICIES: ['policies'],
   CONTENT_PAGE: ['content-page'],
   WEBHOOK_DELIVERIES: ['webhook-deliveries'],

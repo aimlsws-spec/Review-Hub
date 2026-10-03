@@ -70,6 +70,55 @@ export class InvoiceService {
     return this.invoiceRepository.setPdfPath(invoice.id, saved.path);
   }
 
+  /**
+   * The tax invoice for a subscription or featured-campaign charge. The GST was already worked out and taken when
+   * the merchant was charged, so the invoice states those amounts rather than recomputing them. Idempotent.
+   */
+  async generateForServiceCharge(serviceChargeId: string) {
+    const existing = await this.invoiceRepository.findByServiceChargeId(serviceChargeId);
+    if (existing) return existing;
+
+    const charge = await this.invoiceRepository.findServiceCharge(serviceChargeId);
+    if (!charge) throw new NotFoundException('Service charge');
+    const merchant = await this.merchantRepository.findById(charge.merchantId);
+    if (!merchant) throw new NotFoundException('Merchant');
+
+    const platformGstNumber = this.config.get<string>('platform.gstNumber') ?? null;
+    const amounts = {
+      taxableAmount: Number(charge.taxableAmount),
+      gstRate: Number(charge.gstRate),
+      gstAmount: Number(charge.gstAmount),
+      totalAmount: Number(charge.totalAmount),
+    };
+    const description =
+      charge.type === 'SUBSCRIPTION' ? `${charge.subscription?.plan.name ?? 'Subscription'} plan` : 'Featured campaign';
+    const invoiceNumber = await this.invoiceRepository.getNextInvoiceNumber();
+
+    const invoice = await this.invoiceRepository.create({
+      serviceCharge: { connect: { id: serviceChargeId } },
+      merchant: { connect: { id: charge.merchantId } },
+      invoiceNumber,
+      platformGstNumber,
+      merchantGstNumber: merchant.gstNumber,
+      ...amounts,
+    });
+
+    const pdfBuffer = await this.pdfService.generate({
+      invoiceNumber,
+      generatedAt: invoice.generatedAt,
+      periodStart: charge.periodStart,
+      periodEnd: charge.periodEnd,
+      platformGstNumber,
+      merchantGstNumber: merchant.gstNumber,
+      merchantName: merchant.businessName,
+      description,
+      ...amounts,
+    });
+
+    const saved = await this.storageService.saveFile(pdfBuffer, `${invoiceNumber}.pdf`, `merchant/${charge.merchantId}/invoices`);
+    return this.invoiceRepository.setPdfPath(invoice.id, saved.path);
+  }
+
   async listForMerchant(merchantId: string, page: number, limit: number) {
     return this.invoiceRepository.findByMerchant(merchantId, page, limit);
   }

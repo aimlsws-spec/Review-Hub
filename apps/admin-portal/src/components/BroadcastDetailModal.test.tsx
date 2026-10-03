@@ -186,4 +186,20 @@ describe('BroadcastDetailModal', () => {
 
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('shows open and click rates when there is something to measure', () => {
+    withBroadcast({ engagement: { trackedMessages: 930, opened: 310, clicked: 93, openRate: 33.3, clickRate: 10 } })
+    renderModal()
+
+    const section = within(screen.getByRole('region', { name: 'Engagement' }))
+    expect(section.getByText('33.3% (310)')).toBeInTheDocument()
+    expect(section.getByText('10% (93)')).toBeInTheDocument()
+  })
+
+  it('leaves the rates out for a broadcast with nothing trackable', () => {
+    withBroadcast({ engagement: { trackedMessages: 0, opened: 0, clicked: 0, openRate: 0, clickRate: 0 } })
+    renderModal()
+
+    expect(screen.queryByRole('region', { name: 'Engagement' })).not.toBeInTheDocument()
+  })
 })

@@ -15,6 +15,7 @@ import 'features/auth/data/models/user_model.dart';
 import 'features/app_lock/presentation/widgets/app_lock_gate.dart';
 import 'features/app_status/presentation/widgets/app_status_gate.dart';
 import 'features/auth/providers/auth_providers.dart';
+import 'features/notifications/data/notification_repository.dart';
 import 'features/notifications/providers/notification_providers.dart';
 import 'shared/providers/core_providers.dart';
 
@@ -39,6 +40,12 @@ Future<void> main() async {
           final isSignedIn = ref.read(authStateProvider).value != null;
           if (!isSignedIn) return;
           await ref.read(authRepositoryProvider).updatePushToken(token);
+        };
+      }),
+      // A tapped push is reported as a click, for the broadcast's open and click rates.
+      pushTapReportProvider.overrideWith((ref) {
+        return (notificationId) async {
+          await ref.read(notificationRepositoryProvider).recordEngagement(notificationId, NotificationEngagement.clicked);
         };
       }),
       // A push that arrives while the app is open means there is something new in the notifications list.

@@ -58,3 +58,13 @@ export function formatIstDateTime(instant: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())} ${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())}`;
 }
+
+/** The IST calendar day an instant falls on, as "2026-09-21": a stable key for grouping by day. */
+export function istDayKey(instant: Date): string {
+  return new Date(instant.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** The IST calendar month an instant falls on, as "2026-09". */
+export function istMonthKey(instant: Date): string {
+  return istDayKey(instant).slice(0, 7);
+}

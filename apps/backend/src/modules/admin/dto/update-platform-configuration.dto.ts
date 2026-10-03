@@ -25,6 +25,19 @@ export class UpdatePlatformConfigurationDto {
   @Min(0)
   commissionPercentage?: number;
 
+  @ApiPropertyOptional({ description: 'What featuring one campaign costs a merchant, in rupees before GST' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  featuredCampaignPrice?: number;
+
+  @ApiPropertyOptional({ description: 'How many days one featuring lasts' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  featuredCampaignDays?: number;
+
   @ApiPropertyOptional({ description: 'The least a user can withdraw at once, in rupees' })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })

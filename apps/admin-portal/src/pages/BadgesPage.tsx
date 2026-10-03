@@ -41,7 +41,10 @@ const CRITERIA_OPTIONS: { value: BadgeCriteriaType; label: string }[] = [
   { value: 'XP_THRESHOLD', label: 'XP threshold' },
   { value: 'STREAK_THRESHOLD', label: 'Streak threshold' },
   { value: 'LEVEL_THRESHOLD', label: 'Level threshold' },
-  { value: 'REWARD_COUNT', label: 'Reward count' },
+  { value: 'REWARD_COUNT', label: 'Tasks completed' },
+  { value: 'REVIEW_TASK_COUNT', label: 'Review tasks completed' },
+  { value: 'REFERRAL_COUNT', label: 'Paid referrals' },
+  { value: 'TOP_EARNER_MONTHLY', label: 'Top earners of a month (value = how many)' },
 ]
 
 export default function BadgesPage() {

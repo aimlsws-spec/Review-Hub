@@ -5,6 +5,9 @@ export const GAMIFICATION_CONSTANTS = {
   XP_PER_RUPEE: 1,
 } as const;
 
+/** Task types that count as reviews for the REVIEW_TASK_COUNT badges. */
+export const REVIEW_TASK_TYPES = ['GOOGLE_REVIEW', 'PLAY_STORE_REVIEW'] as const;
+
 export const GAMIFICATION_EVENTS = {
   LEVEL_UP: 'gamification.level_up',
   BADGE_EARNED: 'gamification.badge_earned',

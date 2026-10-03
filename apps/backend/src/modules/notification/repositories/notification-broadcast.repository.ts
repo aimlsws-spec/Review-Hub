@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { BroadcastStatus, Prisma } from '@prisma/client';
+import { BroadcastStatus, NotificationChannel, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
@@ -83,6 +83,21 @@ export class NotificationBroadcastRepository {
       data: { status: 'CANCELLED', completedAt: new Date() },
     });
     return count === 1;
+  }
+
+  /**
+   * Opens and clicks for a broadcast. Only push and in-app messages can be tracked (emails are not), so the rates are
+   * out of those messages that were actually sent.
+   */
+  async engagement(broadcastId: string) {
+    const tracked = { broadcastId, channel: { in: ['PUSH', 'IN_APP'] as NotificationChannel[] }, status: { not: 'FAILED' as const } };
+    const [sent, opened, clicked] = await Promise.all([
+      this.prisma.notification.count({ where: tracked }),
+      this.prisma.notification.count({ where: { ...tracked, openedAt: { not: null } } }),
+      this.prisma.notification.count({ where: { ...tracked, clickedAt: { not: null } } }),
+    ]);
+    const rate = (n: number) => (sent === 0 ? 0 : Math.round((n / sent) * 1000) / 10);
+    return { trackedMessages: sent, opened, clicked, openRate: rate(opened), clickRate: rate(clicked) };
   }
 
   /** How many messages this broadcast produced, split by channel and delivery status. */

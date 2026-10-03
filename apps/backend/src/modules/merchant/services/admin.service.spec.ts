@@ -12,6 +12,7 @@ describe('AdminService', () => {
   let service: AdminService;
 
   const mockMerchantRepository = {
+    findVerificationFacts: jest.fn(),
     findById: jest.fn(),
     update: jest.fn(),
     findPending: jest.fn(),
@@ -109,6 +110,14 @@ describe('AdminService', () => {
 
       const result = await service.getMerchantDetail('merchant-1');
       expect(result.documents).toHaveLength(1);
+    });
+
+    it('shows the verification level to the admin', async () => {
+      mockMerchantRepository.findById.mockResolvedValue(merchant);
+      mockDocumentRepository.findByMerchantId.mockResolvedValue([]);
+      mockMerchantRepository.findVerificationFacts.mockResolvedValueOnce({ phoneVerified: true, emailVerified: false, businessVerified: true, premium: false });
+
+      await expect(service.getMerchantDetail('merchant-1')).resolves.toEqual(expect.objectContaining({ verificationLevel: 1 }));
     });
 
     it('shows the admin the real bank account numbers, to check against the documents', async () => {

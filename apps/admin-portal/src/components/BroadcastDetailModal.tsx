@@ -97,6 +97,19 @@ export function BroadcastDetailModal({ broadcastId, onClose }: BroadcastDetailMo
           )}
 
           <DeliveryTable channels={broadcast.channels} deliveries={broadcast.deliveries} />
+
+          {broadcast.engagement && broadcast.engagement.trackedMessages > 0 && (
+            <section aria-label="Engagement">
+              <h3 className="mb-2 text-sm font-semibold text-gray-900">Engagement</h3>
+              <dl className="grid grid-cols-2 gap-4 text-sm">
+                <Detail label="Opened" value={`${broadcast.engagement.openRate}% (${broadcast.engagement.opened})`} />
+                <Detail label="Clicked through" value={`${broadcast.engagement.clickRate}% (${broadcast.engagement.clicked})`} />
+              </dl>
+              <p className="mt-1 text-xs text-gray-500">
+                Out of {broadcast.engagement.trackedMessages} push and in-app messages. Email opens are not tracked.
+              </p>
+            </section>
+          )}
         </div>
       )}
     </Modal>

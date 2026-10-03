@@ -8,6 +8,7 @@ import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { ApproveMerchantDto, RejectMerchantDto, RequestDocumentsDto } from '../dto';
 import { MerchantApprovedEvent, MerchantRejectedEvent } from '../events';
 import { MerchantDocumentRepository, MerchantRepository, MerchantBankRepository } from '../repositories';
+import { merchantVerificationLevel } from '../verification-level';
 
 @Injectable()
 export class AdminService {
@@ -98,7 +99,9 @@ export class AdminService {
     const documents = await this.documentRepository.findByMerchantId(merchantId);
     // Revealed, not masked: the admin checks these against the merchant's uploaded documents before approving.
     const bankAccounts = await this.bankRepository.findByMerchantIdRevealed(merchantId);
-    return { ...merchant, documents, bankAccounts };
+    const facts = await this.merchantRepository.findVerificationFacts(merchantId);
+    const verificationLevel = facts ? merchantVerificationLevel(facts) : 0;
+    return { ...merchant, documents, bankAccounts, verificationLevel };
   }
 
   async toggleMerchantStatus(merchantId: string, status: MerchantStatus, actorId: string) {

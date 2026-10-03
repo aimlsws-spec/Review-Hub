@@ -18,6 +18,7 @@ describe('WalletService', () => {
     findTransactions: jest.fn(),
     findForExport: jest.fn(),
     getTodayEarnings: jest.fn(),
+    findEarningRows: jest.fn(),
   };
   const mockRewardRepository = {
     findByUser: jest.fn(),
@@ -35,6 +36,58 @@ describe('WalletService', () => {
 
     service = module.get<WalletService>(WalletService);
     jest.clearAllMocks();
+  });
+
+  describe('earnings', () => {
+    beforeEach(() => {
+      mockWalletRepository.getOrCreate.mockResolvedValue({ id: 'wallet-1' });
+      mockWalletRepository.findEarningRows.mockResolvedValue([
+        { type: 'CREDIT', amount: 40, referenceType: 'Reward', createdAt: new Date('2026-10-02T06:00:00Z') },
+        { type: 'BONUS', amount: 10, referenceType: 'DailyRewardPrize', createdAt: new Date('2026-10-03T06:00:00Z') },
+      ]);
+    });
+
+    it('splits lifetime earnings when no range is given', async () => {
+      const result = await service.getEarningsBreakdown('user-1', {});
+
+      expect(mockWalletRepository.findEarningRows).toHaveBeenCalledWith('wallet-1', undefined, undefined);
+      expect(result).toEqual({ from: null, to: null, tasks: 40, bonus: 10, referral: 0, total: 50 });
+    });
+
+    it('reads a range of India days, including the whole last day', async () => {
+      await service.getEarningsBreakdown('user-1', { from: '2026-10-01', to: '2026-10-02' });
+
+      expect(mockWalletRepository.findEarningRows).toHaveBeenCalledWith(
+        'wallet-1',
+        new Date('2026-09-30T18:30:00.000Z'),
+        new Date('2026-10-02T18:30:00.000Z'),
+      );
+    });
+
+    it('refuses an impossible date or a reversed range', async () => {
+      await expect(service.getEarningsBreakdown('user-1', { from: '2026-02-31' })).rejects.toThrow(/real calendar days/);
+      await expect(service.getEarningsBreakdown('user-1', { from: '2026-10-05', to: '2026-10-01' })).rejects.toThrow(/not be after/);
+    });
+
+    it('charts the last 7 days from the first of them', async () => {
+      const result = await service.getEarningsChart('user-1', {}, new Date('2026-10-03T10:00:00Z'));
+
+      expect(mockWalletRepository.findEarningRows).toHaveBeenCalledWith('wallet-1', new Date('2026-09-26T18:30:00.000Z'), undefined);
+      expect(result.period).toBe('week');
+      expect(result.points).toHaveLength(7);
+      expect(result.points.slice(-2)).toEqual([
+        { key: '2026-10-02', amount: 40 },
+        { key: '2026-10-03', amount: 10 },
+      ]);
+      expect(result.total).toBe(50);
+    });
+
+    it('charts the last 6 months from the first day of the first month', async () => {
+      const result = await service.getEarningsChart('user-1', { period: 'month' }, new Date('2026-10-03T10:00:00Z'));
+
+      expect(mockWalletRepository.findEarningRows).toHaveBeenCalledWith('wallet-1', new Date('2026-04-30T18:30:00.000Z'), undefined);
+      expect(result.points.map((p) => p.key)).toEqual(['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']);
+    });
   });
 
   describe('getWallet', () => {

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
+import { ReferralRewardedEvent } from '../../referral/events';
 import { RewardCreditedEvent } from '../../wallet/events';
 import { GamificationService } from '../services';
 
@@ -12,5 +13,11 @@ export class GamificationListener {
   @OnEvent('wallet.reward.credited')
   async handleRewardCredited(event: RewardCreditedEvent) {
     await this.gamificationService.recordActivity(event.userId, event.amount);
+  }
+
+  /** A paid referral can complete a referral badge for the person who referred. */
+  @OnEvent('referral.rewarded')
+  async handleReferralRewarded(event: ReferralRewardedEvent) {
+    await this.gamificationService.checkBadges(event.referrerId);
   }
 }

@@ -9,6 +9,7 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../data/models/wallet_summary_model.dart';
 import '../../providers/wallet_providers.dart';
+import '../widgets/earnings_card.dart';
 import '../widgets/transaction_tile.dart';
 
 class WalletScreen extends ConsumerWidget {
@@ -88,6 +89,8 @@ class WalletScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 20),
+            const EarningsCard(),
             const SizedBox(height: 28),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

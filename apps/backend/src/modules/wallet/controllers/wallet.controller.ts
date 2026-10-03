@@ -6,7 +6,7 @@ import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
 import { PaymentSimulationGuard } from '../../payment/guards';
-import { RewardQueryDto, WalletTransactionExportQueryDto, WalletTransactionQueryDto } from '../dto';
+import { EarningsChartQueryDto, EarningsQueryDto, RewardQueryDto, WalletTransactionExportQueryDto, WalletTransactionQueryDto } from '../dto';
 import { WalletService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.WALLET)
@@ -20,6 +20,22 @@ export class WalletController {
   @ApiOperation({ summary: 'Get my wallet balance' })
   async getWallet(@CurrentUser('id') userId: string) {
     return this.walletService.getWallet(userId);
+  }
+
+  @Get('earnings')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'My earnings split into task rewards, bonuses and referrals (lifetime, or between two India days)' })
+  async getEarnings(@CurrentUser('id') userId: string, @Query() query: EarningsQueryDto) {
+    return this.walletService.getEarningsBreakdown(userId, query);
+  }
+
+  @Get('earnings/chart')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'My earnings per day for the last 7 days, or per month for the last 6 months' })
+  async getEarningsChart(@CurrentUser('id') userId: string, @Query() query: EarningsChartQueryDto) {
+    return this.walletService.getEarningsChart(userId, query);
   }
 
   @Get('transactions')

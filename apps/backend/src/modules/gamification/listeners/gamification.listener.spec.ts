@@ -7,7 +7,7 @@ import { GamificationListener } from './gamification.listener';
 describe('GamificationListener', () => {
   let listener: GamificationListener;
 
-  const mockGamificationService = { recordActivity: jest.fn() };
+  const mockGamificationService = { recordActivity: jest.fn(), checkBadges: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -22,5 +22,11 @@ describe('GamificationListener', () => {
     await listener.handleRewardCredited({ userId: 'user-1', rewardId: 'reward-1', amount: 50 } as never);
 
     expect(mockGamificationService.recordActivity).toHaveBeenCalledWith('user-1', 50);
+  });
+
+  it('checks the referrer\'s badges when a referral reward is paid', async () => {
+    await listener.handleReferralRewarded({ referralId: 'ref-1', referrerId: 'referrer-1', amount: 100 } as never);
+
+    expect(mockGamificationService.checkBadges).toHaveBeenCalledWith('referrer-1');
   });
 });

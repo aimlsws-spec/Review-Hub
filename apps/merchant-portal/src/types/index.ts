@@ -94,6 +94,8 @@ export interface Merchant {
   logoUrl: string | null
   description: string | null
   verificationStatus: MerchantVerificationStatus
+  /** 0–4: L1 mobile, L2 email, L3 business documents, L4 Premium plan. On GET /merchants/me. */
+  verificationLevel?: number
   status: MerchantStatus
   creditBalance: string
   commissionRate: string
@@ -467,10 +469,42 @@ export interface AnalyticsOverview {
   daily: { date: string; joins: number; completions: number; rewardsPaid: number }[]
 }
 
+/** A plan on offer (GET /merchants/:id/subscription). Prices are rupees; priceWithGst is what the wallet pays. */
+export interface MerchantPlan {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  monthlyPrice: number | string
+  priceWithGst: number
+  /** Null means no limit. */
+  maxActiveCampaigns: number | null
+  featuredSlots: number
+  isPremium: boolean
+}
+
+export interface MerchantSubscription {
+  id: string
+  status: 'ACTIVE' | 'PAST_DUE' | 'EXPIRED'
+  periodStart: string
+  periodEnd: string
+  autoRenew: boolean
+  plan: MerchantPlan
+}
+
+export interface SubscriptionOverview {
+  current: MerchantSubscription | null
+  plans: MerchantPlan[]
+  featured: { price: number; days: number; priceWithGst: number }
+}
+
 export interface Campaign {
   id: string
   merchantId: string
   title: string
+  /** Shown at the top of the listings until featuredUntil. */
+  featured?: boolean
+  featuredUntil?: string | null
   slug: string
   shortDescription: string | null
   description: string

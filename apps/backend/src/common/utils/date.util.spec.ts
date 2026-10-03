@@ -1,4 +1,4 @@
-import { formatIstDateTime, getIstDayBoundaries, parseIstDay } from './date.util';
+import { formatIstDateTime, getIstDayBoundaries, istDayKey, istMonthKey, parseIstDay } from './date.util';
 
 describe('getIstDayBoundaries', () => {
   it('returns UTC instants 24h apart', () => {
@@ -58,5 +58,15 @@ describe('formatIstDateTime', () => {
 
   it('pads single digits', () => {
     expect(formatIstDateTime(new Date('2026-01-02T00:30:00.000Z'))).toBe('2026-01-02 06:00');
+  });
+});
+
+describe('istDayKey and istMonthKey', () => {
+  it('uses the India calendar, not UTC', () => {
+    // 19:00 UTC on 30 Sep is 00:30 on 1 Oct in India.
+    const lateEvening = new Date('2026-09-30T19:00:00Z');
+    expect(istDayKey(lateEvening)).toBe('2026-10-01');
+    expect(istMonthKey(lateEvening)).toBe('2026-10');
+    expect(istDayKey(new Date('2026-09-30T18:29:59Z'))).toBe('2026-09-30');
   });
 });

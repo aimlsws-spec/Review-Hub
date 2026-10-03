@@ -6,6 +6,7 @@ import { getIstDayBoundaries } from '@common/utils';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { lockUserWallet } from '../../../database/prisma/row-lock';
+import { EARNING_TRANSACTION_TYPES } from '../earnings';
 import { TransactionFilter, transactionWhere } from '../transaction-filter';
 
 import { finalizeInTx, holdInTx, releaseInTx, reverseInTx } from './withdrawal-ledger';
@@ -63,6 +64,23 @@ export class UserWalletRepository {
       where: transactionWhere(walletId, filter),
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
+    });
+  }
+
+  /**
+   * Successful earning entries (see wallet/earnings.ts) in [start, end), oldest first. One person's ledger over at
+   * most a few months is small, so the grouping happens in code where it can be tested.
+   */
+  async findEarningRows(walletId: string, start: Date | undefined, end: Date | undefined) {
+    return this.prisma.walletTransaction.findMany({
+      where: {
+        walletId,
+        status: 'SUCCESS',
+        type: { in: EARNING_TRANSACTION_TYPES },
+        ...(start || end ? { createdAt: { ...(start ? { gte: start } : {}), ...(end ? { lt: end } : {}) } } : {}),
+      },
+      select: { type: true, amount: true, referenceType: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
     });
   }
 

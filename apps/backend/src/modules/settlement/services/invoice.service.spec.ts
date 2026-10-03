@@ -15,6 +15,8 @@ describe('InvoiceService', () => {
 
   const mockInvoiceRepository = {
     findBySettlementId: jest.fn(),
+    findByServiceChargeId: jest.fn(),
+    findServiceCharge: jest.fn(),
     findById: jest.fn(),
     findByMerchant: jest.fn(),
     getNextInvoiceNumber: jest.fn(),
@@ -55,6 +57,59 @@ describe('InvoiceService', () => {
       if (key === 'platform.gstRatePercent') return 18;
       if (key === 'platform.gstNumber') return 'PLATFORM_GSTIN_123';
       return def;
+    });
+  });
+
+  describe('generateForServiceCharge', () => {
+    const charge = {
+      id: 'charge-1',
+      merchantId: 'merchant-1',
+      type: 'SUBSCRIPTION',
+      periodStart: new Date('2026-10-03T00:00:00Z'),
+      periodEnd: new Date('2026-11-03T00:00:00Z'),
+      taxableAmount: { toString: () => '999.00' },
+      gstRate: { toString: () => '18.00' },
+      gstAmount: { toString: () => '179.82' },
+      totalAmount: { toString: () => '1178.82' },
+      subscription: { plan: { name: 'Growth' } },
+    };
+
+    it('returns the existing invoice for a charge already invoiced', async () => {
+      mockInvoiceRepository.findByServiceChargeId.mockResolvedValue({ id: 'invoice-9' });
+
+      await expect(service.generateForServiceCharge('charge-1')).resolves.toEqual({ id: 'invoice-9' });
+      expect(mockInvoiceRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('invoices the amounts already charged, naming the plan', async () => {
+      mockInvoiceRepository.findByServiceChargeId.mockResolvedValue(null);
+      mockInvoiceRepository.findServiceCharge.mockResolvedValue(charge);
+      mockMerchantRepository.findById.mockResolvedValue(merchant);
+      mockInvoiceRepository.getNextInvoiceNumber.mockResolvedValue('INV-2026-000002');
+      mockInvoiceRepository.create.mockResolvedValue({ id: 'invoice-2', generatedAt: new Date('2026-10-03T00:00:00Z') });
+      mockPdfService.generate.mockResolvedValue(Buffer.from('pdf'));
+      mockStorageService.saveFile.mockResolvedValue({ path: '/merchant/merchant-1/invoices/INV-2026-000002.pdf' });
+      mockInvoiceRepository.setPdfPath.mockResolvedValue({ id: 'invoice-2' });
+
+      await service.generateForServiceCharge('charge-1');
+
+      expect(mockInvoiceRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          serviceCharge: { connect: { id: 'charge-1' } },
+          taxableAmount: 999,
+          gstRate: 18,
+          gstAmount: 179.82,
+          totalAmount: 1178.82,
+        }),
+      );
+      expect(mockPdfService.generate).toHaveBeenCalledWith(expect.objectContaining({ description: 'Growth plan', totalAmount: 1178.82 }));
+    });
+
+    it('refuses an unknown charge', async () => {
+      mockInvoiceRepository.findByServiceChargeId.mockResolvedValue(null);
+      mockInvoiceRepository.findServiceCharge.mockResolvedValue(null);
+
+      await expect(service.generateForServiceCharge('nope')).rejects.toThrow(NotFoundException);
     });
   });
 

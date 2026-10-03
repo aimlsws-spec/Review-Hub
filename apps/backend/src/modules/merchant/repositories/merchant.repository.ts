@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
+import type { VerificationFacts } from '../verification-level';
 
 @Injectable()
 export class MerchantRepository {
@@ -12,6 +13,24 @@ export class MerchantRepository {
       where: { id },
       include: { country: true, state: true, city: true, wallet: true },
     });
+  }
+
+  /** What the verification level (verification-level.ts) is worked out from. */
+  async findVerificationFacts(merchantId: string): Promise<VerificationFacts | null> {
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: { verificationStatus: true, user: { select: { phoneVerifiedAt: true, emailVerifiedAt: true } } },
+    });
+    if (!merchant) return null;
+    const premiumSubscriptions = await this.prisma.merchantSubscription.count({
+      where: { merchantId, status: 'ACTIVE', plan: { isPremium: true } },
+    });
+    return {
+      phoneVerified: merchant.user.phoneVerifiedAt !== null,
+      emailVerified: merchant.user.emailVerifiedAt !== null,
+      businessVerified: merchant.verificationStatus === 'APPROVED',
+      premium: premiumSubscriptions > 0,
+    };
   }
 
   async findByUserId(userId: string) {

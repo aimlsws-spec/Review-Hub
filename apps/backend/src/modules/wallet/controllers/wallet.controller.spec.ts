@@ -13,6 +13,8 @@ describe('WalletController', () => {
     getTransactions: jest.fn(),
     exportTransactionsCsv: jest.fn(),
     getMyRewards: jest.fn(),
+    getEarningsBreakdown: jest.fn(),
+    getEarningsChart: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -62,6 +64,16 @@ describe('WalletController', () => {
       expect(res.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="wallet-statement-2026-09-21.csv"');
       expect(res.setHeader).toHaveBeenCalledWith('X-Export-Truncated', 'true');
       expect(res.send).toHaveBeenCalledWith('a,b\r\n');
+    });
+  });
+
+  describe('earnings', () => {
+    it('passes the range and the chart period to the service for the signed-in user', async () => {
+      await controller.getEarnings('user-1', { from: '2026-10-01' });
+      await controller.getEarningsChart('user-1', { period: 'month' });
+
+      expect(mockWalletService.getEarningsBreakdown).toHaveBeenCalledWith('user-1', { from: '2026-10-01' });
+      expect(mockWalletService.getEarningsChart).toHaveBeenCalledWith('user-1', { period: 'month' });
     });
   });
 

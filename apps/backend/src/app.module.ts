@@ -38,6 +38,7 @@ import { ReferralModule } from './modules/referral/referral.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { ScheduledJobsModule } from './modules/scheduled-jobs/scheduled-jobs.module';
 import { SettlementModule } from './modules/settlement/settlement.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { SupportModule } from './modules/support/support.module';
 import { TaskModule } from './modules/task/task.module';
 import { UserKycModule } from './modules/user-kyc/user-kyc.module';
@@ -110,6 +111,7 @@ import { StorageModule } from './storage/storage.module';
     SupportModule,
     UserKycModule,
     SettlementModule,
+    SubscriptionModule,
     GamificationModule,
     MarketplaceModule,
     DashboardModule,

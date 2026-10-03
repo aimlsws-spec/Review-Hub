@@ -8,3 +8,4 @@ export * from './audit-log-viewer.service';
 export * from './platform-configuration.service';
 export * from './kyc-management.service';
 export * from './city.service';
+export * from './admin-dashboard.service';

@@ -30,6 +30,7 @@ const TeamPage = lazy(() => import('@/pages/TeamPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const SupportPage = lazy(() => import('@/pages/SupportPage'))
 const WebhooksPage = lazy(() => import('@/pages/WebhooksPage'))
+const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 export const router = createBrowserRouter(
@@ -74,6 +75,7 @@ export const router = createBrowserRouter(
             { path: ROUTES.SETTINGS, element: <SettingsPage /> },
             { path: ROUTES.SUPPORT, element: <SupportPage /> },
             { path: ROUTES.WEBHOOKS, element: <WebhooksPage /> },
+            { path: ROUTES.SUBSCRIPTION, element: <SubscriptionPage /> },
           ],
         },
       ],

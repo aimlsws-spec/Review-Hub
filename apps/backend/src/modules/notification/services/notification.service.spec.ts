@@ -20,6 +20,7 @@ describe('NotificationService', () => {
     countUnread: jest.fn(),
     markRead: jest.fn(),
     markAllRead: jest.fn(),
+    recordEngagement: jest.fn(),
   };
   const mockPreferenceRepository = {
     getOrCreate: jest.fn(),
@@ -113,6 +114,8 @@ describe('NotificationService', () => {
       expect(mockNotificationRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ channel: 'PUSH', status: 'SENT' }),
       );
+      // The push carries its id, so the app can report the tap.
+      expect(mockPushService.sendToTokens.mock.calls[0][1].data).toEqual(expect.objectContaining({ notificationId: 'notif-3' }));
       expect(mockPushService.sendToTokens).toHaveBeenCalledWith(
         ['token-1'],
         expect.objectContaining({
@@ -194,6 +197,22 @@ describe('NotificationService', () => {
       await service.dispatch({ ...payload, message: 'Fish & Chips <3', channels: ['IN_APP'] });
 
       expect(mockNotificationRepository.create.mock.calls[0][0].message).toBe('Fish & Chips <3');
+    });
+  });
+
+  describe('recordEngagement', () => {
+    it('records an open or click on the caller\'s own notification', async () => {
+      mockNotificationRepository.findById.mockResolvedValue({ id: 'notif-1', userId: 'user-1' });
+
+      await expect(service.recordEngagement('notif-1', 'user-1', 'CLICKED')).resolves.toEqual({ recorded: true });
+      expect(mockNotificationRepository.recordEngagement).toHaveBeenCalledWith('notif-1', 'CLICKED');
+    });
+
+    it('refuses someone else\'s notification', async () => {
+      mockNotificationRepository.findById.mockResolvedValue({ id: 'notif-1', userId: 'other' });
+
+      await expect(service.recordEngagement('notif-1', 'user-1', 'OPENED')).rejects.toThrow(NotFoundException);
+      expect(mockNotificationRepository.recordEngagement).not.toHaveBeenCalled();
     });
   });
 

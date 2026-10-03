@@ -906,6 +906,8 @@ model Merchant {
   reviews           Review[]
   settlements       Settlement[]
   invoices          Invoice[]
+  subscriptions     MerchantSubscription[]
+  serviceCharges    MerchantServiceCharge[]
 
   @@index([businessName])
   @@index([email])
@@ -1689,9 +1691,89 @@ model Settlement {
 }
 
 /// The GST invoice for one Settlement's commission — the platform billing the merchant for its service fee. platformGstNumber is a placeholder until the company's real GSTIN is available; swap it in via PLATFORM_GST_NUMBER.
+/// A plan merchants subscribe to, paid monthly from the merchant wallet. Seeded switched off: prices and benefits are
+/// set by the owner on the admin Subscription Plans page before any is switched on.
+model SubscriptionPlan {
+  id                 String    @id @default(uuid())
+  code               String    @unique @db.VarChar(40)
+  name               String    @db.VarChar(80)
+  description        String?   @db.Text
+  /// Before GST.
+  monthlyPrice       Decimal   @db.Decimal(12, 2)
+  /// Campaigns that may run at once on this plan; null means no limit. Shown to merchants; not enforced yet.
+  maxActiveCampaigns Int?
+  /// Campaigns that may be featured at once at no extra charge while subscribed.
+  featuredSlots      Int       @default(0)
+  /// Gives the merchant verification level L4 (Premium).
+  isPremium          Boolean   @default(false)
+  isActive           Boolean   @default(false)
+  sortOrder          Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  subscriptions MerchantSubscription[]
+
+  @@index([isActive])
+  @@map("subscription_plans")
+}
+
+/// A merchant's subscription to a plan for one monthly period at a time. Renewed by the subscription-renewals job.
+model MerchantSubscription {
+  id          String                     @id @default(uuid())
+  merchantId  String
+  planId      String
+  status      MerchantSubscriptionStatus @default(ACTIVE)
+  periodStart DateTime
+  periodEnd   DateTime
+  /// Off once the merchant cancels: the subscription then runs to periodEnd and expires.
+  autoRenew   Boolean                    @default(true)
+  cancelledAt DateTime?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+
+  merchant Merchant                @relation(fields: [merchantId], references: [id])
+  plan     SubscriptionPlan        @relation(fields: [planId], references: [id])
+  charges  MerchantServiceCharge[]
+
+  @@index([merchantId, status])
+  @@index([status, periodEnd])
+  @@map("merchant_subscriptions")
+}
+
+/// Money the platform charged a merchant's wallet for a service: a subscription period or a featured campaign. GST is
+/// added on top and a tax invoice is issued for each.
+model MerchantServiceCharge {
+  id                  String            @id @default(uuid())
+  merchantId          String
+  type                ServiceChargeType
+  subscriptionId      String?
+  campaignId          String?
+  periodStart         DateTime
+  periodEnd           DateTime
+  taxableAmount       Decimal           @db.Decimal(12, 2)
+  gstRate             Decimal           @db.Decimal(5, 2)
+  gstAmount           Decimal           @db.Decimal(12, 2)
+  totalAmount         Decimal           @db.Decimal(12, 2)
+  walletTransactionId String?           @unique
+  createdAt           DateTime          @default(now())
+
+  merchant     Merchant              @relation(fields: [merchantId], references: [id])
+  subscription MerchantSubscription? @relation(fields: [subscriptionId], references: [id])
+  invoice      Invoice?
+
+  /// One charge per subscription period, so a retried renewal can never charge twice.
+  @@unique([subscriptionId, periodStart])
+  @@index([merchantId])
+  @@map("merchant_service_charges")
+}
+
 model Invoice {
   id                String   @id @default(uuid())
-  settlementId      String   @unique
+  /// Set for a commission invoice (nightly settlement); null for a service-charge invoice.
+  settlementId      String?  @unique
+  /// Set for a subscription or featured-campaign charge; null for a commission invoice.
+  serviceChargeId   String?  @unique
   merchantId        String
   invoiceNumber     String   @unique
   platformGstNumber String?
@@ -1703,9 +1785,10 @@ model Invoice {
   pdfPath           String?
   generatedAt       DateTime @default(now())
 
-  settlement Settlement    @relation(fields: [settlementId], references: [id])
-  merchant   Merchant      @relation(fields: [merchantId], references: [id])
-  notes      InvoiceNote[]
+  settlement    Settlement?            @relation(fields: [settlementId], references: [id])
+  serviceCharge MerchantServiceCharge? @relation(fields: [serviceChargeId], references: [id])
+  merchant      Merchant               @relation(fields: [merchantId], references: [id])
+  notes         InvoiceNote[]
 
   @@index([merchantId])
   @@map("invoices")
@@ -1920,11 +2003,31 @@ model Redemption {
   @@map("redemptions")
 }
 
+enum MerchantSubscriptionStatus {
+  ACTIVE
+  /// The renewal could not be paid (wallet too low). Retried by the job until the period's grace ends.
+  PAST_DUE
+  /// Cancelled by the merchant and run to the end of its period, or not paid in time.
+  EXPIRED
+}
+
+enum ServiceChargeType {
+  SUBSCRIPTION
+  FEATURED_CAMPAIGN
+}
+
 enum BadgeCriteriaType {
   XP_THRESHOLD
   STREAK_THRESHOLD
   LEVEL_THRESHOLD
+  /// Credited task rewards, i.e. approved tasks.
   REWARD_COUNT
+  /// Credited rewards for review tasks (Google and Play Store reviews).
+  REVIEW_TASK_COUNT
+  /// People this user referred whose referral reward was paid.
+  REFERRAL_COUNT
+  /// Among the top `criteriaValue` task earners of an IST month. Awarded by the monthly job, never on activity.
+  TOP_EARNER_MONTHLY
 }
 
 model WithdrawalRequest {
@@ -2077,6 +2180,10 @@ model Notification {
   sentAt       DateTime?
   deliveredAt  DateTime?
   readAt       DateTime?
+  /// When the person first opened it (tapped the push, or tapped it in the in-app list). Push and in-app only.
+  openedAt     DateTime?
+  /// When the person first followed it through to what it links to. Implies openedAt.
+  clickedAt    DateTime?
   failedReason String?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
@@ -2813,6 +2920,9 @@ model PlatformConfiguration {
   supportEmail                 String?
   supportPhone                 String?
   commissionPercentage         Decimal    @default(0) @db.Decimal(5, 4)
+  /// What a merchant pays (before GST) to feature one campaign for featuredCampaignDays.
+  featuredCampaignPrice        Decimal    @default(199) @db.Decimal(12, 2)
+  featuredCampaignDays         Int        @default(7)
   /// The least a user can withdraw at once.
   minimumWithdrawal            Decimal    @default(1000) @db.Decimal(12, 2)
   /// The most a user can withdraw in one request.

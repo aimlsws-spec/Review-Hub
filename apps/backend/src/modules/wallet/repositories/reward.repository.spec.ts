@@ -14,6 +14,7 @@ describe('RewardRepository', () => {
       update: jest.fn(),
       count: jest.fn(),
       findMany: jest.fn(),
+      groupBy: jest.fn(),
     },
   };
 
@@ -107,6 +108,32 @@ describe('RewardRepository', () => {
       expect(mockPrisma.reward.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { campaign: { merchantId: 'merchant-1' }, deletedAt: null },
+        }),
+      );
+    });
+  });
+
+  describe('achievement queries', () => {
+    it('counts credited rewards for the given task types', async () => {
+      await repository.countCreditedForTaskTypes('user-1', ['GOOGLE_REVIEW']);
+
+      expect(mockPrisma.reward.count).toHaveBeenCalledWith({
+        where: { userId: 'user-1', status: 'CREDITED', submission: { task: { taskType: { in: ['GOOGLE_REVIEW'] } } } },
+      });
+    });
+
+    it('ranks earners by credited rewards in the period, highest first', async () => {
+      mockPrisma.reward.groupBy.mockResolvedValue([{ userId: 'u1', _sum: { amount: { toString: () => '450.50' } } }]);
+      const start = new Date('2026-08-31T18:30:00Z');
+      const end = new Date('2026-09-30T18:30:00Z');
+
+      await expect(repository.topEarnersBetween(start, end, 30)).resolves.toEqual([{ userId: 'u1', amount: 450.5 }]);
+      expect(mockPrisma.reward.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          by: ['userId'],
+          where: { status: 'CREDITED', creditedAt: { gte: start, lt: end }, deletedAt: null },
+          orderBy: { _sum: { amount: 'desc' } },
+          take: 30,
         }),
       );
     });

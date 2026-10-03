@@ -265,6 +265,20 @@ async function main() {
   }
   console.log('✅ AI providers seeded');
 
+  // ── Achievement badges (spec) ──────────────────────────────
+  // Same as migration 20261003140000_badge_achievements. Admins can edit or add more on the Badges page.
+  const achievementBadges = [
+    { code: 'TASKS_100', name: '100 Tasks', description: 'Completed 100 tasks.', criteriaType: 'REWARD_COUNT' as const, criteriaValue: 100 },
+    { code: 'TASKS_1000', name: '1,000 Tasks', description: 'Completed 1,000 tasks.', criteriaType: 'REWARD_COUNT' as const, criteriaValue: 1000 },
+    { code: 'REVIEWS_100', name: '100 Reviews', description: 'Completed 100 review tasks.', criteriaType: 'REVIEW_TASK_COUNT' as const, criteriaValue: 100 },
+    { code: 'REFERRALS_50', name: '50 Referrals', description: 'Referred 50 people who joined and earned.', criteriaType: 'REFERRAL_COUNT' as const, criteriaValue: 50 },
+    { code: 'STREAK_30', name: '30-Day Streak', description: 'Earned on 30 days in a row.', criteriaType: 'STREAK_THRESHOLD' as const, criteriaValue: 30 },
+    { code: 'TOP_EARNER', name: 'Top Earner', description: 'One of the top 10 earners of a month.', criteriaType: 'TOP_EARNER_MONTHLY' as const, criteriaValue: 10 },
+  ];
+  for (const badge of achievementBadges) {
+    await prisma.badge.upsert({ where: { code: badge.code }, update: {}, create: badge });
+  }
+
   // ── Campaign Categories ────────────────────────────────────
   const categories = [
     { name: 'Social Media', slug: 'social-media', icon: '📱', color: '#3B82F6', sortOrder: 1 },

@@ -45,6 +45,18 @@ export class NotificationRepository {
     return this.prisma.notification.update({ where: { id }, data: { readAt: new Date(), status: 'READ' } });
   }
 
+  /**
+   * Records the first open (and, for CLICKED, the first click). Only empty timestamps are set, so the app reporting
+   * the same tap twice changes nothing.
+   */
+  async recordEngagement(id: string, action: 'OPENED' | 'CLICKED') {
+    const now = new Date();
+    await this.prisma.notification.updateMany({ where: { id, openedAt: null }, data: { openedAt: now } });
+    if (action === 'CLICKED') {
+      await this.prisma.notification.updateMany({ where: { id, clickedAt: null }, data: { clickedAt: now } });
+    }
+  }
+
   async markAllRead(userId: string) {
     return this.prisma.notification.updateMany({
       where: { userId, readAt: null, deletedAt: null },

@@ -11,6 +11,7 @@ import {
   MerchantRepository,
   MerchantTeamRepository,
 } from '../repositories';
+import { MerchantVerificationLevel, merchantVerificationLevel } from '../verification-level';
 
 @Injectable()
 export class MerchantService {
@@ -78,14 +79,20 @@ export class MerchantService {
   async getProfile(merchantId: string) {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
-    return merchant;
+    return { ...merchant, verificationLevel: await this.getVerificationLevel(merchant.id) };
   }
 
   /** Distinct from getProfile() — the `/merchants/me` route resolves the merchant from the JWT's user id, not a merchant id. */
   async getProfileByUserId(userId: string) {
     const merchant = await this.merchantRepository.findByUserId(userId);
     if (!merchant) throw new NotFoundException('Merchant');
-    return merchant;
+    return { ...merchant, verificationLevel: await this.getVerificationLevel(merchant.id) };
+  }
+
+  /** L0–L4 (see verification-level.ts). Shown as a badge; nothing is gated on it. */
+  async getVerificationLevel(merchantId: string): Promise<MerchantVerificationLevel> {
+    const facts = await this.merchantRepository.findVerificationFacts(merchantId);
+    return facts ? merchantVerificationLevel(facts) : 0;
   }
 
   async updateProfile(merchantId: string, dto: UpdateMerchantDto) {

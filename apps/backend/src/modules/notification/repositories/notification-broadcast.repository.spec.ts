@@ -16,7 +16,7 @@ describe('NotificationBroadcastRepository', () => {
       update: jest.fn(),
       updateMany: jest.fn(),
     },
-    notification: { groupBy: jest.fn() },
+    notification: { groupBy: jest.fn(), count: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -170,6 +170,25 @@ describe('NotificationBroadcastRepository', () => {
         { channel: 'EMAIL', status: 'FAILED', count: 2 },
       ]);
       expect(mockPrisma.notification.groupBy).toHaveBeenCalledWith(expect.objectContaining({ where: { broadcastId: 'b1' } }));
+    });
+  });
+
+  describe('engagement', () => {
+    it('gives open and click rates out of the push and in-app messages sent', async () => {
+      mockPrisma.notification.count.mockResolvedValueOnce(200).mockResolvedValueOnce(50).mockResolvedValueOnce(7);
+
+      await expect(repository.engagement('b-1')).resolves.toEqual({ trackedMessages: 200, opened: 50, clicked: 7, openRate: 25, clickRate: 3.5 });
+      expect(mockPrisma.notification.count.mock.calls[0][0].where).toEqual({
+        broadcastId: 'b-1',
+        channel: { in: ['PUSH', 'IN_APP'] },
+        status: { not: 'FAILED' },
+      });
+    });
+
+    it('gives zero rates when nothing trackable was sent', async () => {
+      mockPrisma.notification.count.mockResolvedValue(0);
+
+      await expect(repository.engagement('b-1')).resolves.toEqual(expect.objectContaining({ openRate: 0, clickRate: 0 }));
     });
   });
 });

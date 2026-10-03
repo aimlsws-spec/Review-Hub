@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,12 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) 
 /// below only matters if that override is ever forgotten.
 final pushTokenSyncProvider = Provider<Future<void> Function(String token)>((ref) {
   return (token) async {};
+});
+
+/// Port called with the notification id when a push is tapped, so the composition root can report the click
+/// (for open and click rates) without this core module importing a feature. No-op by default.
+final pushTapReportProvider = Provider<Future<void> Function(String notificationId)>((ref) {
+  return (notificationId) async {};
 });
 
 /// The app's one ScaffoldMessenger, so a notification that arrives while the app is open can be shown on
@@ -73,6 +81,7 @@ class PushNotificationController {
     final initialMessage = await service.getInitialMessage();
     if (initialMessage != null) {
       pendingRoute = routeForNotificationType(initialMessage.data['type'] as String?);
+      _reportTap(initialMessage);
     }
   }
 
@@ -99,7 +108,17 @@ class PushNotificationController {
   }
 
   void _navigateTo(RemoteMessage message) {
+    _reportTap(message);
     _ref.read(routerProvider).go(routeForNotificationType(message.data['type'] as String?));
+  }
+
+  /// A tap takes the person to what the push links to, so it counts as a click. Never waited on: navigation must not
+  /// depend on the network.
+  void _reportTap(RemoteMessage message) {
+    final notificationId = message.data['notificationId'];
+    if (notificationId is String && notificationId.isNotEmpty) {
+      unawaited(_ref.read(pushTapReportProvider)(notificationId));
+    }
   }
 
   /// Android shows nothing for a push that arrives while the app is open, so it is shown as a banner with a

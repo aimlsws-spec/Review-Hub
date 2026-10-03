@@ -12,6 +12,7 @@ import '../../../../shared/widgets/loading_indicator.dart';
 import '../../data/models/badge_model.dart';
 import '../../data/models/gamification_profile_model.dart';
 import '../../providers/gamification_providers.dart';
+import '../widgets/tier_badge.dart';
 
 class GamificationScreen extends ConsumerWidget {
   const GamificationScreen({super.key});
@@ -93,9 +94,17 @@ class _ProfileCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Level', style: TextStyle(color: Colors.white70, fontSize: 13)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Level', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              TierBadge(tier: profile.tier),
+            ],
+          ),
           const SizedBox(height: 6),
           Text('${profile.level}', style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          _TierProgress(profile: profile),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -108,6 +117,37 @@ class _ProfileCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// How far through the current tier the person is, and what the next one needs.
+class _TierProgress extends StatelessWidget {
+  const _TierProgress({required this.profile});
+
+  final GamificationProfileModel profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final next = profile.nextTier;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: profile.progressPercent / 100,
+            minHeight: 6,
+            backgroundColor: Colors.white24,
+            color: AppColors.orange500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          next == null ? 'Top tier reached' : '${profile.xpToNextTier ?? 0} XP to ${next.label}',
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+      ],
     );
   }
 }

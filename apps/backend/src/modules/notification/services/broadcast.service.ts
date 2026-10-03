@@ -86,8 +86,11 @@ export class BroadcastService {
   /** One broadcast plus how its messages fared per channel. */
   async getById(id: string) {
     const broadcast = await this.findOrFail(id);
-    const deliveries = await this.broadcastRepository.deliveryBreakdown(id);
-    return { ...this.toResponse(broadcast), deliveries };
+    const [deliveries, engagement] = await Promise.all([
+      this.broadcastRepository.deliveryBreakdown(id),
+      this.broadcastRepository.engagement(id),
+    ]);
+    return { ...this.toResponse(broadcast), deliveries, engagement };
   }
 
   /** Only a broadcast that has not started can be cancelled; once messages are going out they cannot be recalled. */

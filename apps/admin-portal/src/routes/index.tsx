@@ -32,6 +32,7 @@ const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 const ScheduledJobsPage = lazy(() => import('@/pages/ScheduledJobsPage'))
 const AiProvidersPage = lazy(() => import('@/pages/AiProvidersPage'))
 const PlatformConfigurationPage = lazy(() => import('@/pages/PlatformConfigurationPage'))
+const SubscriptionPlansPage = lazy(() => import('@/pages/SubscriptionPlansPage'))
 const CmsPagesPage = lazy(() => import('@/pages/cms/CmsPagesPage'))
 const FaqsPage = lazy(() => import('@/pages/cms/FaqsPage'))
 const CitiesPage = lazy(() => import('@/pages/CitiesPage'))
@@ -86,6 +87,7 @@ export const router = createBrowserRouter(
             { path: ROUTES.SCHEDULED_JOBS, element: <ScheduledJobsPage /> },
             { path: ROUTES.AI_PROVIDERS, element: <AiProvidersPage /> },
             { path: ROUTES.PLATFORM_CONFIGURATION, element: <PlatformConfigurationPage /> },
+            { path: ROUTES.SUBSCRIPTION_PLANS, element: <SubscriptionPlansPage /> },
             { path: ROUTES.CMS_PAGES, element: <CmsPagesPage /> },
             { path: ROUTES.FAQS, element: <FaqsPage /> },
             { path: ROUTES.CITIES, element: <CitiesPage /> },

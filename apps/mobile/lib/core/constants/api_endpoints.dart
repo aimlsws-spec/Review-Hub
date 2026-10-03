@@ -33,6 +33,8 @@ class ApiEndpoints {
   static const String walletTransactions = '/wallet/transactions';
   static const String walletTransactionsExport = '/wallet/transactions/export';
   static const String walletRewards = '/wallet/rewards';
+  static const String walletEarnings = '/wallet/earnings';
+  static const String walletEarningsChart = '/wallet/earnings/chart';
 
   // Bank accounts — wallet/controllers/bank-account.controller.ts
   static const String bankAccounts = '/wallet/bank-accounts';
@@ -90,6 +92,7 @@ class ApiEndpoints {
   static const String notificationPreferences = '/notifications/preferences';
   static String notificationRead(String notificationId) => '/notifications/$notificationId/read';
   static const String notificationReadAll = '/notifications/read-all';
+  static String notificationEngagement(String notificationId) => '/notifications/$notificationId/engagement';
 
   // KYC — user-kyc/controllers/user-kyc.controller.ts
   static const String kycDocuments = '/kyc/documents';

@@ -15,7 +15,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$GamificationProfileModel {
 
- String get id; String get userId; int get level; int get xp; int get currentStreak; int get longestStreak;
+ String get id; String get userId; int get level; int get xp; int get currentStreak; int get longestStreak;@JsonKey(unknownEnumValue: GamificationTier.bronze) GamificationTier get tier;/// Null at the top tier.
+@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) GamificationTier? get nextTier;/// XP still needed for the next tier; null at the top tier.
+ int? get xpToNextTier;/// 0–100 through the current tier.
+ int get progressPercent;
 /// Create a copy of GamificationProfileModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +31,16 @@ $GamificationProfileModelCopyWith<GamificationProfileModel> get copyWith => _$Ga
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GamificationProfileModel&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.level, level) || other.level == level)&&(identical(other.xp, xp) || other.xp == xp)&&(identical(other.currentStreak, currentStreak) || other.currentStreak == currentStreak)&&(identical(other.longestStreak, longestStreak) || other.longestStreak == longestStreak));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GamificationProfileModel&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.level, level) || other.level == level)&&(identical(other.xp, xp) || other.xp == xp)&&(identical(other.currentStreak, currentStreak) || other.currentStreak == currentStreak)&&(identical(other.longestStreak, longestStreak) || other.longestStreak == longestStreak)&&(identical(other.tier, tier) || other.tier == tier)&&(identical(other.nextTier, nextTier) || other.nextTier == nextTier)&&(identical(other.xpToNextTier, xpToNextTier) || other.xpToNextTier == xpToNextTier)&&(identical(other.progressPercent, progressPercent) || other.progressPercent == progressPercent));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,userId,level,xp,currentStreak,longestStreak);
+int get hashCode => Object.hash(runtimeType,id,userId,level,xp,currentStreak,longestStreak,tier,nextTier,xpToNextTier,progressPercent);
 
 @override
 String toString() {
-  return 'GamificationProfileModel(id: $id, userId: $userId, level: $level, xp: $xp, currentStreak: $currentStreak, longestStreak: $longestStreak)';
+  return 'GamificationProfileModel(id: $id, userId: $userId, level: $level, xp: $xp, currentStreak: $currentStreak, longestStreak: $longestStreak, tier: $tier, nextTier: $nextTier, xpToNextTier: $xpToNextTier, progressPercent: $progressPercent)';
 }
 
 
@@ -48,7 +51,7 @@ abstract mixin class $GamificationProfileModelCopyWith<$Res>  {
   factory $GamificationProfileModelCopyWith(GamificationProfileModel value, $Res Function(GamificationProfileModel) _then) = _$GamificationProfileModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String userId, int level, int xp, int currentStreak, int longestStreak
+ String id, String userId, int level, int xp, int currentStreak, int longestStreak,@JsonKey(unknownEnumValue: GamificationTier.bronze) GamificationTier tier,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) GamificationTier? nextTier, int? xpToNextTier, int progressPercent
 });
 
 
@@ -65,7 +68,7 @@ class _$GamificationProfileModelCopyWithImpl<$Res>
 
 /// Create a copy of GamificationProfileModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? level = null,Object? xp = null,Object? currentStreak = null,Object? longestStreak = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? level = null,Object? xp = null,Object? currentStreak = null,Object? longestStreak = null,Object? tier = null,Object? nextTier = freezed,Object? xpToNextTier = freezed,Object? progressPercent = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
@@ -73,6 +76,10 @@ as String,level: null == level ? _self.level : level // ignore: cast_nullable_to
 as int,xp: null == xp ? _self.xp : xp // ignore: cast_nullable_to_non_nullable
 as int,currentStreak: null == currentStreak ? _self.currentStreak : currentStreak // ignore: cast_nullable_to_non_nullable
 as int,longestStreak: null == longestStreak ? _self.longestStreak : longestStreak // ignore: cast_nullable_to_non_nullable
+as int,tier: null == tier ? _self.tier : tier // ignore: cast_nullable_to_non_nullable
+as GamificationTier,nextTier: freezed == nextTier ? _self.nextTier : nextTier // ignore: cast_nullable_to_non_nullable
+as GamificationTier?,xpToNextTier: freezed == xpToNextTier ? _self.xpToNextTier : xpToNextTier // ignore: cast_nullable_to_non_nullable
+as int?,progressPercent: null == progressPercent ? _self.progressPercent : progressPercent // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }
@@ -158,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  int level,  int xp,  int currentStreak,  int longestStreak)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  int level,  int xp,  int currentStreak,  int longestStreak, @JsonKey(unknownEnumValue: GamificationTier.bronze)  GamificationTier tier, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  GamificationTier? nextTier,  int? xpToNextTier,  int progressPercent)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GamificationProfileModel() when $default != null:
-return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_that.longestStreak);case _:
+return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_that.longestStreak,_that.tier,_that.nextTier,_that.xpToNextTier,_that.progressPercent);case _:
   return orElse();
 
 }
@@ -179,10 +186,10 @@ return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  int level,  int xp,  int currentStreak,  int longestStreak)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  int level,  int xp,  int currentStreak,  int longestStreak, @JsonKey(unknownEnumValue: GamificationTier.bronze)  GamificationTier tier, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  GamificationTier? nextTier,  int? xpToNextTier,  int progressPercent)  $default,) {final _that = this;
 switch (_that) {
 case _GamificationProfileModel():
-return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_that.longestStreak);case _:
+return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_that.longestStreak,_that.tier,_that.nextTier,_that.xpToNextTier,_that.progressPercent);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +206,10 @@ return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  int level,  int xp,  int currentStreak,  int longestStreak)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  int level,  int xp,  int currentStreak,  int longestStreak, @JsonKey(unknownEnumValue: GamificationTier.bronze)  GamificationTier tier, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  GamificationTier? nextTier,  int? xpToNextTier,  int progressPercent)?  $default,) {final _that = this;
 switch (_that) {
 case _GamificationProfileModel() when $default != null:
-return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_that.longestStreak);case _:
+return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_that.longestStreak,_that.tier,_that.nextTier,_that.xpToNextTier,_that.progressPercent);case _:
   return null;
 
 }
@@ -214,7 +221,7 @@ return $default(_that.id,_that.userId,_that.level,_that.xp,_that.currentStreak,_
 @JsonSerializable()
 
 class _GamificationProfileModel implements GamificationProfileModel {
-  const _GamificationProfileModel({required this.id, required this.userId, this.level = 1, this.xp = 0, this.currentStreak = 0, this.longestStreak = 0});
+  const _GamificationProfileModel({required this.id, required this.userId, this.level = 1, this.xp = 0, this.currentStreak = 0, this.longestStreak = 0, @JsonKey(unknownEnumValue: GamificationTier.bronze) this.tier = GamificationTier.bronze, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.nextTier, this.xpToNextTier, this.progressPercent = 0});
   factory _GamificationProfileModel.fromJson(Map<String, dynamic> json) => _$GamificationProfileModelFromJson(json);
 
 @override final  String id;
@@ -223,6 +230,13 @@ class _GamificationProfileModel implements GamificationProfileModel {
 @override@JsonKey() final  int xp;
 @override@JsonKey() final  int currentStreak;
 @override@JsonKey() final  int longestStreak;
+@override@JsonKey(unknownEnumValue: GamificationTier.bronze) final  GamificationTier tier;
+/// Null at the top tier.
+@override@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) final  GamificationTier? nextTier;
+/// XP still needed for the next tier; null at the top tier.
+@override final  int? xpToNextTier;
+/// 0–100 through the current tier.
+@override@JsonKey() final  int progressPercent;
 
 /// Create a copy of GamificationProfileModel
 /// with the given fields replaced by the non-null parameter values.
@@ -237,16 +251,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GamificationProfileModel&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.level, level) || other.level == level)&&(identical(other.xp, xp) || other.xp == xp)&&(identical(other.currentStreak, currentStreak) || other.currentStreak == currentStreak)&&(identical(other.longestStreak, longestStreak) || other.longestStreak == longestStreak));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GamificationProfileModel&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.level, level) || other.level == level)&&(identical(other.xp, xp) || other.xp == xp)&&(identical(other.currentStreak, currentStreak) || other.currentStreak == currentStreak)&&(identical(other.longestStreak, longestStreak) || other.longestStreak == longestStreak)&&(identical(other.tier, tier) || other.tier == tier)&&(identical(other.nextTier, nextTier) || other.nextTier == nextTier)&&(identical(other.xpToNextTier, xpToNextTier) || other.xpToNextTier == xpToNextTier)&&(identical(other.progressPercent, progressPercent) || other.progressPercent == progressPercent));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,userId,level,xp,currentStreak,longestStreak);
+int get hashCode => Object.hash(runtimeType,id,userId,level,xp,currentStreak,longestStreak,tier,nextTier,xpToNextTier,progressPercent);
 
 @override
 String toString() {
-  return 'GamificationProfileModel(id: $id, userId: $userId, level: $level, xp: $xp, currentStreak: $currentStreak, longestStreak: $longestStreak)';
+  return 'GamificationProfileModel(id: $id, userId: $userId, level: $level, xp: $xp, currentStreak: $currentStreak, longestStreak: $longestStreak, tier: $tier, nextTier: $nextTier, xpToNextTier: $xpToNextTier, progressPercent: $progressPercent)';
 }
 
 
@@ -257,7 +271,7 @@ abstract mixin class _$GamificationProfileModelCopyWith<$Res> implements $Gamifi
   factory _$GamificationProfileModelCopyWith(_GamificationProfileModel value, $Res Function(_GamificationProfileModel) _then) = __$GamificationProfileModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String userId, int level, int xp, int currentStreak, int longestStreak
+ String id, String userId, int level, int xp, int currentStreak, int longestStreak,@JsonKey(unknownEnumValue: GamificationTier.bronze) GamificationTier tier,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) GamificationTier? nextTier, int? xpToNextTier, int progressPercent
 });
 
 
@@ -274,7 +288,7 @@ class __$GamificationProfileModelCopyWithImpl<$Res>
 
 /// Create a copy of GamificationProfileModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? level = null,Object? xp = null,Object? currentStreak = null,Object? longestStreak = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? level = null,Object? xp = null,Object? currentStreak = null,Object? longestStreak = null,Object? tier = null,Object? nextTier = freezed,Object? xpToNextTier = freezed,Object? progressPercent = null,}) {
   return _then(_GamificationProfileModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
@@ -282,6 +296,10 @@ as String,level: null == level ? _self.level : level // ignore: cast_nullable_to
 as int,xp: null == xp ? _self.xp : xp // ignore: cast_nullable_to_non_nullable
 as int,currentStreak: null == currentStreak ? _self.currentStreak : currentStreak // ignore: cast_nullable_to_non_nullable
 as int,longestStreak: null == longestStreak ? _self.longestStreak : longestStreak // ignore: cast_nullable_to_non_nullable
+as int,tier: null == tier ? _self.tier : tier // ignore: cast_nullable_to_non_nullable
+as GamificationTier,nextTier: freezed == nextTier ? _self.nextTier : nextTier // ignore: cast_nullable_to_non_nullable
+as GamificationTier?,xpToNextTier: freezed == xpToNextTier ? _self.xpToNextTier : xpToNextTier // ignore: cast_nullable_to_non_nullable
+as int?,progressPercent: null == progressPercent ? _self.progressPercent : progressPercent // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }

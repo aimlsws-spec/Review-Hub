@@ -14,6 +14,7 @@ import '../../../campaigns/data/models/campaign_model.dart';
 import '../../../campaigns/presentation/widgets/campaign_card.dart';
 import '../../../campaigns/presentation/widgets/campaign_card_compact.dart';
 import '../../../campaigns/providers/campaign_providers.dart';
+import '../../../gamification/data/models/gamification_profile_model.dart';
 import '../../../gamification/providers/gamification_providers.dart';
 import '../../../notifications/providers/notification_providers.dart';
 import '../../../tasks/data/models/recommended_task_model.dart';
@@ -283,13 +284,6 @@ class _WalletCard extends StatelessWidget {
 
 /// Placeholder tier names until product defines a real leveling scheme —
 /// there's no name field on `GamificationProfileModel`, only a numeric level.
-String _levelName(int level) {
-  if (level >= 4) return 'Legend';
-  if (level == 3) return 'Pro';
-  if (level == 2) return 'Rising Star';
-  return 'Newbie';
-}
-
 class _StatsRow extends ConsumerWidget {
   const _StatsRow({required this.walletAsync});
   final AsyncValue<Result<WalletSummaryModel>> walletAsync;
@@ -302,7 +296,7 @@ class _StatsRow extends ConsumerWidget {
     final pendingRewards = walletAsync.value?.valueOrNull?.pendingBalanceValue;
     final completedTasks = submissionsAsync.value?.valueOrNull?.items.where((s) => s.isApproved).length;
     final streak = profileAsync.value?.valueOrNull?.currentStreak;
-    final level = profileAsync.value?.valueOrNull?.level;
+    final tier = profileAsync.value?.valueOrNull?.tier;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -341,8 +335,8 @@ class _StatsRow extends ConsumerWidget {
             icon: Icons.emoji_events_rounded,
             iconColor: AppColors.primary600,
             iconBg: AppColors.primary50,
-            label: 'Current Level',
-            value: level != null ? _levelName(level) : '—',
+            label: 'Tier',
+            value: tier != null ? tier.label : '—',
             showArrow: true,
           ),
         ],

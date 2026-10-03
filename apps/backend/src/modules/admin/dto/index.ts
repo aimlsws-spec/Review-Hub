@@ -13,3 +13,4 @@ export * from './kyc-review-query.dto';
 export * from './reject-kyc.dto';
 export * from './kyc-review-response.dto';
 export * from './city.dto';
+export * from './dashboard-series-query.dto';

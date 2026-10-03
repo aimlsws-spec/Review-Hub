@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useCampaignMutations, useCampaignsQuery } from '@/hooks/useCampaigns'
+import { useSubscriptionMutations, useSubscriptionQuery } from '@/hooks/useSubscription'
 import { useWordingCheck } from '@/hooks/useWordingCheck'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -11,6 +12,7 @@ import CampaignsPage from './CampaignsPage'
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
 vi.mock('@/hooks/useCampaigns', () => ({ useCampaignsQuery: vi.fn(), useCampaignMutations: vi.fn() }))
 vi.mock('@/hooks/useWordingCheck', () => ({ useWordingCheck: vi.fn() }))
+vi.mock('@/hooks/useSubscription', () => ({ useSubscriptionQuery: vi.fn(), useSubscriptionMutations: vi.fn() }))
 vi.mock('@/hooks/useCampaignBuilder', () => ({
   useCampaignRecommendation: () => ({
     mutate: vi.fn(),
@@ -63,6 +65,7 @@ const saveMutateMock = vi.fn()
 const actionMutateMock = vi.fn()
 const deleteMutateMock = vi.fn()
 const duplicateMutateMock = vi.fn()
+const featureMutateMock = vi.fn()
 
 function mockAuthState(merchantId: string | undefined) {
   vi.mocked(useAuthStore).mockImplementation(
@@ -94,6 +97,27 @@ describe('CampaignsPage', () => {
     actionMutateMock.mockReset()
     deleteMutateMock.mockReset()
     duplicateMutateMock.mockReset()
+    featureMutateMock.mockReset()
+    vi.mocked(useSubscriptionQuery).mockReturnValue({ data: { data: { data: { featured: { price: 199, days: 7, priceWithGst: 234.82 } } } } } as never)
+    vi.mocked(useSubscriptionMutations).mockReturnValue({ feature: { mutate: featureMutateMock, isPending: false } } as never)
+  })
+
+  it('features a running campaign after saying what it costs', async () => {
+    vi.mocked(useCampaignsQuery).mockReturnValue({
+      data: { data: { data: { data: [{ ...draftCampaign, status: 'ACTIVE' }], total: 1, page: 1, limit: 20 } } },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never)
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Feature' }))
+    expect(screen.getByText(/for 7 days/)).toBeInTheDocument()
+    expect(screen.getByText(/234\.82/)).toBeInTheDocument()
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Feature' }))
+
+    expect(featureMutateMock).toHaveBeenCalledWith(draftCampaign.id, expect.anything())
   })
 
   it('shows an empty state when there are no campaigns', () => {

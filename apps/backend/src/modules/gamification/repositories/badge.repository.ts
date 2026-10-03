@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { BadgeCriteriaType, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
@@ -45,6 +45,33 @@ export class BadgeRepository {
 
   async findEarnedByUser(userId: string) {
     return this.prisma.userBadge.findMany({ where: { userId }, include: { badge: true }, orderBy: { earnedAt: 'desc' } });
+  }
+
+  /** People this user referred whose referral reward was paid: what the referral badges count. */
+  async countPaidReferrals(userId: string) {
+    return this.prisma.referral.count({ where: { referrerId: userId, rewardIssued: true, deletedAt: null } });
+  }
+
+  async findActiveByCriteria(criteriaType: BadgeCriteriaType) {
+    return this.prisma.badge.findMany({ where: { criteriaType, isActive: true, deletedAt: null } });
+  }
+
+  /** Of these users, the ones who already hold the badge. */
+  async holdersAmong(badgeId: string, userIds: string[]): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set();
+    const rows = await this.prisma.userBadge.findMany({ where: { badgeId, userId: { in: userIds } }, select: { userId: true } });
+    return new Set(rows.map((row) => row.userId));
+  }
+
+  /** Of these users, the ones with a fraud flag nobody has resolved yet. */
+  async withOpenFraudFlags(userIds: string[]): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set();
+    const rows = await this.prisma.fraudFlag.findMany({
+      where: { userId: { in: userIds }, resolved: false },
+      distinct: ['userId'],
+      select: { userId: true },
+    });
+    return new Set(rows.map((row) => row.userId));
   }
 
   /** The @@unique([userId, badgeId]) constraint makes this idempotent if called twice for the same badge. */

@@ -10,6 +10,8 @@ describe('BadgeRepository', () => {
   const mockPrisma = {
     badge: { findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     userBadge: { findMany: jest.fn(), create: jest.fn() },
+    referral: { count: jest.fn() },
+    fraudFlag: { findMany: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -55,6 +57,29 @@ describe('BadgeRepository', () => {
         where: { id: 'badge-1' },
         data: { deletedAt: expect.any(Date) },
       });
+    });
+  });
+
+  describe('achievement queries', () => {
+    it('counts only referrals whose reward was paid', async () => {
+      await repository.countPaidReferrals('user-1');
+
+      expect(mockPrisma.referral.count).toHaveBeenCalledWith({ where: { referrerId: 'user-1', rewardIssued: true, deletedAt: null } });
+    });
+
+    it('finds who already holds a badge, and who has an open fraud flag', async () => {
+      mockPrisma.userBadge.findMany.mockResolvedValue([{ userId: 'u1' }]);
+      mockPrisma.fraudFlag.findMany.mockResolvedValue([{ userId: 'u2' }]);
+
+      await expect(repository.holdersAmong('b-1', ['u1', 'u2'])).resolves.toEqual(new Set(['u1']));
+      await expect(repository.withOpenFraudFlags(['u1', 'u2'])).resolves.toEqual(new Set(['u2']));
+      expect(mockPrisma.fraudFlag.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: { in: ['u1', 'u2'] }, resolved: false } }));
+    });
+
+    it('asks nothing for an empty list', async () => {
+      await expect(repository.holdersAmong('b-1', [])).resolves.toEqual(new Set());
+      await expect(repository.withOpenFraudFlags([])).resolves.toEqual(new Set());
+      expect(mockPrisma.userBadge.findMany).not.toHaveBeenCalled();
     });
   });
 });

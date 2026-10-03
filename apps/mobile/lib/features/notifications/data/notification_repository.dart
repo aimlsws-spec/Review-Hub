@@ -49,6 +49,17 @@ class NotificationRepository {
     }
   }
 
+  /// Tells the server the person opened ([NotificationEngagement.opened]) or clicked through
+  /// ([NotificationEngagement.clicked]) a notification, for open and click rates. Only the first of each counts.
+  Future<Result<void>> recordEngagement(String notificationId, NotificationEngagement action) async {
+    try {
+      await _dio.post<void>(ApiEndpoints.notificationEngagement(notificationId), data: {'action': action.apiValue});
+      return const Result.success(null);
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
   Future<Result<int>> markAllRead() async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(ApiEndpoints.notificationReadAll);
@@ -58,4 +69,14 @@ class NotificationRepository {
       return Result.failure(mapDioExceptionToFailure(e));
     }
   }
+}
+
+/// What the person did with a notification: tapped it, or followed it on to what it links to.
+enum NotificationEngagement {
+  opened('OPENED'),
+  clicked('CLICKED');
+
+  const NotificationEngagement(this.apiValue);
+
+  final String apiValue;
 }

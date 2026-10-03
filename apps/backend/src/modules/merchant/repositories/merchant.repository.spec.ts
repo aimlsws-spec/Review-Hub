@@ -15,6 +15,7 @@ describe('MerchantRepository', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
+    merchantSubscription: { count: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -85,6 +86,32 @@ describe('MerchantRepository', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('findVerificationFacts', () => {
+    it('reads what the verification level needs', async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        verificationStatus: 'APPROVED',
+        user: { phoneVerifiedAt: new Date(), emailVerifiedAt: null },
+      });
+      mockPrisma.merchantSubscription.count.mockResolvedValue(1);
+
+      await expect(repository.findVerificationFacts('merchant-1')).resolves.toEqual({
+        phoneVerified: true,
+        emailVerified: false,
+        businessVerified: true,
+        premium: true,
+      });
+      expect(mockPrisma.merchantSubscription.count).toHaveBeenCalledWith({
+        where: { merchantId: 'merchant-1', status: 'ACTIVE', plan: { isPremium: true } },
+      });
+    });
+
+    it('returns null for an unknown merchant', async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue(null);
+
+      await expect(repository.findVerificationFacts('nope')).resolves.toBeNull();
     });
   });
 });

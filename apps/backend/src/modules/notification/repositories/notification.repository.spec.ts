@@ -99,4 +99,20 @@ describe('NotificationRepository', () => {
       });
     });
   });
+
+  describe('recordEngagement', () => {
+    it('sets only the first open', async () => {
+      await repository.recordEngagement('notif-1', 'OPENED');
+
+      expect(mockPrisma.notification.updateMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({ where: { id: 'notif-1', openedAt: null }, data: { openedAt: expect.any(Date) } });
+    });
+
+    it('sets the first open and the first click for a click', async () => {
+      await repository.recordEngagement('notif-1', 'CLICKED');
+
+      expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({ where: { id: 'notif-1', clickedAt: null }, data: { clickedAt: expect.any(Date) } });
+      expect(mockPrisma.notification.updateMany).toHaveBeenCalledTimes(2);
+    });
+  });
 });

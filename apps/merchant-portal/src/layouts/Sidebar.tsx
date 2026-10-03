@@ -173,6 +173,15 @@ const NAV_GROUPS: NavGroup[] = [
         ),
       },
       {
+        label: 'Plan',
+        to: ROUTES.SUBSCRIPTION,
+        icon: (
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.5a.56.56 0 011.04 0l2.13 5.11 5.52.44a.56.56 0 01.32.99l-4.2 3.6 1.28 5.39a.56.56 0 01-.84.61L12 16.77l-4.73 2.89a.56.56 0 01-.84-.61l1.28-5.39-4.2-3.6a.56.56 0 01.32-.99l5.52-.44 2.13-5.11z" />
+          </svg>
+        ),
+      },
+      {
         label: 'Webhooks',
         to: ROUTES.WEBHOOKS,
         icon: (

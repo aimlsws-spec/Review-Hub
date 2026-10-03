@@ -62,7 +62,7 @@ describe('BadgesPage', () => {
 
     expect(screen.getByText('FIRST_REWARD')).toBeInTheDocument()
     expect(screen.getByText('First Reward')).toBeInTheDocument()
-    expect(screen.getByText(/reward count ≥ 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/tasks completed ≥ 1/i)).toBeInTheDocument()
   })
 
   it('creates a new badge', async () => {

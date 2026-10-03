@@ -8,6 +8,7 @@ import '../../../core/errors/result.dart';
 import '../../../core/network/failure_mapper.dart';
 import '../../../shared/models/api_response.dart';
 import 'models/bank_account_model.dart';
+import 'models/earnings_model.dart';
 import 'models/reward_model.dart';
 import 'models/transaction_history.dart';
 import 'models/wallet_summary_model.dart';
@@ -23,6 +24,28 @@ class WalletRepository {
     try {
       final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.wallet);
       return Result.success(WalletSummaryModel.fromJson(response.data!['data'] as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  /// Lifetime earnings split into task rewards, bonuses and referrals.
+  Future<Result<EarningsBreakdownModel>> getEarnings() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.walletEarnings);
+      return Result.success(EarningsBreakdownModel.fromJson(response.data!['data'] as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return Result.failure(mapDioExceptionToFailure(e));
+    }
+  }
+
+  Future<Result<EarningsChartModel>> getEarningsChart(EarningsPeriod period) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.walletEarningsChart,
+        queryParameters: {'period': period.name},
+      );
+      return Result.success(EarningsChartModel.fromJson(response.data!['data'] as Map<String, dynamic>));
     } on DioException catch (e) {
       return Result.failure(mapDioExceptionToFailure(e));
     }

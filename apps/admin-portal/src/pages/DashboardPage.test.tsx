@@ -9,6 +9,7 @@ import DashboardPage from './DashboardPage'
 
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
 vi.mock('@/hooks/useDashboardStats', () => ({ useDashboardStats: vi.fn() }))
+vi.mock('@/components/DashboardCharts', () => ({ DashboardCharts: () => <div>Platform activity charts</div> }))
 
 function renderPage() {
   return render(

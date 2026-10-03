@@ -14,6 +14,8 @@ interface FormState {
   supportEmail: string
   supportPhone: string
   commissionPercentage: string
+  featuredCampaignPrice: string
+  featuredCampaignDays: string
   minimumWithdrawal: string
   maximumWithdrawal: string
   dailyWithdrawalLimit: string
@@ -64,6 +66,8 @@ export default function PlatformConfigurationPage() {
         supportEmail: config.supportEmail ?? '',
         supportPhone: config.supportPhone ?? '',
         commissionPercentage: String(config.commissionPercentage),
+        featuredCampaignPrice: String(config.featuredCampaignPrice ?? 199),
+        featuredCampaignDays: String(config.featuredCampaignDays ?? 7),
         minimumWithdrawal: String(config.minimumWithdrawal),
         maximumWithdrawal: String(config.maximumWithdrawal),
         dailyWithdrawalLimit: String(config.dailyWithdrawalLimit),
@@ -97,6 +101,8 @@ export default function PlatformConfigurationPage() {
       supportEmail: form.supportEmail || undefined,
       supportPhone: form.supportPhone || undefined,
       commissionPercentage: Number(form.commissionPercentage),
+      featuredCampaignPrice: Number(form.featuredCampaignPrice),
+      featuredCampaignDays: Number(form.featuredCampaignDays),
       minimumWithdrawal: Number(form.minimumWithdrawal),
       maximumWithdrawal: Number(form.maximumWithdrawal),
       dailyWithdrawalLimit: Number(form.dailyWithdrawalLimit),
@@ -148,6 +154,23 @@ export default function PlatformConfigurationPage() {
           value={form.commissionPercentage}
           onChange={(e) => setForm((f) => f && { ...f, commissionPercentage: e.target.value })}
         />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Featured campaign price (₹, before GST)"
+            type="number"
+            min={0}
+            value={form.featuredCampaignPrice}
+            onChange={(e) => setForm((f) => f && { ...f, featuredCampaignPrice: e.target.value })}
+          />
+          <Input
+            label="Featured for (days)"
+            type="number"
+            min={1}
+            max={90}
+            value={form.featuredCampaignDays}
+            onChange={(e) => setForm((f) => f && { ...f, featuredCampaignDays: e.target.value })}
+          />
+        </div>
         <fieldset className="space-y-4 rounded-lg border border-gray-200 p-4">
           <legend className="px-1 text-sm font-semibold text-gray-900">Withdrawals</legend>
           <div className="grid grid-cols-2 gap-4">

@@ -30,6 +30,8 @@ import type {
   SupportPriority,
   Webhook,
   WebhookDelivery,
+  SubscriptionOverview,
+  MerchantSubscription,
 } from '@/types'
 import type { Customer, CustomerType, CustomerStatus } from '@/types/customer'
 import type { ApiReview, ApiReviewSource, ApiReviewStatus, ReviewStats } from '@/types/review'
@@ -315,6 +317,24 @@ export const merchantApi = {
       averageLifetimeValue: number
       retentionRate: number
     }>>(`/merchants/${merchantId}/customers/stats`),
+
+  // Plan and featured campaigns
+  getSubscription: (merchantId: string) =>
+    apiClient.get<ApiResponse<SubscriptionOverview>>(`/merchants/${merchantId}/subscription`),
+
+  subscribe: (merchantId: string, planId: string) =>
+    apiClient.post<ApiResponse<MerchantSubscription>>(`/merchants/${merchantId}/subscription`, { planId }),
+
+  cancelSubscription: (merchantId: string) =>
+    apiClient.post<ApiResponse<MerchantSubscription>>(`/merchants/${merchantId}/subscription/cancel`),
+
+  resumeSubscription: (merchantId: string) =>
+    apiClient.post<ApiResponse<MerchantSubscription>>(`/merchants/${merchantId}/subscription/resume`),
+
+  featureCampaign: (merchantId: string, campaignId: string) =>
+    apiClient.post<ApiResponse<{ id: string; featuredUntil: string; includedInPlan: boolean }>>(
+      `/merchants/${merchantId}/campaigns/${campaignId}/feature`,
+    ),
 
   // Webhooks
   listWebhooks: (merchantId: string) =>

@@ -18,6 +18,7 @@ describe('BroadcastService', () => {
     list: jest.fn(),
     cancelIfScheduled: jest.fn(),
     deliveryBreakdown: jest.fn(),
+    engagement: jest.fn(),
   };
   const mockAudienceRepository = { reach: jest.fn(), listLocations: jest.fn() };
   const mockFanOutService = { enqueue: jest.fn() };
@@ -231,10 +232,12 @@ describe('BroadcastService', () => {
 
     it('returns one broadcast with how its messages fared', async () => {
       mockBroadcastRepository.deliveryBreakdown.mockResolvedValue([{ channel: 'PUSH', status: 'SENT', count: 90 }]);
+      const engagement = { trackedMessages: 90, opened: 30, clicked: 9, openRate: 33.3, clickRate: 10 };
+      mockBroadcastRepository.engagement.mockResolvedValue(engagement);
 
       const result = await service.getById('b1');
 
-      expect(result).toEqual(expect.objectContaining({ id: 'b1', deliveries: [{ channel: 'PUSH', status: 'SENT', count: 90 }] }));
+      expect(result).toEqual(expect.objectContaining({ id: 'b1', deliveries: [{ channel: 'PUSH', status: 'SENT', count: 90 }], engagement }));
     });
 
     it('throws NotFoundException for an unknown broadcast', async () => {

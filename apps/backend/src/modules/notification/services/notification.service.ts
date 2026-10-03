@@ -79,7 +79,8 @@ export class NotificationService {
           body: payload.message,
           // `type` rides along in `data` (not just the stored row) so the client can
           // deep-link a tap without a round-trip — e.g. REWARD -> wallet screen.
-          data: stringifyPushData({ ...payload.data, type: payload.type }),
+          // The id lets the app report the tap (see recordEngagement), for open and click rates.
+          data: stringifyPushData({ ...payload.data, type: payload.type, notificationId: notification.id }),
         });
         // Uninstalled apps and replaced tokens are forgotten, so later notifications stop trying them.
         if (deadTokens.length > 0) await this.deviceRepository.clearPushTokens(deadTokens);
@@ -111,6 +112,16 @@ export class NotificationService {
       throw new NotFoundException('Notification');
     }
     return this.notificationRepository.markRead(notificationId);
+  }
+
+  /** The app reporting that the person opened, or clicked through, one of their notifications. */
+  async recordEngagement(notificationId: string, userId: string, action: 'OPENED' | 'CLICKED') {
+    const notification = await this.notificationRepository.findById(notificationId);
+    if (!notification || notification.userId !== userId) {
+      throw new NotFoundException('Notification');
+    }
+    await this.notificationRepository.recordEngagement(notificationId, action);
+    return { recorded: true };
   }
 
   async markAllRead(userId: string) {

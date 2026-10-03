@@ -26,6 +26,7 @@ import {
   KycManagementController,
   AccountRiskController,
   CityController,
+  AdminDashboardController,
 } from './controllers';
 import { AdminDisputeController } from './controllers/admin-dispute.controller';
 import {
@@ -38,6 +39,7 @@ import {
   SystemSettingRepository,
   UserAdminRepository,
   CityRepository,
+  DashboardMetricsRepository,
 } from './repositories';
 import {
   AuditLogViewerService,
@@ -50,6 +52,7 @@ import {
   UserManagementService,
   KycManagementService,
   CityService,
+  AdminDashboardService,
 } from './services';
 
 @Module({
@@ -81,6 +84,7 @@ import {
     KycManagementController,
     AccountRiskController,
     CityController,
+    AdminDashboardController,
   ],
   providers: [
     UserManagementService,
@@ -102,8 +106,10 @@ import {
     AuditLogRepository,
     PlatformConfigurationRepository,
     CityRepository,
+    AdminDashboardService,
+    DashboardMetricsRepository,
   ],
-  exports: [FraudFlagRepository],
+  exports: [FraudFlagRepository, AdminDashboardService],
 })
 export class AdminModule {
   private readonly logger = new Logger(AdminModule.name);

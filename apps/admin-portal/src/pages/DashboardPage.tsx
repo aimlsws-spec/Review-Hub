@@ -1,6 +1,7 @@
 import { PageHeader, CardSkeleton } from '@reviewhub/shared-ui'
 import { Link } from 'react-router-dom'
 
+import { DashboardCharts } from '@/components/DashboardCharts'
 import { ROUTES } from '@/constants'
 import { useDashboardStats } from '@/hooks/useDashboardStats'
 import { useAuthStore } from '@/stores/auth.store'
@@ -92,6 +93,8 @@ export default function DashboardPage() {
           }
         />
       </div>
+
+      <DashboardCharts />
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Link to={ROUTES.CMS_PAGES} className="card p-5 transition-shadow hover:shadow-card-hover">

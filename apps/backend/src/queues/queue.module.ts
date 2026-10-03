@@ -31,6 +31,7 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.SETTLEMENT },
       { name: QUEUE_NAMES.AI_VERIFICATION },
       { name: QUEUE_NAMES.WALLET_AUTO_RECHARGE },
+      { name: QUEUE_NAMES.PLATFORM_JOBS },
     ),
   ],
   exports: [BullModule],

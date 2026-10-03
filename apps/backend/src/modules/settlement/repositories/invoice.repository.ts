@@ -16,6 +16,18 @@ export class InvoiceRepository {
     return this.prisma.invoice.findUnique({ where: { id } });
   }
 
+  async findByServiceChargeId(serviceChargeId: string) {
+    return this.prisma.invoice.findUnique({ where: { serviceChargeId } });
+  }
+
+  /** A subscription or featured-campaign charge, with the plan name when it is a subscription. */
+  async findServiceCharge(id: string) {
+    return this.prisma.merchantServiceCharge.findUnique({
+      where: { id },
+      include: { subscription: { select: { plan: { select: { name: true } } } } },
+    });
+  }
+
   /** Every merchant's invoices, newest first, optionally for one merchant. */
   async findAll(page: number, limit: number, merchantId?: string) {
     const where = merchantId ? { merchantId } : {};

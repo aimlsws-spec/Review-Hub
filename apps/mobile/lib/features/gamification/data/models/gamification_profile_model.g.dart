@@ -15,6 +15,20 @@ _GamificationProfileModel _$GamificationProfileModelFromJson(
   xp: (json['xp'] as num?)?.toInt() ?? 0,
   currentStreak: (json['currentStreak'] as num?)?.toInt() ?? 0,
   longestStreak: (json['longestStreak'] as num?)?.toInt() ?? 0,
+  tier:
+      $enumDecodeNullable(
+        _$GamificationTierEnumMap,
+        json['tier'],
+        unknownValue: GamificationTier.bronze,
+      ) ??
+      GamificationTier.bronze,
+  nextTier: $enumDecodeNullable(
+    _$GamificationTierEnumMap,
+    json['nextTier'],
+    unknownValue: JsonKey.nullForUndefinedEnumValue,
+  ),
+  xpToNextTier: (json['xpToNextTier'] as num?)?.toInt(),
+  progressPercent: (json['progressPercent'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$GamificationProfileModelToJson(
@@ -26,4 +40,16 @@ Map<String, dynamic> _$GamificationProfileModelToJson(
   'xp': instance.xp,
   'currentStreak': instance.currentStreak,
   'longestStreak': instance.longestStreak,
+  'tier': _$GamificationTierEnumMap[instance.tier]!,
+  'nextTier': _$GamificationTierEnumMap[instance.nextTier],
+  'xpToNextTier': instance.xpToNextTier,
+  'progressPercent': instance.progressPercent,
+};
+
+const _$GamificationTierEnumMap = {
+  GamificationTier.bronze: 'BRONZE',
+  GamificationTier.silver: 'SILVER',
+  GamificationTier.gold: 'GOLD',
+  GamificationTier.diamond: 'DIAMOND',
+  GamificationTier.platinum: 'PLATINUM',
 };

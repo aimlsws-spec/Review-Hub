@@ -3,6 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { adminApi } from '@/api/admin.api'
 import { QUERY_KEYS } from '@/constants'
 
+/** Platform activity per India day for the dashboard charts, over the last `days` days. */
+export function useDashboardSeries(days: number) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.DASHBOARD_SERIES, days],
+    queryFn: () => adminApi.getDashboardSeries(days),
+  })
+}
+
 /**
  * Fetches the four headline counters shown on the dashboard (pending campaigns,
  * pending withdrawals, unresolved fraud flags, total users). Each is requested

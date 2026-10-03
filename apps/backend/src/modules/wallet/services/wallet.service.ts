@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { formatIstDateTime } from '@common/utils/date.util';
+import { BadRequestException } from '@common/exceptions/domain.exceptions';
+import { formatIstDateTime, parseIstDay } from '@common/utils/date.util';
 
-import { RewardQueryDto, WalletTransactionExportQueryDto, WalletTransactionQueryDto } from '../dto';
+import { EarningsChartQueryDto, EarningsQueryDto, RewardQueryDto, WalletTransactionExportQueryDto, WalletTransactionQueryDto } from '../dto';
+import { EARNINGS_CHART_LENGTH, chartKeys, earningsSeries, summariseEarnings } from '../earnings';
 import { RewardRepository, UserWalletRepository } from '../repositories';
 import { TRANSACTION_EXPORT_MAX_ROWS, buildTransactionFilter } from '../transaction-filter';
 
@@ -23,6 +25,31 @@ export class WalletService {
     const wallet = await this.walletRepository.getOrCreate(userId);
     const todayEarnings = await this.walletRepository.getTodayEarnings(wallet.id);
     return { ...wallet, todayEarnings };
+  }
+
+  /** Earnings split into task rewards, bonuses and referrals, for a range of India days or over the whole history. */
+  async getEarningsBreakdown(userId: string, query: EarningsQueryDto) {
+    const start = query.from ? parseIstDay(query.from) : undefined;
+    const lastDay = query.to ? parseIstDay(query.to) : undefined;
+    if (start === null || lastDay === null) throw new BadRequestException('Dates must be real calendar days, like 2026-09-01');
+    const end = lastDay ? new Date(lastDay.getTime() + 24 * 60 * 60 * 1000) : undefined;
+    if (start && end && start >= end) throw new BadRequestException('from must not be after to');
+
+    const wallet = await this.walletRepository.getOrCreate(userId);
+    const rows = await this.walletRepository.findEarningRows(wallet.id, start, end);
+    return { from: query.from ?? null, to: query.to ?? null, ...summariseEarnings(rows) };
+  }
+
+  /** Net earnings per day for the last 7 days ('week') or per month for the last 6 months ('month'), in IST. */
+  async getEarningsChart(userId: string, query: EarningsChartQueryDto, now: Date = new Date()) {
+    const period = query.period ?? 'week';
+    const first = chartKeys(period, now)[0];
+    const start = parseIstDay(period === 'week' ? first : `${first}-01`) as Date;
+
+    const wallet = await this.walletRepository.getOrCreate(userId);
+    const rows = await this.walletRepository.findEarningRows(wallet.id, start, undefined);
+    const points = earningsSeries(rows, period, now);
+    return { period, length: EARNINGS_CHART_LENGTH[period], points, total: summariseEarnings(rows).total };
   }
 
   async getTransactions(userId: string, query: WalletTransactionQueryDto) {

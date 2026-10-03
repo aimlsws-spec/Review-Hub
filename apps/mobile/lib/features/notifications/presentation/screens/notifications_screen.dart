@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -66,8 +68,11 @@ class _NotificationTile extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () async {
+          final repository = ref.read(notificationRepositoryProvider);
+          // Counted for the open rate; the server keeps only the first, so a second tap changes nothing.
+          unawaited(repository.recordEngagement(notification.id, NotificationEngagement.opened));
           if (!isUnread) return;
-          await ref.read(notificationRepositoryProvider).markRead(notification.id);
+          await repository.markRead(notification.id);
           ref.read(notificationRefreshProvider.notifier).state++;
         },
         child: Padding(

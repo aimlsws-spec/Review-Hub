@@ -7,6 +7,7 @@ import { CampaignBuilderModal } from '@/components/CampaignBuilderModal'
 import { WordingNotice } from '@/components/WordingNotice'
 import { ITEMS_PER_PAGE, CAMPAIGN_TYPE_LABELS, CAMPAIGN_STATUS_LABELS, REWARD_TYPE_LABELS } from '@/constants'
 import { useCampaignsQuery, useCampaignMutations } from '@/hooks/useCampaigns'
+import { useSubscriptionMutations, useSubscriptionQuery } from '@/hooks/useSubscription'
 import { useWordingCheck } from '@/hooks/useWordingCheck'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Campaign, CampaignDraft, CampaignStatus } from '@/types'
@@ -38,6 +39,9 @@ export default function CampaignsPage() {
   const [status, setStatus] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
   const [builderOpen, setBuilderOpen] = useState(false)
+  const [featureTarget, setFeatureTarget] = useState<Campaign | null>(null)
+  const featuredPrice = useSubscriptionQuery().data?.data.data.featured
+  const { feature } = useSubscriptionMutations()
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [cancelTarget, setCancelTarget] = useState<Campaign | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null)
@@ -216,6 +220,15 @@ export default function CampaignsPage() {
                           Pause
                         </button>
                       )}
+                      {campaign.status === 'ACTIVE' && (
+                        <button
+                          className="btn-ghost btn-sm text-amber-700 hover:bg-amber-50"
+                          title={campaign.featured && campaign.featuredUntil ? `Featured until ${new Date(campaign.featuredUntil).toLocaleDateString('en-IN')}` : undefined}
+                          onClick={() => setFeatureTarget(campaign)}
+                        >
+                          {campaign.featured ? 'Extend feature' : 'Feature'}
+                        </button>
+                      )}
                       {campaign.status === 'PAUSED' && (
                         <button
                           className="btn-ghost btn-sm text-green-700 hover:bg-green-50"
@@ -380,6 +393,20 @@ export default function CampaignsPage() {
         message={`Cancel "${cancelTarget?.title}"? This cannot be undone and any remaining budget will no longer be spent.`}
         confirmLabel="Cancel campaign"
         loading={actionMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!featureTarget}
+        onClose={() => setFeatureTarget(null)}
+        onConfirm={() => featureTarget && feature.mutate(featureTarget.id, { onSuccess: () => setFeatureTarget(null) })}
+        title="Feature campaign"
+        message={
+          featuredPrice
+            ? `Show "${featureTarget?.title}" at the top of the listings for ${featuredPrice.days} days. If your plan has a featured slot free it is included; otherwise ${formatCurrency(featuredPrice.priceWithGst)} (GST included) is taken from your wallet.`
+            : `Show "${featureTarget?.title}" at the top of the listings.`
+        }
+        confirmLabel="Feature"
+        loading={feature.isPending}
       />
 
       <ConfirmDialog

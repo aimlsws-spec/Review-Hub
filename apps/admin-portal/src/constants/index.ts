@@ -30,6 +30,7 @@ export const ROUTES = {
   SCHEDULED_JOBS: '/scheduled-jobs',
   AI_PROVIDERS: '/ai-providers',
   PLATFORM_CONFIGURATION: '/platform-configuration',
+  SUBSCRIPTION_PLANS: '/subscription-plans',
   PROFILE: '/profile',
 } as const
 
@@ -38,6 +39,8 @@ export const QUERY_KEYS = {
   USERS: ['users'],
   USER_DETAIL: ['users', 'detail'],
   USER_ROLES: ['users', 'roles'],
+  DASHBOARD_SERIES: ['dashboard', 'series'],
+  SUBSCRIPTION_PLANS: ['subscription-plans'],
   MERCHANTS: ['merchants'],
   MERCHANT_DETAIL: ['merchants', 'detail'],
   MERCHANT_TOP_UPS: ['merchants', 'top-ups'],

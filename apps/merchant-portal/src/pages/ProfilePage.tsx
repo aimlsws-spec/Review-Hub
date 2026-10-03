@@ -1,4 +1,4 @@
-import { PageHeader, Badge, StatusBadge, Skeleton } from '@reviewhub/shared-ui'
+import { PageHeader, Badge, StatusBadge, Skeleton, VerificationLevelBadge } from '@reviewhub/shared-ui'
 import { useEffect, useState } from 'react'
 
 import { useMerchantProfileQuery, useUpdateMerchantProfileMutation, useRegisterMerchantMutation } from '@/hooks/useMerchantProfile'
@@ -352,6 +352,7 @@ export default function ProfilePage() {
                 <InfoRow label="PAN Number" value={merchant.panNumber && <span className="font-mono text-xs">{merchant.panNumber}</span>} />
                 <InfoRow label="Reg. Number" value={merchant.registrationNumber && <span className="font-mono text-xs">{merchant.registrationNumber}</span>} />
                 <InfoRow label="Verification" value={<StatusBadge status={merchant.verificationStatus} />} />
+                <InfoRow label="Verification level" value={<VerificationLevelBadge level={merchant.verificationLevel} />} />
                 {merchant.description && (
                   <div className="sm:col-span-2 border-t border-gray-100 pt-3">
                     <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Description</p>

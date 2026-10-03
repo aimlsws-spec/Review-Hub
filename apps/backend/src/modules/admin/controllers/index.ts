@@ -12,6 +12,7 @@ export * from './platform-configuration.controller';
 export * from './kyc-management.controller';
 export * from './account-risk.controller';
 export * from './city.controller';
+export * from './admin-dashboard.controller';
 
 export * from './admin-dispute.controller';
 export * from './public-cms-page.controller';

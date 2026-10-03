@@ -4,7 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
-import { NotificationQueryDto, UpdatePreferencesDto } from '../dto';
+import { NotificationEngagementDto, NotificationQueryDto, UpdatePreferencesDto } from '../dto';
 import { NotificationService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.NOTIFICATIONS)
@@ -50,6 +50,18 @@ export class NotificationController {
   @ApiOperation({ summary: 'Mark one of my notifications as read' })
   async markRead(@Param('notificationId') notificationId: string, @CurrentUser('id') userId: string) {
     return this.notificationService.markRead(notificationId, userId);
+  }
+
+  @Post(':notificationId/engagement')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Report that I opened, or clicked through, one of my notifications' })
+  async recordEngagement(
+    @Param('notificationId') notificationId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: NotificationEngagementDto,
+  ) {
+    return this.notificationService.recordEngagement(notificationId, userId, dto.action);
   }
 
   @Post('read-all')

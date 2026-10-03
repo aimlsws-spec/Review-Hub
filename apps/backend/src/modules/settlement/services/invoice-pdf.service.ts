@@ -9,6 +9,8 @@ export interface InvoicePdfData {
   platformGstNumber: string | null;
   merchantGstNumber: string | null;
   merchantName: string;
+  /** What the fee is for, printed under the heading, e.g. "Growth plan" or "Featured campaign". */
+  description?: string;
   taxableAmount: number;
   gstRate: number;
   gstAmount: number;
@@ -100,6 +102,7 @@ export class InvoicePdfService {
       doc.moveDown(2);
 
       doc.fontSize(12).text('Platform service fee', { underline: true });
+      if (data.description) doc.fontSize(10).text(data.description);
       doc.moveDown(0.5);
       doc.fontSize(10)
         .text(`Taxable amount: Rs ${data.taxableAmount.toFixed(2)}`)

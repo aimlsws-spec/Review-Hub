@@ -11,6 +11,7 @@ import {
   Select,
   Textarea,
   Spinner,
+  VerificationLevelBadge,
 } from '@reviewhub/shared-ui'
 import { useState } from 'react'
 
@@ -270,6 +271,7 @@ export default function MerchantsPage() {
               <div className="flex gap-2">
                 <StatusBadge status={detail.verificationStatus} />
                 <StatusBadge status={detail.status} />
+                <VerificationLevelBadge level={detail.verificationLevel} />
               </div>
             </div>
 

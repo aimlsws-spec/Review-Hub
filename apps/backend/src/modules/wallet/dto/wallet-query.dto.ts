@@ -1,7 +1,7 @@
 import { ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
 import { RewardStatus, WalletTransactionType } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsEnum, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 import { PaginationQueryDto } from '@common/dto';
 
@@ -34,6 +34,26 @@ export class WalletTransactionQueryDto extends IntersectionType(PaginationQueryD
 
 /** A statement download has no pages: it is the whole filtered history, up to a limit. */
 export class WalletTransactionExportQueryDto extends WalletTransactionFilterDto {}
+
+/** A range of India days for the earnings breakdown; both ends optional (lifetime by default). */
+export class EarningsQueryDto {
+  @ApiPropertyOptional({ example: '2026-09-01', description: 'First day to include (India time)' })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'from must look like 2026-09-01' })
+  from?: string;
+
+  @ApiPropertyOptional({ example: '2026-09-30', description: 'Last day to include (India time)' })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'to must look like 2026-09-30' })
+  to?: string;
+}
+
+export class EarningsChartQueryDto {
+  @ApiPropertyOptional({ enum: ['week', 'month'], default: 'week', description: 'week: last 7 days; month: last 6 months' })
+  @IsOptional()
+  @IsIn(['week', 'month'])
+  period?: 'week' | 'month';
+}
 
 export class RewardQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: RewardStatus })

@@ -24,6 +24,52 @@ export interface User {
   createdAt: string
 }
 
+/** One India day of the dashboard charts (GET /admin/dashboard/series). */
+export interface DashboardDay {
+  day: string
+  commission: number
+  newUsers: number
+  campaignsCreated: number
+  withdrawalsRequested: number
+  withdrawalsPaid: number
+  fraudFlags: number
+}
+
+export interface DashboardSeries {
+  days: DashboardDay[]
+  totals: Omit<DashboardDay, 'day'>
+  activeCampaigns: number
+}
+
+/** A plan merchants subscribe to (GET /admin/subscription-plans). */
+export interface SubscriptionPlan {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  monthlyPrice: number | string
+  /** Null means no limit. */
+  maxActiveCampaigns: number | null
+  featuredSlots: number
+  isPremium: boolean
+  isActive: boolean
+  sortOrder: number
+  /** Merchants on it now. */
+  subscribers: number
+}
+
+export interface SubscriptionPlanForm {
+  code: string
+  name: string
+  description?: string
+  monthlyPrice: number
+  maxActiveCampaigns: number | null
+  featuredSlots: number
+  isPremium: boolean
+  isActive: boolean
+  sortOrder: number
+}
+
 /** Staff roles a super admin can give or take away on the Users page. */
 export type StaffRole = 'ADMIN' | 'FINANCE_TEAM'
 
@@ -196,6 +242,8 @@ export interface MerchantManualTopUp {
 export interface MerchantDetail extends Merchant {
   documents: MerchantDocument[]
   bankAccounts: MerchantBankAccount[]
+  /** 0–4: L1 mobile, L2 email, L3 business documents, L4 Premium plan. */
+  verificationLevel?: number
 }
 
 // ============================================================
@@ -329,6 +377,8 @@ export interface BroadcastDelivery {
 
 export interface BroadcastDetail extends Broadcast {
   deliveries: BroadcastDelivery[]
+  /** Opens and clicks, out of the push and in-app messages sent (emails are not tracked). Missing on older servers. */
+  engagement?: { trackedMessages: number; opened: number; clicked: number; openRate: number; clickRate: number }
 }
 
 export interface CreateBroadcastPayload {
@@ -636,7 +686,14 @@ export interface FeatureFlag {
 // GAMIFICATION TYPES
 // ============================================================
 
-export type BadgeCriteriaType = 'XP_THRESHOLD' | 'STREAK_THRESHOLD' | 'LEVEL_THRESHOLD' | 'REWARD_COUNT'
+export type BadgeCriteriaType =
+  | 'XP_THRESHOLD'
+  | 'STREAK_THRESHOLD'
+  | 'LEVEL_THRESHOLD'
+  | 'REWARD_COUNT'
+  | 'REVIEW_TASK_COUNT'
+  | 'REFERRAL_COUNT'
+  | 'TOP_EARNER_MONTHLY'
 
 export interface Badge {
   id: string
@@ -869,6 +926,9 @@ export interface PlatformConfiguration {
   supportEmail: string | null
   supportPhone: string | null
   commissionPercentage: number
+  /** What featuring one campaign costs a merchant, before GST. */
+  featuredCampaignPrice?: number
+  featuredCampaignDays?: number
   minimumWithdrawal: number
   maximumWithdrawal: number
   /** The most one user can withdraw in a calendar day (India time). */

@@ -9,6 +9,7 @@ import '../../../core/errors/result.dart';
 import '../../../shared/models/api_response.dart';
 import '../../../shared/providers/core_providers.dart';
 import '../data/models/bank_account_model.dart';
+import '../data/models/earnings_model.dart';
 import '../data/models/reward_model.dart';
 import '../data/models/transaction_history.dart';
 import '../data/models/wallet_summary_model.dart';
@@ -33,6 +34,19 @@ final walletTransactionsProvider =
     FutureProvider.autoDispose<Result<PaginatedResponse<WalletTransactionModel>>>((ref) async {
   ref.watch(walletRefreshProvider);
   return ref.watch(walletRepositoryProvider).getTransactions();
+});
+
+final earningsBreakdownProvider = FutureProvider.autoDispose<Result<EarningsBreakdownModel>>((ref) async {
+  ref.watch(walletRefreshProvider);
+  return ref.watch(walletRepositoryProvider).getEarnings();
+});
+
+final earningsChartProvider = FutureProvider.autoDispose.family<Result<EarningsChartModel>, EarningsPeriod>((
+  ref,
+  period,
+) async {
+  ref.watch(walletRefreshProvider);
+  return ref.watch(walletRepositoryProvider).getEarningsChart(period);
 });
 
 final myRewardsProvider = FutureProvider.autoDispose<Result<PaginatedResponse<RewardModel>>>((ref) async {

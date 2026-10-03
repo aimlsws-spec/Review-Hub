@@ -7,3 +7,4 @@ export * from './feature-flag.repository';
 export * from './audit-log.repository';
 export * from './platform-configuration.repository';
 export * from './city.repository';
+export * from './dashboard-metrics.repository';

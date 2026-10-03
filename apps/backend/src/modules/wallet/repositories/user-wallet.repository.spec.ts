@@ -71,6 +71,29 @@ describe('UserWalletRepository', () => {
     });
   });
 
+  describe('findEarningRows', () => {
+    it('reads only successful earning entries, in range, oldest first', async () => {
+      mockPrisma.walletTransaction.findMany.mockResolvedValue([]);
+      const start = new Date('2026-09-30T18:30:00Z');
+
+      await repository.findEarningRows('wallet-1', start, undefined);
+
+      expect(mockPrisma.walletTransaction.findMany).toHaveBeenCalledWith({
+        where: { walletId: 'wallet-1', status: 'SUCCESS', type: { in: ['CREDIT', 'BONUS', 'REFERRAL', 'CLAWBACK'] }, createdAt: { gte: start } },
+        select: { type: true, amount: true, referenceType: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+
+    it('reads the whole history when there is no range', async () => {
+      mockPrisma.walletTransaction.findMany.mockResolvedValue([]);
+
+      await repository.findEarningRows('wallet-1', undefined, undefined);
+
+      expect(mockPrisma.walletTransaction.findMany.mock.calls[0][0].where).not.toHaveProperty('createdAt');
+    });
+  });
+
   describe('findForExport', () => {
     it('reads one more than the limit, so a history that was cut can be told from one that fit', async () => {
       mockPrisma.walletTransaction.findMany.mockResolvedValue([]);

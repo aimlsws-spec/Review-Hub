@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, TaskType } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 
@@ -34,6 +34,26 @@ export class RewardRepository {
         reversedAt: new Date(),
       },
     });
+  }
+
+  /** Credited rewards for tasks of the given types, e.g. review tasks for the "100 reviews" badge. */
+  async countCreditedForTaskTypes(userId: string, taskTypes: TaskType[]) {
+    return this.prisma.reward.count({ where: { userId, status: 'CREDITED', submission: { task: { taskType: { in: taskTypes } } } } });
+  }
+
+  /**
+   * Users ranked by task rewards credited in [start, end), highest first. Rewards later clawed back are REVERSED and
+   * so drop out. `take` is generous so the caller can still fill its list after leaving some people out.
+   */
+  async topEarnersBetween(start: Date, end: Date, take: number): Promise<Array<{ userId: string; amount: number }>> {
+    const rows = await this.prisma.reward.groupBy({
+      by: ['userId'],
+      where: { status: 'CREDITED', creditedAt: { gte: start, lt: end }, deletedAt: null },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: 'desc' } },
+      take,
+    });
+    return rows.map((row) => ({ userId: row.userId, amount: Number(row._sum.amount ?? 0) }));
   }
 
   async countCreditedByUser(userId: string) {

@@ -64,6 +64,9 @@ import type {
   SupportCategory,
   SupportPriority,
   StaffRole,
+  DashboardSeries,
+  SubscriptionPlan,
+  SubscriptionPlanForm,
 } from '@/types'
 
 import { apiClient } from './client'
@@ -82,6 +85,17 @@ export const adminApi = {
     apiClient.post<ApiResponse<AdminUser>>(`/admin/users/${userId}/ban`, { reason }),
 
   reactivateUser: (userId: string) => apiClient.post<ApiResponse<AdminUser>>(`/admin/users/${userId}/reactivate`),
+
+  listSubscriptionPlans: () => apiClient.get<ApiResponse<SubscriptionPlan[]>>('/admin/subscription-plans'),
+
+  createSubscriptionPlan: (form: SubscriptionPlanForm) =>
+    apiClient.post<ApiResponse<SubscriptionPlan>>('/admin/subscription-plans', form),
+
+  updateSubscriptionPlan: (planId: string, changes: Omit<SubscriptionPlanForm, 'code'>) =>
+    apiClient.patch<ApiResponse<SubscriptionPlan>>(`/admin/subscription-plans/${planId}`, changes),
+
+  getDashboardSeries: (days: number) =>
+    apiClient.get<ApiResponse<DashboardSeries>>('/admin/dashboard/series', { params: { days } }),
 
   // Super admin only.
   getUserRoles: (userId: string) => apiClient.get<ApiResponse<{ roles: string[] }>>(`/admin/users/${userId}/roles`),

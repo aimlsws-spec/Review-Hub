@@ -14,6 +14,7 @@ describe('NotificationController', () => {
     updatePreferences: jest.fn(),
     markRead: jest.fn(),
     markAllRead: jest.fn(),
+    recordEngagement: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -60,5 +61,11 @@ describe('NotificationController', () => {
   it('markAllRead should delegate to the service', async () => {
     await controller.markAllRead('user-1');
     expect(mockNotificationService.markAllRead).toHaveBeenCalledWith('user-1');
+  });
+
+  it('reports an open or click for the signed-in user', async () => {
+    await controller.recordEngagement('notif-1', 'user-1', { action: 'OPENED' });
+
+    expect(mockNotificationService.recordEngagement).toHaveBeenCalledWith('notif-1', 'user-1', 'OPENED');
   });
 });

@@ -11,6 +11,7 @@ describe('MerchantService', () => {
   let service: MerchantService;
 
   const mockMerchantRepository = {
+    findVerificationFacts: jest.fn(),
     findByEmail: jest.fn(),
     findByGst: jest.fn(),
     findByPan: jest.fn(),
@@ -135,7 +136,19 @@ describe('MerchantService', () => {
       mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
 
       const result = await service.getProfile('merchant-1');
-      expect(result).toEqual(mockMerchant);
+      expect(result).toEqual({ ...mockMerchant, verificationLevel: 0 });
+    });
+
+    it('adds the verification level', async () => {
+      mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
+      mockMerchantRepository.findVerificationFacts.mockResolvedValueOnce({
+        phoneVerified: true,
+        emailVerified: true,
+        businessVerified: true,
+        premium: false,
+      });
+
+      await expect(service.getProfile('merchant-1')).resolves.toEqual(expect.objectContaining({ verificationLevel: 3 }));
     });
 
     it('should throw NotFoundException for unknown merchant', async () => {
@@ -152,7 +165,7 @@ describe('MerchantService', () => {
       const result = await service.getProfileByUserId('user-1');
 
       expect(mockMerchantRepository.findByUserId).toHaveBeenCalledWith('user-1');
-      expect(result).toEqual(mockMerchant);
+      expect(result).toEqual({ ...mockMerchant, verificationLevel: 0 });
     });
 
     it('throws NotFoundException when the user has no merchant account', async () => {
