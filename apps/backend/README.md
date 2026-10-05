@@ -1,6 +1,6 @@
-# ReviewHub — Backend API
+# Viralkar — Backend API
 
-NestJS backend for the ReviewHub platform.
+NestJS backend for the Viralkar platform.
 
 ## Stack
 

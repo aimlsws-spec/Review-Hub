@@ -1,4 +1,4 @@
-import { Input, Spinner } from '@reviewhub/shared-ui'
+import { Input, Spinner } from '@viralkar/shared-ui'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { Link } from 'react-router-dom'

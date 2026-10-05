@@ -1,4 +1,4 @@
-import { Skeleton } from '@reviewhub/shared-ui'
+import { Skeleton } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 

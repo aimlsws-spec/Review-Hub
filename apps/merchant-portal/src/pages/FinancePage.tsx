@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton } from '@reviewhub/shared-ui'
+import { EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { INVOICE_NOTE_TYPE_LABELS, ITEMS_PER_PAGE } from '@/constants'

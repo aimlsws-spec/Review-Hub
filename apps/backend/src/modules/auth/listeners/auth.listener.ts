@@ -27,8 +27,8 @@ export class AuthListener {
       this.emailQueueService
         .enqueue({
           to: payload.email,
-          subject: 'Welcome to Viral Kar!',
-          html: '<h1>Welcome!</h1><p>Thank you for registering on Viral Kar platform.</p>',
+          subject: 'Welcome to Viralkar!',
+          html: '<h1>Welcome!</h1><p>Thank you for registering on Viralkar platform.</p>',
         })
         .catch((err: Error) => this.logger.error('Welcome email enqueue failed', err.message));
     }
@@ -183,9 +183,9 @@ export class AuthListener {
       this.emailQueueService
         .enqueue({
           to: payload.email,
-          subject: 'Your VIRAL KAR account has been deleted',
+          subject: 'Your Viralkar account has been deleted',
           html:
-            '<h1>Account deleted</h1><p>Your VIRAL KAR account has been deleted as you asked. ' +
+            '<h1>Account deleted</h1><p>Your Viralkar account has been deleted as you asked. ' +
             'This email address and your phone number can be used to create a new account.</p>' +
             '<p>If you did not do this, contact support immediately.</p>',
         })
@@ -260,7 +260,7 @@ export class AuthListener {
       this.emailQueueService
         .enqueue({
           to: user.email,
-          subject: 'New sign-in to your VIRAL KAR account',
+          subject: 'New sign-in to your Viralkar account',
           html:
             `<h1>New sign-in</h1><p>Hi ${escapeHtml(user.firstName)}, your account was just used on a new device.</p>` +
             `<ul><li>Device: ${escapeHtml(device)}</li><li>IP address: ${escapeHtml(payload.ipAddress ?? 'unknown')}</li>` +
@@ -286,7 +286,7 @@ export class AuthListener {
   @OnEvent(AUTH_EVENTS.PHONE_CHANGED)
   async handlePhoneChanged(payload: { userId: string; oldPhone: string | null; newPhone: string }) {
     const user = await this.prisma.user.findUnique({ where: { id: payload.userId }, select: { email: true } });
-    const notice = `The phone number on your VIRAL KAR account was changed to ${maskPhone(payload.newPhone)}. If you did not do this, contact support immediately.`;
+    const notice = `The phone number on your Viralkar account was changed to ${maskPhone(payload.newPhone)}. If you did not do this, contact support immediately.`;
 
     if (payload.oldPhone) {
       this.smsService.send(payload.oldPhone, notice).catch((err: Error) => this.logger.error('Phone change SMS failed', err.message));

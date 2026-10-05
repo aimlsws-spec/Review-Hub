@@ -1,4 +1,4 @@
-import { CardSkeleton, EmptyState, ErrorState, Input, PageHeader, TableSkeleton, Pagination } from '@reviewhub/shared-ui'
+import { CardSkeleton, EmptyState, ErrorState, Input, PageHeader, TableSkeleton, Pagination } from '@viralkar/shared-ui'
 import { useMemo, useState } from 'react'
 
 import { ITEMS_PER_PAGE } from '@/constants'

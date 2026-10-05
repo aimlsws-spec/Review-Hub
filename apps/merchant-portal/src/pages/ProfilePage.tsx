@@ -1,4 +1,4 @@
-import { PageHeader, Badge, StatusBadge, Skeleton, VerificationLevelBadge } from '@reviewhub/shared-ui'
+import { PageHeader, Badge, StatusBadge, Skeleton, VerificationLevelBadge } from '@viralkar/shared-ui'
 import { useEffect, useState } from 'react'
 
 import { useMerchantProfileQuery, useUpdateMerchantProfileMutation, useRegisterMerchantMutation } from '@/hooks/useMerchantProfile'

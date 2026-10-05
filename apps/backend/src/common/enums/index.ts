@@ -1,5 +1,5 @@
 // =============================================================
-// VIRAL KAR — Platform Enums
+// Viralkar — Platform Enums
 // All enums used across the backend application.
 // =============================================================
 

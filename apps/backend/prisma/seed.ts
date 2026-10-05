@@ -113,15 +113,15 @@ async function main() {
   console.log('✅ Role permissions seeded');
 
   // ── Super Admin User ───────────────────────────────────────
-  const existingSuperAdmin = await prisma.user.findUnique({ where: { email: 'superadmin@reviewhub.com' } });
+  const existingSuperAdmin = await prisma.user.findUnique({ where: { email: 'superadmin@viralkar.com' } });
   const superAdminSeed = resolveSeedPassword('SEED_SUPER_ADMIN_PASSWORD');
   const superAdminUser = await prisma.user.upsert({
-    where: { email: 'superadmin@reviewhub.com' },
+    where: { email: 'superadmin@viralkar.com' },
     update: {},
     create: {
       firstName: 'Super',
       lastName: 'Admin',
-      email: 'superadmin@reviewhub.com',
+      email: 'superadmin@viralkar.com',
       passwordHash: await bcrypt.hash(superAdminSeed.password, 12),
       status: 'ACTIVE',
       emailVerifiedAt: new Date(),
@@ -134,15 +134,15 @@ async function main() {
   });
 
   // ── Default Admin User ─────────────────────────────────────
-  const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@reviewhub.com' } });
+  const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@viralkar.com' } });
   const adminSeed = resolveSeedPassword('SEED_ADMIN_PASSWORD');
   const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@reviewhub.com' },
+    where: { email: 'admin@viralkar.com' },
     update: {},
     create: {
       firstName: 'Platform',
       lastName: 'Admin',
-      email: 'admin@reviewhub.com',
+      email: 'admin@viralkar.com',
       passwordHash: await bcrypt.hash(adminSeed.password, 12),
       status: 'ACTIVE',
       emailVerifiedAt: new Date(),
@@ -158,10 +158,10 @@ async function main() {
   if (!existingSuperAdmin || !existingAdmin) {
     console.log('\n🔐 New admin credentials generated this run — capture these now, they are never logged again:');
     if (!existingSuperAdmin) {
-      console.log(`   superadmin@reviewhub.com / ${superAdminSeed.password}${superAdminSeed.generated ? '' : '  (from SEED_SUPER_ADMIN_PASSWORD)'}`);
+      console.log(`   superadmin@viralkar.com / ${superAdminSeed.password}${superAdminSeed.generated ? '' : '  (from SEED_SUPER_ADMIN_PASSWORD)'}`);
     }
     if (!existingAdmin) {
-      console.log(`   admin@reviewhub.com / ${adminSeed.password}${adminSeed.generated ? '' : '  (from SEED_ADMIN_PASSWORD)'}`);
+      console.log(`   admin@viralkar.com / ${adminSeed.password}${adminSeed.generated ? '' : '  (from SEED_ADMIN_PASSWORD)'}`);
     }
     console.log('   Store these in a password manager, then rotate them from the admin portal before the site is public.\n');
   } else {
@@ -208,7 +208,7 @@ async function main() {
 
   // ── Notification Templates ─────────────────────────────────
   const notifTemplates = [
-    { name: 'Welcome Email', slug: 'welcome-email', subject: 'Welcome to ReviewHub!', title: 'Welcome, {{firstName}}!', body: 'Hi {{firstName}}, your account has been created successfully.', channel: 'EMAIL' as const },
+    { name: 'Welcome Email', slug: 'welcome-email', subject: 'Welcome to Viralkar!', title: 'Welcome, {{firstName}}!', body: 'Hi {{firstName}}, your account has been created successfully.', channel: 'EMAIL' as const },
     { name: 'OTP Verification', slug: 'otp-verification', subject: 'Your OTP Code', title: 'Verification Code', body: 'Your OTP is {{otp}}. Valid for {{expiryMinutes}} minutes.', channel: 'SMS' as const },
     { name: 'Campaign Approved', slug: 'campaign-approved', subject: 'Campaign Approved', title: 'Your campaign is live!', body: 'Campaign "{{campaignTitle}}" has been approved and is now live.', channel: 'EMAIL' as const },
     { name: 'Reward Credited', slug: 'reward-credited', subject: 'Reward Credited', title: '₹{{amount}} credited to your wallet', body: 'You earned ₹{{amount}} for completing "{{campaignTitle}}".', channel: 'PUSH' as const },
@@ -226,7 +226,7 @@ async function main() {
 
   // ── System Settings ────────────────────────────────────────
   const settings = [
-    { key: 'platform.name', value: 'ReviewHub', dataType: 'STRING' as const, category: 'general', description: 'Platform display name', editable: false },
+    { key: 'platform.name', value: 'Viralkar', dataType: 'STRING' as const, category: 'general', description: 'Platform display name', editable: false },
     { key: 'platform.commission_rate', value: '0.10', dataType: 'NUMBER' as const, category: 'finance', description: 'Default platform commission (10%)', editable: true },
     { key: 'withdrawal.minimum', value: '100', dataType: 'NUMBER' as const, category: 'finance', description: 'Minimum withdrawal amount in INR', editable: true },
     { key: 'withdrawal.maximum', value: '50000', dataType: 'NUMBER' as const, category: 'finance', description: 'Maximum withdrawal amount in INR', editable: true },
@@ -322,8 +322,8 @@ async function main() {
   if (!existingConfig) {
     await prisma.platformConfiguration.create({
       data: {
-        platformName: 'ReviewHub',
-        supportEmail: 'support@reviewhub.com',
+        platformName: 'Viralkar',
+        supportEmail: 'support@viralkar.com',
         supportPhone: '+91-9999999999',
         commissionPercentage: 0.10,
         minimumWithdrawal: WALLET_CONSTANTS.MIN_WITHDRAWAL_AMOUNT,

@@ -1,4 +1,4 @@
-import { Spinner, VerifyDeviceForm } from '@reviewhub/shared-ui'
+import { Spinner, VerifyDeviceForm } from '@viralkar/shared-ui'
 import { Star, MessageSquare, TrendingUp, Mail, Lock, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import React, { forwardRef, useState, type InputHTMLAttributes } from 'react'
 import { useForm } from 'react-hook-form'
@@ -317,7 +317,7 @@ export default function LoginPage() {
             <img src={Viralkarlogo} alt="Viralkar Logo" className="h-10 w-auto" />
           </div>
           <div>
-            <p className="text-[19px] font-extrabold tracking-tight text-slate-900 leading-none">ReviewHub</p>
+            <p className="text-[19px] font-extrabold tracking-tight text-slate-900 leading-none">Viralkar</p>
             <p className="text-[11px] font-bold text-[#E58E2D] leading-tight mt-1 uppercase tracking-widest">Merchant Portal</p>
           </div>
         </div>
@@ -386,7 +386,7 @@ export default function LoginPage() {
           <div className="flex h-12 flex-shrink-0 items-center justify-center">
             <img src={Viralkarlogo} alt="Viralkar Logo" className="h-12 w-auto" />
           </div>
-          <p className="text-[22px] font-extrabold text-slate-900 tracking-tight">ReviewHub</p>
+          <p className="text-[22px] font-extrabold text-slate-900 tracking-tight">Viralkar</p>
         </div>
 
         {/* Auth card wrapper (Creates the centered focal point) */}

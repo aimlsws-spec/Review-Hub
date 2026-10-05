@@ -13,7 +13,7 @@ vi.mock('@/hooks/usePlatformConfiguration', () => ({
 
 const config = {
   id: 'config-1',
-  platformName: 'VIRAL KAR',
+  platformName: 'Viralkar',
   supportEmail: 'support@viralkar.com',
   supportPhone: '+911234567890',
   commissionPercentage: 0.1,
@@ -56,7 +56,7 @@ describe('PlatformConfigurationPage', () => {
   it('renders the current configuration values', () => {
     renderPage()
 
-    expect(screen.getByLabelText(/platform name/i)).toHaveValue('VIRAL KAR')
+    expect(screen.getByLabelText(/platform name/i)).toHaveValue('Viralkar')
     expect(screen.getByLabelText(/support email/i)).toHaveValue('support@viralkar.com')
     expect(screen.getByText(/app v1\.0\.0/i)).toBeInTheDocument()
   })
@@ -297,11 +297,11 @@ describe('PlatformConfigurationPage', () => {
     renderPage()
 
     await user.clear(screen.getByLabelText(/platform name/i))
-    await user.type(screen.getByLabelText(/platform name/i), 'ReviewHub')
+    await user.type(screen.getByLabelText(/platform name/i), 'Viralkar')
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     await waitFor(() =>
-      expect(saveMock).toHaveBeenCalledWith(expect.objectContaining({ platformName: 'ReviewHub' })),
+      expect(saveMock).toHaveBeenCalledWith(expect.objectContaining({ platformName: 'Viralkar' })),
     )
   })
 })

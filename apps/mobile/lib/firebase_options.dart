@@ -16,7 +16,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, Tar
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError('Web push is not configured — VIRAL KAR mobile targets Android and iOS.');
+      throw UnsupportedError('Web push is not configured — Viralkar mobile targets Android and iOS.');
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:

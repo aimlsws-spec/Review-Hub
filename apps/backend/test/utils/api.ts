@@ -4,7 +4,7 @@ import * as request from 'supertest';
 import { OtpService } from '../../src/modules/auth/services/otp.service';
 
 /** The seeded platform administrator (prisma/seed.ts). Only ever exists in the throwaway test database. */
-const ADMIN = { email: 'admin@reviewhub.com', password: 'Admin@123456' };
+const ADMIN = { email: 'admin@viralkar.com', password: 'Admin@123456' };
 const PASSWORD = 'Passw0rd!23';
 /** The one-time code verifyEmail makes the OTP service issue, so a test can type it back in. */
 const KNOWN_OTP = '246810';

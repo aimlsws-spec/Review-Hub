@@ -1,4 +1,4 @@
-import { PASSWORD_HINT, Spinner, newPasswordRules } from '@reviewhub/shared-ui'
+import { PASSWORD_HINT, Spinner, newPasswordRules } from '@viralkar/shared-ui'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
@@ -49,7 +49,7 @@ export default function ResetPasswordPage() {
             </svg>
           </div>
           <div className="text-center">
-            <p className="text-[19px] font-extrabold tracking-tight text-slate-900 leading-none">VIRAL KAR</p>
+            <p className="text-[19px] font-extrabold tracking-tight text-slate-900 leading-none">Viralkar</p>
             <p className="text-[11px] font-bold text-primary-500 leading-tight mt-1 uppercase tracking-widest">Admin Portal</p>
           </div>
         </div>

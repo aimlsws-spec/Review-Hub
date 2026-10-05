@@ -8,7 +8,7 @@ import {
   Modal,
   Textarea,
   Spinner,
-} from '@reviewhub/shared-ui'
+} from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { AwaitingPayoutPanel } from '@/components/AwaitingPayoutPanel'

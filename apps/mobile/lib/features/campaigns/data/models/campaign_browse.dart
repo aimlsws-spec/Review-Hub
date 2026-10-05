@@ -79,7 +79,7 @@ String campaignShareText(CampaignModel campaign, {String? referralCode}) {
   final reward = campaign.rewardAmountValue;
   final code = referralCode?.trim() ?? '';
   return [
-    'Earn ${reward > 0 ? '₹${reward.toStringAsFixed(0)}' : 'rewards'} for completing a task on VIRAL KAR: ${campaign.title}',
+    'Earn ${reward > 0 ? '₹${reward.toStringAsFixed(0)}' : 'rewards'} for completing a task on Viralkar: ${campaign.title}',
     if (code.isNotEmpty) 'Join with my referral code $code',
   ].join('\n');
 }

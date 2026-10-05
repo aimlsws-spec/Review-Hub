@@ -94,7 +94,7 @@ export function useWalletMutations(merchantId: string | undefined, merchant: Mer
         amount: Math.round(order.amount * 100),
         currency: order.currency,
         order_id: order.razorpayOrderId,
-        name: 'VIRAL KAR',
+        name: 'Viralkar',
         description: 'Wallet recharge',
         prefill: { name: merchant?.businessName, email: merchant?.email, contact: merchant?.phone },
         theme: { color: '#4f46e5' },

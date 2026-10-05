@@ -33,7 +33,7 @@ class LockScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'VIRAL KAR is locked',
+                  'Viralkar is locked',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.navy900),
                 ),

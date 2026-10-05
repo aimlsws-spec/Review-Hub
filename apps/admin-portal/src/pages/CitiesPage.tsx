@@ -9,7 +9,7 @@ import {
   Input,
   Select,
   Spinner,
-} from '@reviewhub/shared-ui'
+} from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { ITEMS_PER_PAGE } from '@/constants'

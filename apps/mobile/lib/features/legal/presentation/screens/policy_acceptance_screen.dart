@@ -48,7 +48,7 @@ class PolicyAcceptanceScreen extends ConsumerWidget {
                 Text(
                   pendingTitles.isEmpty
                       ? 'Please review our policies.'
-                      : 'Please review and accept our ${pendingTitles.join(', ')} to keep using VIRAL KAR.',
+                      : 'Please review and accept our ${pendingTitles.join(', ')} to keep using Viralkar.',
                   style: const TextStyle(fontSize: 15.5, color: AppColors.slate800, height: 1.45),
                 ),
                 const SizedBox(height: 16),

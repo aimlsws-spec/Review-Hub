@@ -12,7 +12,7 @@ import {
   Textarea,
   Spinner,
   VerificationLevelBadge,
-} from '@reviewhub/shared-ui'
+} from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { MerchantTopUpPanel } from '@/components/MerchantTopUpPanel'

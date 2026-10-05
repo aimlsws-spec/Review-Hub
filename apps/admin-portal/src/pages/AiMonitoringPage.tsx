@@ -1,5 +1,5 @@
-import { EmptyState, ErrorState, PageHeader, Skeleton } from '@reviewhub/shared-ui'
 import { useQuery } from '@tanstack/react-query'
+import { EmptyState, ErrorState, PageHeader, Skeleton } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 

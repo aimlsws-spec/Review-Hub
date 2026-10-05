@@ -14,7 +14,7 @@ AI-powered digital engagement & rewards platform. Users complete campaign tasks 
 
 | Package | Path | Description |
 |---|---|---|
-| `@reviewhub/shared-ui` | `packages/shared-ui` | Shared React components used by both portals |
+| `@viralkar/shared-ui` | `packages/shared-ui` | Shared React components used by both portals |
 
 ## Prerequisites
 

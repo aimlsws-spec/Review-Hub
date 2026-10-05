@@ -7,7 +7,7 @@ whoever owns the product/revenue model.
 
 ## Context
 
-The original product spec (`Review Hub.txt`, §"Referral System") describes a 3-tier
+The original product spec (§"Referral System") describes a 3-tier
 percentage-of-earnings structure:
 
 - Level 1 (your direct referral): 10% of their earnings

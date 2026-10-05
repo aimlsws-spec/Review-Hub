@@ -1,4 +1,4 @@
-import { Modal, Spinner, StatusBadge } from '@reviewhub/shared-ui'
+import { Modal, Spinner, StatusBadge } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { BROADCAST_CHANNEL_LABELS, BROADCAST_STATUS_LABELS, BROADCAST_TYPE_LABELS } from '@/constants'

@@ -1,8 +1,9 @@
-import { Spinner } from '@reviewhub/shared-ui'
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { EmptyState, Spinner } from '@viralkar/shared-ui'
+import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
 
 import { ROUTES } from '@/constants'
 import { useAuth } from '@/contexts/AuthContext'
+import { useAuthStore } from '@/stores/auth.store'
 
 export function ProtectedRoute() {
   const { isAuthenticated, loading, isInitialized } = useAuth()
@@ -19,6 +20,27 @@ export function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
+  }
+
+  return <Outlet />
+}
+
+/**
+ * Pages that act on a business (team, documents, webhooks, support, …). Signing up creates only the person's
+ * account; the business is created on the Profile page. Without one, every call on these pages would go to
+ * `/merchants/undefined/...` and fail, so point the person to Profile instead.
+ */
+export function BusinessRequiredRoute() {
+  const hasBusiness = useAuthStore((s) => Boolean(s.merchant?.id))
+
+  if (!hasBusiness) {
+    return (
+      <EmptyState
+        title="Set up your business profile first"
+        description="Your account is ready. Create your business profile to start campaigns, upload documents, invite your team and use the rest of the portal."
+        action={<Link to={ROUTES.PROFILE} className="btn-primary btn-sm">Set up profile</Link>}
+      />
+    )
   }
 
   return <Outlet />

@@ -43,7 +43,7 @@ export class MailService implements OnModuleInit {
   }
 
   async send(options: SendMailOptions): Promise<void> {
-    const from = `"${this.config.get<string>('smtp.fromName', 'ReviewHub')}" <${this.config.get<string>('smtp.fromEmail')}>`;
+    const from = `"${this.config.get<string>('smtp.fromName', 'Viralkar')}" <${this.config.get<string>('smtp.fromEmail')}>`;
 
     try {
       await this.transporter.sendMail({ from, ...options });

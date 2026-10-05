@@ -1,4 +1,4 @@
-import { Input, Skeleton, Spinner, Textarea } from '@reviewhub/shared-ui'
+import { Input, Skeleton, Spinner, Textarea } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 

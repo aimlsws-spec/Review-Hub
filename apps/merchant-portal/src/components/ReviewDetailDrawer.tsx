@@ -1,4 +1,4 @@
-import { Badge } from '@reviewhub/shared-ui'
+import { Badge } from '@viralkar/shared-ui'
 import { memo, useEffect, useRef, useState } from 'react'
 
 import { ReplyCard, type PublishedReply } from '@/components/reply/ReplyCard'

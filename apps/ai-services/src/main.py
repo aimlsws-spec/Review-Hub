@@ -47,7 +47,7 @@ async def lifespan(_: FastAPI):
     await backend_client.aclose()
 
 
-app = FastAPI(title="VIRAL KAR AI Services", lifespan=lifespan)
+app = FastAPI(title="Viralkar AI Services", lifespan=lifespan)
 
 
 @app.get("/health")

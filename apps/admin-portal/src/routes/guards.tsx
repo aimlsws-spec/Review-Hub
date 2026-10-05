@@ -1,4 +1,4 @@
-import { Spinner } from '@reviewhub/shared-ui'
+import { Spinner } from '@viralkar/shared-ui'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 
 import { ROUTES } from '@/constants'

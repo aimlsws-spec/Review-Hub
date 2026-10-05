@@ -1,4 +1,4 @@
-import { PageLoader } from '@reviewhub/shared-ui'
+import { PageLoader } from '@viralkar/shared-ui'
 import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 

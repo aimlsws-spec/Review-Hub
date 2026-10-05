@@ -30,7 +30,7 @@ export enum KnowledgeSourceKind {
 
 /** A message the assistant can send on its own; none of these state anything about accounts or money. */
 export const CHATBOT_REPLIES = {
-  greeting: 'Hi! I can answer questions about how Viral Kar works. What would you like to know?',
+  greeting: 'Hi! I can answer questions about how Viralkar works. What would you like to know?',
   thanks: 'You are welcome! Ask me anything else, or tap "Talk to a person" if you need more help.',
   humanRequest: 'Sure, I can pass this to our support team. Tap "Talk to a person" and they will reply to you.',
   accountIssue:

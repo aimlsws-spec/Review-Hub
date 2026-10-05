@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, PageHeader, Select, Skeleton, StatusBadge } from '@reviewhub/shared-ui'
+import { EmptyState, ErrorState, PageHeader, Select, Skeleton, StatusBadge } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { useAnalyticsOverviewQuery, useDownloadCampaignReportMutation, type ReportFormat } from '@/hooks/useAnalytics'

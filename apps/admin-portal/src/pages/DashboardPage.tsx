@@ -1,4 +1,4 @@
-import { PageHeader, CardSkeleton } from '@reviewhub/shared-ui'
+import { PageHeader, CardSkeleton } from '@viralkar/shared-ui'
 import { Link } from 'react-router-dom'
 
 import { DailySummaryCard } from '@/components/DailySummaryCard'

@@ -1,4 +1,4 @@
-import { PASSWORD_HINT, PASSWORD_PATTERN, PageHeader } from '@reviewhub/shared-ui'
+import { PASSWORD_HINT, PASSWORD_PATTERN, PageHeader } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 

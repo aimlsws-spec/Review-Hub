@@ -1,4 +1,4 @@
-import { Spinner } from '@reviewhub/shared-ui'
+import { Spinner } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { NavLink, useNavigate } from 'react-router-dom'
@@ -258,7 +258,7 @@ function SidebarContent({ collapsed, onClose, onLogout, loggingOut }: SidebarCon
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-[14px] font-extrabold tracking-tight text-slate-900 leading-none">ReviewHub</p>
+            <p className="text-[14px] font-extrabold tracking-tight text-slate-900 leading-none">Viralkar</p>
             <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-widest mt-0.5">Merchant Portal</p>
           </div>
         )}

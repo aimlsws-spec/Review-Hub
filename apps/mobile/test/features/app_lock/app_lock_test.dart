@@ -134,7 +134,7 @@ void main() {
     ) async {
       final container = await open(tester, enabled: true);
 
-      expect(phone.reasons, ['Unlock VIRAL KAR']);
+      expect(phone.reasons, ['Unlock Viralkar']);
       expect(find.byType(LockScreen), findsNothing);
       expect(stateOf(container).locked, isFalse);
       expect(find.text('The app'), findsOneWidget);
@@ -203,7 +203,7 @@ void main() {
       (container.read(authStateProvider.notifier) as _FakeAuth).signIn();
       await tester.pumpAndSettle();
 
-      expect(phone.reasons, ['Unlock VIRAL KAR']);
+      expect(phone.reasons, ['Unlock Viralkar']);
       expect(find.byType(LockScreen), findsOneWidget);
     });
 

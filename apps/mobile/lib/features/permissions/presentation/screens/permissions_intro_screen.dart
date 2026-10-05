@@ -36,7 +36,7 @@ class PermissionsIntroScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Here is what VIRAL KAR asks for and why. You can change any of these later in your phone\'s settings.',
+                'Here is what Viralkar asks for and why. You can change any of these later in your phone\'s settings.',
                 style: TextStyle(fontSize: 14.5, color: AppColors.slate600, height: 1.45),
               ),
               const SizedBox(height: 24),

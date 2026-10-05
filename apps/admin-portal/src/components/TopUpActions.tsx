@@ -1,4 +1,4 @@
-import { Modal, Spinner, Textarea } from '@reviewhub/shared-ui'
+import { Modal, Spinner, Textarea } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { useTopUpDecisionMutation, type TopUpDecision } from '@/hooks/useMerchants'

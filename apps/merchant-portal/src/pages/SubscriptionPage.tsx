@@ -1,4 +1,4 @@
-import { ConfirmDialog, EmptyState, ErrorState, PageHeader, Spinner, TableSkeleton } from '@reviewhub/shared-ui'
+import { ConfirmDialog, EmptyState, ErrorState, PageHeader, Spinner, TableSkeleton } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { useSubscriptionMutations, useSubscriptionQuery } from '@/hooks/useSubscription'

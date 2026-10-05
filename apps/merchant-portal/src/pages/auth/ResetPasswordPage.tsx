@@ -1,4 +1,4 @@
-import { Input, PASSWORD_HINT, Spinner, newPasswordRules } from '@reviewhub/shared-ui'
+import { Input, PASSWORD_HINT, Spinner, newPasswordRules } from '@viralkar/shared-ui'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'

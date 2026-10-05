@@ -1,4 +1,4 @@
-import { Input, Modal, Select, Spinner } from '@reviewhub/shared-ui'
+import { Input, Modal, Select, Spinner } from '@viralkar/shared-ui'
 import { useForm } from 'react-hook-form'
 
 import type { RecommendCampaignInput } from '@/api/merchant.api'

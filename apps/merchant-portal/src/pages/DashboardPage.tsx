@@ -1,4 +1,4 @@
-import { Skeleton, StatusBadge, Badge, PageHeader } from '@reviewhub/shared-ui'
+import { Skeleton, StatusBadge, Badge, PageHeader } from '@viralkar/shared-ui'
 import { formatDistanceToNow } from 'date-fns'
 import { Link } from 'react-router-dom'
 

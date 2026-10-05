@@ -10,7 +10,7 @@ import '../../../../shared/widgets/error_banner.dart';
 import '../../data/models/login_challenge_model.dart';
 import '../../providers/auth_providers.dart';
 
-/// Signs in with the Google account on the phone, creating the VIRAL KAR account the first time.
+/// Signs in with the Google account on the phone, creating the Viralkar account the first time.
 ///
 /// Signing in and signing up are the same step with Google, so the login and sign-up screens share this.
 final googleSignInProvider = AsyncNotifierProvider.autoDispose<GoogleSignInNotifier, void>(GoogleSignInNotifier.new);

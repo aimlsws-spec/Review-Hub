@@ -100,7 +100,7 @@ class _ViralKarAppState extends ConsumerState<ViralKarApp> {
       designSize: const Size(375, 812),
       minTextAdapt: true,
       builder: (context, child) => MaterialApp.router(
-        title: 'VIRAL KAR',
+        title: 'Viralkar',
         debugShowCheckedModeBanner: false,
         scaffoldMessengerKey: rootScaffoldMessengerKey,
         theme: AppTheme.light,

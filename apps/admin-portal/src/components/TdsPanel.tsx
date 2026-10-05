@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, Select, Skeleton, TableSkeleton, Pagination, StatusBadge } from '@reviewhub/shared-ui'
+import { EmptyState, ErrorState, Select, Skeleton, TableSkeleton, Pagination, StatusBadge } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { ITEMS_PER_PAGE } from '@/constants'

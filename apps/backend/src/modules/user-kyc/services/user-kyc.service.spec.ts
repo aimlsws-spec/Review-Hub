@@ -7,10 +7,9 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 import { IdentityNumberProtector } from '../../../shared/crypto';
 import { testIdentityNumberProtector } from '../../../shared/crypto/testing';
 import { LocalStorageService } from '../../../storage/storage.service';
-
-import { KycOcrService } from './kyc-ocr.service';
 import { UserKycDocumentRepository } from '../repositories';
 
+import { KycOcrService } from './kyc-ocr.service';
 import { UserKycService } from './user-kyc.service';
 
 describe('UserKycService', () => {

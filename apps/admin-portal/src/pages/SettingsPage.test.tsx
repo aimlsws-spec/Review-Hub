@@ -28,7 +28,7 @@ const readonlySetting = {
   ...editableSetting,
   id: 'setting-2',
   key: 'platform.name',
-  value: 'VIRAL KAR',
+  value: 'Viralkar',
   editable: false,
 }
 

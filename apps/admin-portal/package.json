@@ -1,5 +1,5 @@
 {
-  "name": "@reviewhub/admin-portal",
+  "name": "@viralkar/admin-portal",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@reviewhub/shared-ui": "*",
+    "@viralkar/shared-ui": "*",
     "@tanstack/react-query": "^5.51.1",
     "@tanstack/react-query-devtools": "^5.51.1",
     "axios": "^1.7.2",

@@ -8,7 +8,7 @@ import 'support_providers.dart';
 const int _maxTranscriptMessages = 20;
 const int _maxTranscriptMessageLength = 1000;
 
-const String _greeting = 'Hi! I can answer questions about how Viral Kar works. What would you like to know?';
+const String _greeting = 'Hi! I can answer questions about how Viralkar works. What would you like to know?';
 const String _unreachable = 'I could not reach the assistant just now. Please try again, or tap "Talk to a person".';
 
 /// Page-scoped: the conversation is dropped when the person leaves the chat screen.

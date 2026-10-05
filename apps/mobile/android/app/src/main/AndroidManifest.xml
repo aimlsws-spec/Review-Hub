@@ -25,7 +25,7 @@
         <package android:name="org.lsposed.manager"/>
     </queries>
     <application
-        android:label="viral_kar"
+        android:label="Viralkar"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

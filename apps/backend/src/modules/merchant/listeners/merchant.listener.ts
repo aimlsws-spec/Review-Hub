@@ -70,7 +70,7 @@ export class MerchantListener {
   async handleTeamInvited(event: MerchantTeamInvitedEvent) {
     this.logger.log(`Team invitation sent to ${event.email} for merchant ${event.merchantId}`);
     try {
-      const inviteUrl = `${process.env.FRONTEND_URL || 'https://app.reviewhub.com'}/accept-invite?token=${event.inviteToken}`;
+      const inviteUrl = `${process.env.FRONTEND_URL || 'https://app.viralkar.com'}/accept-invite?token=${event.inviteToken}`;
       await this.emailQueueService.enqueue({
         to: event.email,
         subject: 'You have been invited to join a merchant team',

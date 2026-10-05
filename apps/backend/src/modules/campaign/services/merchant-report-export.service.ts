@@ -57,13 +57,13 @@ export class MerchantReportExportService {
       ...report.daily.map((d) => row([d.date, d.joins, d.completions, money(d.rewardsPaid)])),
     ];
     // A byte-order mark so Excel opens the file as UTF-8 and campaign titles in Hindi or Gujarati come out right.
-    return Buffer.from(`﻿${lines.join('\r\n')}\r\n`, 'utf8');
+    return Buffer.from(`\uFEFF${lines.join('\r\n')}\r\n`, 'utf8');
   }
 
   /** One sheet per section, with real numbers (not text) so the merchant can sum and chart them. */
   async toXlsx(report: MerchantAnalyticsOverview): Promise<Buffer> {
     const workbook = new Workbook();
-    workbook.creator = 'VIRAL KAR';
+    workbook.creator = 'Viralkar';
     workbook.created = new Date();
 
     const summary = workbook.addWorksheet('Summary');

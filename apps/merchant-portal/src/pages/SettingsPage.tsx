@@ -1,4 +1,4 @@
-import { Input, PASSWORD_HINT, PASSWORD_MIN_LENGTH, Spinner, newPasswordRules } from '@reviewhub/shared-ui'
+import { Input, PASSWORD_HINT, PASSWORD_MIN_LENGTH, Spinner, newPasswordRules } from '@viralkar/shared-ui'
 import { useForm } from 'react-hook-form'
 
 import { useUpdateAccountProfileMutation, useChangePasswordMutation, useSendOtpMutation } from '@/hooks/useAccountSettings'

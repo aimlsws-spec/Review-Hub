@@ -25,7 +25,7 @@ class AppConfig {
     defaultValue: true,
   );
 
-  /// The *Web* OAuth client ID from Google Cloud Console (project "VIRAL KAR"). It must be the same
+  /// The *Web* OAuth client ID from Google Cloud Console (project "Viralkar"). It must be the same
   /// value as the backend's GOOGLE_CLIENT_ID, because the backend checks that every ID token was issued
   /// for this audience (see auth.controller.ts's `/auth/google/mobile`). Client IDs are public
   /// identifiers, not secrets, so a default is safe here; override with

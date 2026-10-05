@@ -1,4 +1,4 @@
-import { PageHeader, EmptyState, ErrorState, TableSkeleton, Pagination, StatusBadge, Select, ConfirmDialog } from '@reviewhub/shared-ui'
+import { PageHeader, EmptyState, ErrorState, TableSkeleton, Pagination, StatusBadge, Select, ConfirmDialog } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { BroadcastComposeModal } from '@/components/BroadcastComposeModal'

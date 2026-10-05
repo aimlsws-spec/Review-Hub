@@ -1,4 +1,4 @@
-import { PageHeader, Badge, Skeleton, EmptyState, Modal, Pagination } from '@reviewhub/shared-ui'
+import { PageHeader, Badge, Skeleton, EmptyState, Modal, Pagination } from '@viralkar/shared-ui'
 import { formatDistanceToNow } from 'date-fns'
 import { memo, useCallback, useMemo, useState } from 'react'
 

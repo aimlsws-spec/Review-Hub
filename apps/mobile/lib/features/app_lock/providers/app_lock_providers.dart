@@ -94,7 +94,7 @@ class AppLockNotifier extends Notifier<AppLockState> {
     if (!state.enabled || !state.locked || state.checking) return;
     state = state.copyWith(checking: true, clearMessage: true);
 
-    final result = await ref.read(deviceAuthenticatorProvider).authenticate('Unlock VIRAL KAR');
+    final result = await ref.read(deviceAuthenticatorProvider).authenticate('Unlock Viralkar');
     if (!ref.mounted) return;
 
     switch (result) {

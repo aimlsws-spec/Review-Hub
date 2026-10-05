@@ -1,4 +1,4 @@
-import { Input, PASSWORD_HINT, Spinner, newPasswordRules } from '@reviewhub/shared-ui'
+import { Input, PASSWORD_HINT, Spinner, newPasswordRules } from '@viralkar/shared-ui'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
@@ -38,7 +38,7 @@ export default function RegisterPage() {
       onSuccess: (res) => {
         const { user, tokens } = res.data.data
         setAuth(user, null, tokens.accessToken, tokens.refreshToken)
-        toast.success('Account created! Welcome to ReviewHub.')
+        toast.success('Account created! Welcome to Viralkar.')
         navigate(ROUTES.DASHBOARD, { replace: true })
       },
       onError: (err) => toast.error(getApiErrorMessage(err)),

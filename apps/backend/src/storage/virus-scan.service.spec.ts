@@ -34,7 +34,7 @@ function fakeClamd(answer: (payload: Buffer) => string): Promise<{ server: Serve
 const configWith = (values: Record<string, unknown>) => ({ get: (key: string, fallback?: unknown) => (key in values ? values[key] : fallback) });
 
 describe('VirusScanService', () => {
-  const EICAR = 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+  const EICAR = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
   let clamd: Awaited<ReturnType<typeof fakeClamd>>;
 
   beforeAll(async () => {

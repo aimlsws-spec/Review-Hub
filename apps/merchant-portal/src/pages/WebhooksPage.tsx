@@ -1,4 +1,4 @@
-import { Input, Spinner, EmptyState, ErrorState, Modal, ConfirmDialog, TableSkeleton, Pagination } from '@reviewhub/shared-ui'
+import { Input, Spinner, EmptyState, ErrorState, Modal, ConfirmDialog, TableSkeleton, Pagination } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { ITEMS_PER_PAGE } from '@/constants'

@@ -1,4 +1,4 @@
-import { PageHeader } from '@reviewhub/shared-ui'
+import { PageHeader } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { InvoiceNotesPanel } from '@/components/InvoiceNotesPanel'

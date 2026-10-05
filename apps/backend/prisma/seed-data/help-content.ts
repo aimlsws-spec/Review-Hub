@@ -40,8 +40,8 @@ export const HELP_FAQS: SeedFaq[] = [
   },
   {
     category: 'Getting Started',
-    question: 'Is ReviewHub free to use?',
-    answer: 'Yes, ReviewHub is completely free for users.',
+    question: 'Is Viralkar free to use?',
+    answer: 'Yes, Viralkar is completely free for users.',
     sortOrder: 2,
   },
 

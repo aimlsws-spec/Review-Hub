@@ -1,4 +1,4 @@
-import { CardSkeleton, ErrorState, Input, PageHeader, Select, Spinner } from '@reviewhub/shared-ui'
+import { CardSkeleton, ErrorState, Input, PageHeader, Select, Spinner } from '@viralkar/shared-ui'
 import { useEffect, useState } from 'react'
 
 import { usePlatformConfigurationQuery, useUpdatePlatformConfigurationMutation } from '@/hooks/usePlatformConfiguration'

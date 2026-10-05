@@ -1,4 +1,4 @@
-import { Spinner } from '@reviewhub/shared-ui'
+import { Spinner } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { NavLink, useNavigate } from 'react-router-dom'
@@ -368,11 +368,11 @@ function SidebarContent({ collapsed, onClose, onLogout, loggingOut }: SidebarCon
       {/* ── Logo ── */}
       <div className={cn('flex h-14 flex-shrink-0 items-center border-b border-slate-100 px-4', collapsed ? 'justify-center' : 'gap-3')}>
         <div className="flex h-8 flex-shrink-0 items-center justify-center">
-          <img src={Viralkarlogo} alt="ReviewHub Logo" className="h-8 w-auto" />
+          <img src={Viralkarlogo} alt="Viralkar Logo" className="h-8 w-auto" />
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-[14px] font-extrabold tracking-tight text-[#1B365D] leading-none">ReviewHub</p>
+            <p className="text-[14px] font-extrabold tracking-tight text-[#1B365D] leading-none">Viralkar</p>
             <p className="text-[10px] font-bold text-[#E58E2D] uppercase tracking-widest mt-0.5">Admin Portal</p>
           </div>
         )}

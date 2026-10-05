@@ -5,7 +5,7 @@ import { ROUTES } from '@/constants'
 import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 
-import { ProtectedRoute, GuestRoute } from './guards'
+import { ProtectedRoute, GuestRoute, BusinessRequiredRoute } from './guards'
 
 // Auth pages
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
@@ -59,23 +59,29 @@ export const router = createBrowserRouter(
         {
           element: <AppLayout />,
           children: [
-            { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
+            // Open to every signed-in person: the business is created on Profile.
             { path: ROUTES.PROFILE, element: <ProfilePage /> },
-            { path: ROUTES.REVIEWS, element: <ReviewsPage /> },
-            { path: ROUTES.CUSTOMERS, element: <CustomersPage /> },
-            { path: ROUTES.CAMPAIGNS, element: <CampaignsPage /> },
-            { path: ROUTES.ANALYTICS, element: <AnalyticsPage /> },
-            { path: ROUTES.REWARDS, element: <RewardsPage /> },
-            { path: ROUTES.COUPONS, element: <CouponsPage /> },
-            { path: ROUTES.WALLET, element: <WalletPage /> },
-            { path: ROUTES.REFUNDS, element: <RefundsPage /> },
-            { path: ROUTES.FINANCE, element: <FinancePage /> },
-            { path: ROUTES.DOCUMENTS, element: <DocumentsPage /> },
-            { path: ROUTES.TEAM, element: <TeamPage /> },
             { path: ROUTES.SETTINGS, element: <SettingsPage /> },
-            { path: ROUTES.SUPPORT, element: <SupportPage /> },
-            { path: ROUTES.WEBHOOKS, element: <WebhooksPage /> },
-            { path: ROUTES.SUBSCRIPTION, element: <SubscriptionPage /> },
+            {
+              element: <BusinessRequiredRoute />,
+              children: [
+                { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
+                { path: ROUTES.REVIEWS, element: <ReviewsPage /> },
+                { path: ROUTES.CUSTOMERS, element: <CustomersPage /> },
+                { path: ROUTES.CAMPAIGNS, element: <CampaignsPage /> },
+                { path: ROUTES.ANALYTICS, element: <AnalyticsPage /> },
+                { path: ROUTES.REWARDS, element: <RewardsPage /> },
+                { path: ROUTES.COUPONS, element: <CouponsPage /> },
+                { path: ROUTES.WALLET, element: <WalletPage /> },
+                { path: ROUTES.REFUNDS, element: <RefundsPage /> },
+                { path: ROUTES.FINANCE, element: <FinancePage /> },
+                { path: ROUTES.DOCUMENTS, element: <DocumentsPage /> },
+                { path: ROUTES.TEAM, element: <TeamPage /> },
+                { path: ROUTES.SUPPORT, element: <SupportPage /> },
+                { path: ROUTES.WEBHOOKS, element: <WebhooksPage /> },
+                { path: ROUTES.SUBSCRIPTION, element: <SubscriptionPage /> },
+              ],
+            },
           ],
         },
       ],

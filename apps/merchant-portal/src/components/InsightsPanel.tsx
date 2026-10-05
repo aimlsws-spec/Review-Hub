@@ -1,4 +1,4 @@
-import { Badge, Skeleton } from '@reviewhub/shared-ui'
+import { Badge, Skeleton } from '@viralkar/shared-ui'
 import { Link } from 'react-router-dom'
 
 import { CAMPAIGN_TYPE_LABELS, ROUTES } from '@/constants'

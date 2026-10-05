@@ -1,5 +1,5 @@
-import { Spinner, VerifyDeviceForm } from '@reviewhub/shared-ui'
 import { useMutation } from '@tanstack/react-query'
+import { Spinner, VerifyDeviceForm } from '@viralkar/shared-ui'
 import { ShieldCheck, Activity, Users, Lock, Mail, Eye, EyeOff, ArrowRight, Shield, Sparkles, Building2, Star, Check } from 'lucide-react'
 import React, { useState, InputHTMLAttributes, forwardRef } from 'react'
 import { useForm } from 'react-hook-form'
@@ -146,10 +146,10 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="flex items-center gap-3 mb-12 opacity-0 animate-fade-in" style={{ animationDelay: '100ms' }}>
             <div className="flex h-10 flex-shrink-0 items-center justify-center">
-              <img src={Viralkarlogo} alt="ReviewHub Logo" className="h-10 w-auto" />
+              <img src={Viralkarlogo} alt="Viralkar Logo" className="h-10 w-auto" />
             </div>
             <div>
-              <p className="text-[19px] font-extrabold tracking-tight text-[#1B365D] leading-none">ReviewHub</p>
+              <p className="text-[19px] font-extrabold tracking-tight text-[#1B365D] leading-none">Viralkar</p>
               <p className="text-[11px] font-bold text-[#E58E2D] leading-tight mt-1 uppercase tracking-widest">Admin Portal</p>
             </div>
           </div>
@@ -172,7 +172,7 @@ export default function LoginPage() {
                   <span className="text-[#F3A139] block">In Control.</span>
                 </h1>
                 <p className="text-[15px] xl:text-[16px] leading-[1.6] text-slate-500 mb-10 max-w-[380px]">
-                  Manage the ReviewHub ecosystem with confidence. Monitor users, businesses, reviews, and platform activity from one secure control center.
+                  Manage the Viralkar ecosystem with confidence. Monitor users, businesses, reviews, and platform activity from one secure control center.
                 </p>
               </div>
 
@@ -181,7 +181,7 @@ export default function LoginPage() {
                 {[
                   { icon: <Shield className="w-5 h-5" strokeWidth={2} />, title: 'Secure Administration', desc: 'Role-based platform access.' },
                   { icon: <Activity className="w-5 h-5" strokeWidth={2} />, title: 'Platform Monitoring', desc: 'Centralized operational control.' },
-                  { icon: <Users className="w-5 h-5" strokeWidth={2} />, title: 'User & Business Management', desc: 'Manage the ReviewHub ecosystem.' },
+                  { icon: <Users className="w-5 h-5" strokeWidth={2} />, title: 'User & Business Management', desc: 'Manage the Viralkar ecosystem.' },
                 ].map((f) => (
                   <div key={f.title} className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-[14px] bg-white border border-slate-100 shadow-sm flex items-center justify-center text-[#F3A139] flex-shrink-0">
@@ -321,9 +321,9 @@ export default function LoginPage() {
         {/* Mobile brand */}
         <div className="relative mb-12 flex flex-col items-center gap-3 lg:hidden opacity-0 animate-fade-up">
           <div className="flex h-10 flex-shrink-0 items-center justify-center">
-            <img src={Viralkarlogo} alt="ReviewHub Logo" className="h-10 w-auto" />
+            <img src={Viralkarlogo} alt="Viralkar Logo" className="h-10 w-auto" />
           </div>
-          <p className="text-[22px] font-extrabold text-[#1B365D] tracking-tight">ReviewHub <span className="text-[#F3A139]">Admin</span></p>
+          <p className="text-[22px] font-extrabold text-[#1B365D] tracking-tight">Viralkar <span className="text-[#F3A139]">Admin</span></p>
         </div>
 
         {/* Form Container */}
@@ -346,7 +346,7 @@ export default function LoginPage() {
           {/* Header */}
           <div className="mb-8">
             <h2 className="text-[32px] font-extrabold tracking-tight text-[#1B365D] mb-2">Welcome back</h2>
-            <p className="text-[15px] text-slate-500">Sign in to securely manage the ReviewHub platform.</p>
+            <p className="text-[15px] text-slate-500">Sign in to securely manage the Viralkar platform.</p>
           </div>
 
           {/* Form */}
@@ -359,7 +359,7 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               required
-              placeholder="admin@reviewhub.com"
+              placeholder="admin@viralkar.com"
               error={errors.email?.message}
               leftIcon={<Mail className="h-[18px] w-[18px]" strokeWidth={2} />}
               {...register('email', {
@@ -460,7 +460,7 @@ export default function LoginPage() {
                <ShieldCheck className="w-5 h-5 text-[#F3A139]" strokeWidth={2} />
              </div>
              <div>
-               <p className="text-[13px] font-bold text-[#1B365D] leading-snug mb-0.5">Authorized ReviewHub staff only</p>
+               <p className="text-[13px] font-bold text-[#1B365D] leading-snug mb-0.5">Authorized Viralkar staff only</p>
                <p className="text-[12px] text-slate-500 leading-snug">All administrative actions are logged and monitored.</p>
              </div>
           </div>

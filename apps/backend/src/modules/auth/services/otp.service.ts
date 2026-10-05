@@ -103,7 +103,7 @@ export class OtpService {
 
     if (toPhone) {
       this.smsService
-        .send(toPhone, `Your VIRAL KAR OTP is ${plainCode}. It expires in ${this.otpExpiryMinutes} minutes.`)
+        .send(toPhone, `Your Viralkar OTP is ${plainCode}. It expires in ${this.otpExpiryMinutes} minutes.`)
         .catch((err: Error) => this.logger.error('Failed to send OTP SMS', err.message));
       return { message: 'OTP sent successfully', expiresIn: this.otpExpiryMinutes * 60 };
     }
@@ -121,7 +121,7 @@ export class OtpService {
     // when there's no email.
     if (user?.phone) {
       this.smsService
-        .send(user.phone, `Your VIRAL KAR OTP is ${plainCode}. It expires in ${this.otpExpiryMinutes} minutes.`)
+        .send(user.phone, `Your Viralkar OTP is ${plainCode}. It expires in ${this.otpExpiryMinutes} minutes.`)
         .catch((err: Error) => this.logger.error('Failed to send OTP SMS', err.message));
     }
 

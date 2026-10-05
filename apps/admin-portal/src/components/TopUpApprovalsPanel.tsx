@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@reviewhub/shared-ui'
+import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { TopUpActions } from '@/components/TopUpActions'

@@ -1,4 +1,4 @@
-import { Modal, Spinner } from '@reviewhub/shared-ui'
+import { Modal, Spinner } from '@viralkar/shared-ui'
 import { isAxiosError } from 'axios'
 import { useState } from 'react'
 

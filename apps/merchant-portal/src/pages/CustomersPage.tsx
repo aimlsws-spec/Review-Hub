@@ -1,4 +1,4 @@
-import { EmptyState, PageHeader, Pagination, Skeleton } from '@reviewhub/shared-ui'
+import { EmptyState, PageHeader, Pagination, Skeleton } from '@viralkar/shared-ui'
 import { useMemo, useState } from 'react'
 
 import { CustomerStatusBadge, CustomerTypeBadge } from '@/components/CustomerBadges'

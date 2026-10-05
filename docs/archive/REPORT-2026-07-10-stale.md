@@ -1,5 +1,5 @@
 # Backend Technical Audit Report
-## VIRAL KAR / ReviewHub Platform — `apps/backend`
+## VIRAL KAR Platform — `apps/backend`
 
 **Audited:** 2026-07-10  
 **Auditor:** Cline (AI Code Review)  
@@ -200,7 +200,7 @@ Domain-specific error codes in `ERROR_CODES` constant:
 
 | # | Severity | File | Issue | Recommendation |
 |---|----------|------|-------|----------------|
-| 1 | 🟡 Low | `src/config/swagger.config.ts` | Swagger title says "ReviewHub API" but project branding is "VIRAL KAR". | Align branding: `.setTitle('VIRAL KAR API')`. |
+| 1 | 🟡 Low | `src/config/swagger.config.ts` | Swagger title branding needed alignment (resolved). | Align branding: `.setTitle('VIRAL KAR API')`. |
 | 2 | 🟡 Low | `package.json` (jest) | Missing `^@modules/(.*)$` in `moduleNameMapper`. | Add `"^@modules/(.*)$": "<rootDir>/modules/$1"` for test parity. |
 | 3 | 🟡 Low | `tsconfig.json` only | No dedicated `tsconfig.build.json`. | Create one excluding tests for cleaner CI builds (optional). |
 | 4 | 🟢 Info | `.env` | Template values fail Joi `min(32)` for JWT secrets. | Document that production `.env` must use real secrets. |

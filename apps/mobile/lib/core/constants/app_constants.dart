@@ -1,7 +1,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'VIRAL KAR';
+  static const String appName = 'Viralkar';
 
   static const int defaultPageSize = 20;
 

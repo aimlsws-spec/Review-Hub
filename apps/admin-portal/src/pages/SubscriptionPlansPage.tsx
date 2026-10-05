@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, Input, Modal, PageHeader, Spinner, TableSkeleton, Textarea } from '@reviewhub/shared-ui'
+import { EmptyState, ErrorState, Input, Modal, PageHeader, Spinner, TableSkeleton, Textarea } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { useSaveSubscriptionPlanMutation, useSubscriptionPlansQuery } from '@/hooks/useSubscriptionPlans'

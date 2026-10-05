@@ -1,5 +1,5 @@
 // =============================================================
-// VIRAL KAR — Standard API Response Interfaces
+// Viralkar — Standard API Response Interfaces
 // All API responses conform to these shapes.
 // =============================================================
 

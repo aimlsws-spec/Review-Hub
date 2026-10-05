@@ -1,4 +1,4 @@
-import { Badge, Skeleton } from '@reviewhub/shared-ui'
+import { Badge, Skeleton } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { useReferralsQuery } from '@/hooks/useUsers'

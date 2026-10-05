@@ -1,4 +1,4 @@
-import { Modal, Spinner } from '@reviewhub/shared-ui'
+import { Modal, Spinner } from '@viralkar/shared-ui'
 import { toast } from 'react-hot-toast'
 
 import { useAuth } from '@/contexts/AuthContext'

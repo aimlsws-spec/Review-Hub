@@ -1,8 +1,8 @@
-# README_DATABASE.md — ReviewHub Database Architecture
+# README_DATABASE.md — Viralkar Database Architecture
 
 ## Overview
 
-ReviewHub uses **MySQL 8.0+** managed via **Prisma ORM**. The schema is organized into 7 domain batches, each independently maintainable.
+Viralkar uses **MySQL 8.0+** managed via **Prisma ORM**. The schema is organized into 7 domain batches, each independently maintainable.
 
 ---
 

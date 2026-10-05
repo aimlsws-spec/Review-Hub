@@ -43,7 +43,7 @@ export default async function globalSetup(): Promise<void> {
 
     // Money actions need the finance team role (or super admin). The seeded admin the flows sign in as is given it, as
     // a real finance administrator would be; the tests that check a plain admin is refused make their own admin.
-    const admin = await prisma.user.findUniqueOrThrow({ where: { email: 'admin@reviewhub.com' } });
+    const admin = await prisma.user.findUniqueOrThrow({ where: { email: 'admin@viralkar.com' } });
     const finance = await prisma.role.findUniqueOrThrow({ where: { slug: 'finance-team' } });
     await prisma.userRole.upsert({
       where: { userId_roleId: { userId: admin.id, roleId: finance.id } },

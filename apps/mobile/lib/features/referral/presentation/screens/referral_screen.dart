@@ -137,7 +137,7 @@ class _ReferralCodeCard extends StatelessWidget {
                       InkWell(
                         onTap: () => SharePlus.instance.share(
                           ShareParams(
-                            text: 'Join VIRAL KAR and earn rewards! Use my code $code when you sign up: '
+                            text: 'Join Viralkar and earn rewards! Use my code $code when you sign up: '
                                 'viralkar://referral?code=$code',
                           ),
                         ),

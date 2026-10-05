@@ -1,4 +1,4 @@
-import { PageHeader, EmptyState, ErrorState, TableSkeleton, Pagination, StatusBadge, Modal, Textarea, Spinner, Select } from '@reviewhub/shared-ui'
+import { PageHeader, EmptyState, ErrorState, TableSkeleton, Pagination, StatusBadge, Modal, Textarea, Spinner, Select } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { ITEMS_PER_PAGE } from '@/constants'

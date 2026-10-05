@@ -1,4 +1,4 @@
-import { Badge } from '@reviewhub/shared-ui'
+import { Badge } from '@viralkar/shared-ui'
 import { memo } from 'react'
 
 export interface PublishedReply {

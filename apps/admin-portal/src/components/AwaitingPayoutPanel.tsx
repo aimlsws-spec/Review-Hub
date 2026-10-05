@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, Input, Modal, Pagination, Spinner, TableSkeleton, Textarea } from '@reviewhub/shared-ui'
+import { EmptyState, ErrorState, Input, Modal, Pagination, Spinner, TableSkeleton, Textarea } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { ITEMS_PER_PAGE } from '@/constants'

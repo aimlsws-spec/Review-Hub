@@ -1,4 +1,4 @@
-import { StatusBadge, EmptyState, ErrorState, TableSkeleton } from '@reviewhub/shared-ui'
+import { StatusBadge, EmptyState, ErrorState, TableSkeleton } from '@viralkar/shared-ui'
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 

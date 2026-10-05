@@ -1,4 +1,4 @@
-import { getDeviceId } from '@reviewhub/shared-ui'
+import { getDeviceId } from '@viralkar/shared-ui'
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
 import { API_BASE_URL } from '@/constants'

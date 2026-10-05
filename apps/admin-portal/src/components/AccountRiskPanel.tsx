@@ -1,4 +1,4 @@
-import { Badge, Skeleton, StatusBadge } from '@reviewhub/shared-ui'
+import { Badge, Skeleton, StatusBadge } from '@viralkar/shared-ui'
 
 import { ACCOUNT_LINK_LABELS, IP_VERDICT_LABELS } from '@/constants'
 import { useAccountRiskQuery } from '@/hooks/useAccountRisk'

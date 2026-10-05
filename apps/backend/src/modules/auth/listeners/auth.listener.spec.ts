@@ -43,7 +43,7 @@ describe('AuthListener', () => {
 
       const mail = mockEmailQueue.enqueue.mock.calls[0][0];
       expect(mail.to).toBe('john@example.com');
-      expect(mail.subject).toBe('New sign-in to your VIRAL KAR account');
+      expect(mail.subject).toBe('New sign-in to your Viralkar account');
       expect(mail.html).toContain('Chrome on Windows');
       expect(mail.html).toContain('203.0.113.5');
       expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ actorId: 'user-1', entity: 'Device', action: 'LOGIN' }) });
@@ -92,7 +92,7 @@ describe('AuthListener', () => {
   it('confirms an account deletion to the email the account had', async () => {
     await listener.handleAccountDeleted({ userId: 'user-1', email: 'john@example.com' });
 
-    expect(mockEmailQueue.enqueue).toHaveBeenCalledWith(expect.objectContaining({ to: 'john@example.com', subject: 'Your VIRAL KAR account has been deleted' }));
+    expect(mockEmailQueue.enqueue).toHaveBeenCalledWith(expect.objectContaining({ to: 'john@example.com', subject: 'Your Viralkar account has been deleted' }));
     expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ entity: 'User', action: 'DELETE' }) });
   });
 

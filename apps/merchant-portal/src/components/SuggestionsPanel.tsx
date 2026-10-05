@@ -1,4 +1,4 @@
-import { Badge } from '@reviewhub/shared-ui'
+import { Badge } from '@viralkar/shared-ui'
 
 import { useDismissSuggestionMutation, useSuggestionsQuery } from '@/hooks/useInsights'
 import type { InsightSeverity } from '@/types'

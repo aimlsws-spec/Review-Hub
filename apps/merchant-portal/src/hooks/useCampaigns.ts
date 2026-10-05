@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 
 import { merchantApi, type CampaignFormInput } from '@/api/merchant.api'
-import type { Campaign } from '@/types'
 import { QUERY_KEYS } from '@/constants'
+import type { Campaign } from '@/types'
 import { getApiErrorMessage, requireValue } from '@/utils'
 
 interface CampaignsQueryParams {

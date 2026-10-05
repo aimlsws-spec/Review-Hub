@@ -1,4 +1,4 @@
-import { Modal, Spinner, StatusBadge, Textarea } from '@reviewhub/shared-ui'
+import { Modal, Spinner, StatusBadge, Textarea } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { KYC_DOCUMENT_TYPE_LABELS, KYC_STATUS_LABELS } from '@/constants'

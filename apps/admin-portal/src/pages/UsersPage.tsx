@@ -9,7 +9,7 @@ import {
   ConfirmDialog,
   Modal,
   Select,
-} from '@reviewhub/shared-ui'
+} from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { AccountRiskPanel } from '@/components/AccountRiskPanel'

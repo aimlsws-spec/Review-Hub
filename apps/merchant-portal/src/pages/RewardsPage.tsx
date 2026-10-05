@@ -1,4 +1,4 @@
-import { StatusBadge, EmptyState, ErrorState, TableSkeleton, Pagination } from '@reviewhub/shared-ui'
+import { StatusBadge, EmptyState, ErrorState, TableSkeleton, Pagination } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 

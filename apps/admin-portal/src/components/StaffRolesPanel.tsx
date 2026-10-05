@@ -1,4 +1,4 @@
-import { Skeleton } from '@reviewhub/shared-ui'
+import { Skeleton } from '@viralkar/shared-ui'
 
 import { useUserRoleMutation, useUserRolesQuery } from '@/hooks/useUsers'
 import type { StaffRole } from '@/types'

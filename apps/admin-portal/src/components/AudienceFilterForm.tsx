@@ -1,4 +1,4 @@
-import { Input, Select } from '@reviewhub/shared-ui'
+import { Input, Select } from '@viralkar/shared-ui'
 
 import type { AudienceLocation } from '@/types'
 import type { AudienceForm } from '@/utils/notifications'

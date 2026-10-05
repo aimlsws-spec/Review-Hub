@@ -1,4 +1,4 @@
-import { Input, Select, Spinner, StatusBadge, EmptyState, ErrorState, Modal, ConfirmDialog, TableSkeleton } from '@reviewhub/shared-ui'
+import { Input, Select, Spinner, StatusBadge, EmptyState, ErrorState, Modal, ConfirmDialog, TableSkeleton } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 

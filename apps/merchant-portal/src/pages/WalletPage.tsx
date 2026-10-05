@@ -1,4 +1,4 @@
-import { StatusBadge, EmptyState, ErrorState, CardSkeleton, TableSkeleton, Pagination, Modal, Input, Spinner } from '@reviewhub/shared-ui'
+import { StatusBadge, EmptyState, ErrorState, CardSkeleton, TableSkeleton, Pagination, Modal, Input, Spinner } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'

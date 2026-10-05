@@ -1,4 +1,4 @@
-import { Input, Modal, Select, Spinner, Textarea } from '@reviewhub/shared-ui'
+import { Input, Modal, Select, Spinner, Textarea } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { BROADCAST_CHANNEL_LABELS } from '@/constants'

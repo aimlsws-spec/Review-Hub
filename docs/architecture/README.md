@@ -1,7 +1,7 @@
 # Architecture
 
 This describes the system as it actually exists in this codebase today — not the
-aspirational platform sketched in `Review Hub.txt`. Where the two disagree, this
+aspirational platform sketched in the original product spec. Where the two disagree, this
 document wins; treat that file as historical product-vision notes, not a spec.
 
 ## System overview

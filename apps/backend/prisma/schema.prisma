@@ -1081,7 +1081,7 @@ enum ReviewStatus {
 }
 
 /// A review a merchant received on an external platform (Google, Facebook, etc.),
-/// logged into VIRAL KAR so the merchant can track and reply to it in one place.
+/// logged into Viralkar so the merchant can track and reply to it in one place.
 /// Not synced live from those platforms — entered manually until a real
 /// platform-API integration is built.
 model Review {
@@ -2967,7 +2967,7 @@ model FeatureFlag {
 
 model PlatformConfiguration {
   id                           String     @id @default(uuid())
-  platformName                 String     @default("ReviewHub")
+  platformName                 String     @default("Viralkar")
   supportEmail                 String?
   supportPhone                 String?
   commissionPercentage         Decimal    @default(0) @db.Decimal(5, 4)

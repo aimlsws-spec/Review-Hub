@@ -8,7 +8,7 @@ import {
   Select,
   Textarea,
   Spinner,
-} from '@reviewhub/shared-ui'
+} from '@viralkar/shared-ui'
 import { useState } from 'react'
 
 import { useCreateSettingMutation, useSettingsQuery, useUpdateSettingMutation } from '@/hooks/useSettings'
