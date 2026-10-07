@@ -64,7 +64,14 @@ class HomeScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Available tasks', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy900)),
+                  const Flexible(
+                    child: Text(
+                      'Available tasks',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy900),
+                    ),
+                  ),
                   TextButton(
                     onPressed: () => context.push(RoutePaths.tasks),
                     child: const Text('See all →', style: TextStyle(color: AppColors.orange500, fontWeight: FontWeight.w700, fontSize: 13.5)),
@@ -204,61 +211,84 @@ class _WalletCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        // Both halves may shrink: a longer balance scales its figures down instead of pushing "Today's Earnings" off
+        // the card (it overflowed as soon as the balance gained a digit).
         child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Left Side: Wallet Balance
-                InkWell(
-                  onTap: () => context.push(RoutePaths.wallet),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
+          children: [
+            // Left Side: Wallet Balance
+            Expanded(
+              flex: 3,
+              child: InkWell(
+                onTap: () => context.push(RoutePaths.wallet),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Wallet Balance', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                          const Text(
+                            'Wallet Balance',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
                           const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              walletAsync.when(
-                                loading: () => const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                                error: (err, stack) => const Text('—', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                                data: (result) {
-                                  final value = result.when(success: (w) => w.availableBalanceValue, failure: (_) => null);
-                                  return Text(value != null ? '₹${value.toStringAsFixed(2)}' : '—', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800));
-                                },
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 20),
-                            ],
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                walletAsync.when(
+                                  loading: () => const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                                  error: (err, stack) => const Text('—', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                                  data: (result) {
+                                    final value = result.when(success: (w) => w.availableBalanceValue, failure: (_) => null);
+                                    return Text(value != null ? '₹${value.toStringAsFixed(2)}' : '—', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800));
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 20),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                // Right Side: Today's Earnings Pill
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
-                  ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Right Side: Today's Earnings Pill
+            Flexible(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text("Today's Earnings", style: TextStyle(color: AppColors.navy900, fontSize: 11, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           walletAsync.when(
                             loading: () => const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.navy900)),
@@ -275,8 +305,10 @@ class _WalletCard extends StatelessWidget {
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
+          ],
+        ),
       ),
     );
   }
@@ -381,21 +413,27 @@ class _StatTile extends StatelessWidget {
             style: const TextStyle(color: AppColors.slate500, fontSize: 10.5),
           ),
           const SizedBox(height: 3),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                value,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.navy900, fontSize: 12.5, fontWeight: FontWeight.w800),
+          // Scaled down rather than cut off: a quarter of the card is narrow, and an amount must stay readable whole.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    value,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    style: const TextStyle(color: AppColors.navy900, fontSize: 12.5, fontWeight: FontWeight.w800),
+                  ),
+                  if (showArrow) ...[
+                    const SizedBox(width: 2),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.navy900, size: 14),
+                  ],
+                ],
               ),
-              if (showArrow) ...[
-                const SizedBox(width: 2),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.navy900, size: 14),
-              ],
-            ],
+            ),
           ),
         ],
       ),

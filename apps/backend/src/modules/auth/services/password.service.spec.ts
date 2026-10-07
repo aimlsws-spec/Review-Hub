@@ -48,39 +48,39 @@ describe('PasswordService', () => {
   });
 
   describe('validateStrength', () => {
-    it('should reject passwords shorter than 8 characters', () => {
-      const result = service.validateStrength('Ab1!');
+    it('should reject passwords shorter than 10 characters', () => {
+      const result = service.validateStrength('short1!');
       expect(result.valid).toBe(false);
-      expect(result.message).toContain('at least 8 characters');
+      expect(result.message).toContain('at least 10 characters');
     });
 
     it('should reject passwords longer than 72 characters', () => {
       const long = 'A1!' + 'a'.repeat(70);
       const result = service.validateStrength(long);
       expect(result.valid).toBe(false);
-      expect(result.message).toContain('not exceed 72');
+      expect(result.message).toContain('at most 72');
     });
 
     it('should reject passwords without uppercase', () => {
-      const result = service.validateStrength('abcdef1!@');
+      const result = service.validateStrength('alllowercase1!');
       expect(result.valid).toBe(false);
       expect(result.message).toContain('uppercase');
     });
 
     it('should reject passwords without lowercase', () => {
-      const result = service.validateStrength('ABCDEF1!@');
+      const result = service.validateStrength('ALLUPPERCASE1!');
       expect(result.valid).toBe(false);
       expect(result.message).toContain('lowercase');
     });
 
     it('should reject passwords without number', () => {
-      const result = service.validateStrength('Abcdef!@#');
+      const result = service.validateStrength('NoDigits!!!!');
       expect(result.valid).toBe(false);
       expect(result.message).toContain('number');
     });
 
     it('should reject passwords without special character', () => {
-      const result = service.validateStrength('Abcdef123');
+      const result = service.validateStrength('NoSymbol1234');
       expect(result.valid).toBe(false);
       expect(result.message).toContain('special');
     });

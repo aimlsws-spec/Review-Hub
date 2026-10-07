@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../../auth/data/models/user_model.dart';
@@ -25,7 +26,7 @@ class _EditProfileSubmitNotifier extends AsyncNotifier<void> {
   Future<void> build() async {}
 
   /// Saves exactly what is on screen: a cleared field is sent as "remove it".
-  Future<bool> submit({required String firstName, required String lastName}) async {
+  Future<bool> submit({required String firstName, required String lastName, required String phone}) async {
     state = const AsyncLoading();
     final birthDate = ref.read(_birthDateProvider);
     final result = await ref.read(authStateProvider.notifier).updateProfileDetails(
@@ -35,6 +36,7 @@ class _EditProfileSubmitNotifier extends AsyncNotifier<void> {
           gender: ref.read(_genderProvider)?.apiValue,
           stateId: ref.read(_stateIdProvider),
           cityId: ref.read(_cityIdProvider),
+          phone: phone,
         );
     if (result.isFailure) {
       state = AsyncError(result.failureOrNull?.message ?? 'Could not update your profile.', StackTrace.current);
@@ -56,6 +58,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _firstNameController;
   late final TextEditingController _lastNameController;
+  late final TextEditingController _phoneController;
 
   @override
   void initState() {
@@ -63,12 +66,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final user = ref.read(authStateProvider).value;
     _firstNameController = TextEditingController(text: user?.firstName ?? '');
     _lastNameController = TextEditingController(text: user?.lastName ?? '');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
   }
 
   @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -78,6 +83,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final success = await ref.read(_editProfileSubmitProvider.notifier).submit(
           firstName: _firstNameController.text.trim(),
           lastName: _lastNameController.text.trim(),
+          phone: _phoneController.text.trim(),
         );
 
     if (!mounted || !success) return;
@@ -128,6 +134,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _lastNameController,
                   decoration: const InputDecoration(labelText: 'Last name'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                // Contact information only: saved as typed, never verified by SMS. Clearing it removes the number.
+                TextFormField(
+                  key: const Key('phone'),
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Phone (optional)'),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    return AppConstants.phonePattern.hasMatch(v.trim()) ? null : 'Enter a valid phone number';
+                  },
                 ),
                 const SizedBox(height: 28),
                 const Text('About you', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.slate900)),

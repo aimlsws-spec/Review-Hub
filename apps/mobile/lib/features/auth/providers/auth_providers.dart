@@ -173,6 +173,7 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
     required String? gender,
     required String? stateId,
     required String? cityId,
+    String? phone,
   }) async {
     final result = await ref.read(authRepositoryProvider).updateProfileDetails(
           firstName: firstName,
@@ -181,6 +182,7 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
           gender: gender,
           stateId: stateId,
           cityId: cityId,
+          phone: phone,
         );
     result.when(
       success: (user) {
@@ -195,6 +197,8 @@ class AuthStateNotifier extends AsyncNotifier<UserModel?> {
                 countryId: user.countryId,
                 stateId: user.stateId,
                 cityId: user.cityId,
+                phone: user.phone,
+                phoneVerifiedAt: user.phoneVerifiedAt,
               ));
       },
       failure: (_) {},

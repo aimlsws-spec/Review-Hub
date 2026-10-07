@@ -59,7 +59,14 @@ class _WithdrawalTile extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('₹${withdrawal.finalAmountValue.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text('₹${withdrawal.finalAmountValue.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 AppBadge.forStatus(withdrawal.status),
               ],
             ),

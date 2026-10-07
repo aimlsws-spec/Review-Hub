@@ -11,6 +11,7 @@ import { CacheService } from '../../../cache/cache.service';
 import { MailService } from '../../../mail/mail.service';
 import { SmsService } from '../../../sms/sms.service';
 import { AUTH_EVENTS, AUTH_ERRORS } from '../constants';
+import { buildOtpEmail } from '../emails/otp-email';
 import { OtpRepository } from '../repositories/otp.repository';
 import { UserRepository } from '../repositories/user.repository';
 
@@ -24,6 +25,7 @@ const OTP_MESSAGES = {
   EXPIRED: 'That code has expired. Please ask for a new one.',
   MAX_ATTEMPTS: 'Too many wrong tries. Please ask for a new code.',
   INVALID: 'That code is not right. Please check it and try again.',
+  ALREADY_VERIFIED: 'Your email address is already verified.',
 } as const;
 
 @Injectable()
@@ -74,6 +76,19 @@ export class OtpService {
   }
 
   /**
+   * With OTP_PROVIDER=log the plain code is also written to the log, because SMS (Twilio) is rarely configured on a
+   * developer's machine and a phone-only account would otherwise have no way to receive it. Requires NODE_ENV to be
+   * exactly `development`, so a copied setting can never leak live codes into a production log.
+   */
+  private logCodeForDevelopment(userId: string, type: OtpType, plainCode: string, destination: string): void {
+    const enabled =
+      this.configService.get<string>('OTP_PROVIDER') === 'log' &&
+      this.configService.get<string>('NODE_ENV') === 'development';
+    if (!enabled) return;
+    this.logger.warn(`[DEV ONLY] ${type} code for user ${userId} (${destination}): ${plainCode}`);
+  }
+
+  /**
    * Issues a code and sends it to the account's email and phone, or, with `toPhone`, only by SMS to that number. The
    * override exists for a phone number change, where the point is to prove the person holds the *new* number.
    */
@@ -83,6 +98,12 @@ export class OtpService {
 
     if (cooldownRemaining) {
       throw new BadRequestException(OTP_MESSAGES.RESEND_COOLDOWN, AUTH_ERRORS.OTP_RESEND_COOLDOWN);
+    }
+
+    // Verifying again would do nothing but send a second welcome email; the apps never ask, but a script could.
+    if (type === OtpType.EMAIL_VERIFICATION) {
+      const owner = await this.userRepository.findById(userId);
+      if (owner?.emailVerifiedAt) throw new BadRequestException(OTP_MESSAGES.ALREADY_VERIFIED, AUTH_ERRORS.OTP_INVALID);
     }
 
     await this.otpRepository.expireAllByUserAndType(userId, type);
@@ -102,6 +123,7 @@ export class OtpService {
     await this.cacheService.set(cacheKey, 1, this.resendCooldownSeconds);
 
     if (toPhone) {
+      this.logCodeForDevelopment(userId, type, plainCode, toPhone);
       this.smsService
         .send(toPhone, `Your Viralkar OTP is ${plainCode}. It expires in ${this.otpExpiryMinutes} minutes.`)
         .catch((err: Error) => this.logger.error('Failed to send OTP SMS', err.message));
@@ -109,12 +131,12 @@ export class OtpService {
     }
 
     const user = await this.userRepository.findById(userId);
+    this.logCodeForDevelopment(userId, type, plainCode, [user?.email, user?.phone].filter(Boolean).join(', '));
     if (user?.email) {
-      this.mailService.send({
-        to: user.email,
-        subject: `Your OTP: ${plainCode}`,
-        html: `<p>Your OTP is <strong>${plainCode}</strong>. It expires in ${this.otpExpiryMinutes} minutes.</p>`,
-      }).catch((err: Error) => this.logger.error('Failed to send OTP email', err.message));
+      const email = buildOtpEmail({ type, code: plainCode, expiryMinutes: this.otpExpiryMinutes, firstName: user.firstName });
+      this.mailService
+        .send({ to: user.email, ...email })
+        .catch((err: Error) => this.logger.error('Failed to send OTP email', err.message));
     }
     // Phone-only accounts (no email on file) would otherwise never receive an
     // OTP at all — send by SMS too whenever there's a phone number, not only

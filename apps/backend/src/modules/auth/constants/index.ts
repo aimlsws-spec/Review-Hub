@@ -53,6 +53,10 @@ export const ACCOUNT_LOCK = {
 // before withdrawals — an unverified user is otherwise a normal, logged-in user.
 export const BLOCKED_ACCOUNT_STATUSES = ['SUSPENDED', 'BANNED', 'DEACTIVATED'] as const;
 
+/** A phone number as the apps send it: optional +, then 10–15 digits not starting with 0. */
+export const PHONE_PATTERN = /^\+?[1-9]\d{9,14}$/;
+export const PHONE_PATTERN_MESSAGE = 'Phone must be in international format (e.g. +919876543210)';
+
 export const PASSWORD_POLICY = {
   /** Spec (security chapter): at least 10 characters. Only applies when a password is set; existing ones still work. */
   MIN_LENGTH: 10,
@@ -64,12 +68,6 @@ export const PASSWORD_POLICY = {
   /** A new password may not match any of this many most recent ones, the current one included (spec: last 5). */
   HISTORY_DEPTH: 5,
 } as const;
-
-/** Upper, lower, digit and special character, within the length limits above. Shared by every DTO that sets a password. */
-export const PASSWORD_PATTERN = new RegExp(
-  `^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*]).{${PASSWORD_POLICY.MIN_LENGTH},${PASSWORD_POLICY.MAX_LENGTH}}$`,
-);
-export const PASSWORD_PATTERN_MESSAGE = 'Password must contain uppercase, lowercase, number, and special character';
 
 /**
  * The legal documents a person accepts (spec FR-008), where the apps read their text (a published CMS page with this

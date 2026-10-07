@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/data/otp_type.dart';
 import '../../../auth/providers/auth_providers.dart';
+import '../../../kyc/providers/kyc_providers.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -14,6 +15,8 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).value;
+    // Null while it loads, so the prompt never flashes up for someone already verified.
+    final identityVerified = ref.watch(identityVerifiedProvider).value;
 
     return Scaffold(
       appBar: AppBar(
@@ -46,20 +49,23 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
-          if (user != null && (!user.isEmailVerified && user.email != null || !user.isPhoneVerified && user.phone != null)) ...[
+          // Identity verification is required for every earning feature, so it is asked for first.
+          if (identityVerified == false) ...[
             const SizedBox(height: 20),
-            if (user.email != null && !user.isEmailVerified)
-              _VerificationPrompt(
-                label: 'Verify your email',
-                onTap: () => context.push(RoutePaths.otpVerification, extra: OtpType.emailVerification),
-              ),
-            if (user.phone != null && !user.isPhoneVerified) ...[
-              const SizedBox(height: 8),
-              _VerificationPrompt(
-                label: 'Verify your phone number',
-                onTap: () => context.push(RoutePaths.otpVerification, extra: OtpType.phoneVerification),
-              ),
-            ],
+            _VerificationPrompt(
+              key: const Key('identityPrompt'),
+              label: 'Complete identity verification to start earning',
+              onTap: () => context.push(RoutePaths.kyc),
+            ),
+          ],
+          // Only the email is verified: codes go by email, and the phone number is contact information only.
+          if (user != null && user.email != null && !user.isEmailVerified) ...[
+            const SizedBox(height: 20),
+            _VerificationPrompt(
+              key: const Key('emailPrompt'),
+              label: 'Verify your email',
+              onTap: () => context.push(RoutePaths.otpVerification, extra: OtpType.emailVerification),
+            ),
           ],
           const SizedBox(height: 24),
           Card(
@@ -131,7 +137,7 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 class _VerificationPrompt extends StatelessWidget {
-  const _VerificationPrompt({required this.label, required this.onTap});
+  const _VerificationPrompt({super.key, required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;

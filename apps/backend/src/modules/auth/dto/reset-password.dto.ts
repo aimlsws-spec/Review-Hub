@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Length } from 'class-validator';
 
-import { PASSWORD_PATTERN, PASSWORD_PATTERN_MESSAGE, PASSWORD_POLICY } from '../constants';
+import { PASSWORD_POLICY } from '../constants';
+import { IsPolicyPassword } from '../validators';
 
 export class ResetPasswordDto {
   @ApiPropertyOptional({ example: 'john@example.com' })
@@ -19,10 +20,8 @@ export class ResetPasswordDto {
   @Length(6, 6)
   code!: string;
 
-  @ApiProperty({ example: 'NewPassw0rd!23' })
+  @ApiProperty({ example: 'NewPassw0rd!23', minLength: PASSWORD_POLICY.MIN_LENGTH, maxLength: PASSWORD_POLICY.MAX_LENGTH })
   @IsString()
-  @MinLength(PASSWORD_POLICY.MIN_LENGTH)
-  @MaxLength(PASSWORD_POLICY.MAX_LENGTH)
-  @Matches(PASSWORD_PATTERN, { message: PASSWORD_PATTERN_MESSAGE })
+  @IsPolicyPassword()
   password!: string;
 }

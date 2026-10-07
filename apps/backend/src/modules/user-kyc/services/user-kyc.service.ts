@@ -7,7 +7,7 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 
 import { IdentityNumberProtector } from '../../../shared/crypto';
 import { LocalStorageService } from '../../../storage/storage.service';
-import { USER_DOCUMENT_STORAGE } from '../constants';
+import { IDENTITY_DOCUMENT_TYPES, IDENTITY_UNLOCKING_STATUSES, USER_DOCUMENT_STORAGE } from '../constants';
 import { UserKycUploadDto } from '../dto';
 import { UserKycDocumentRepository } from '../repositories';
 
@@ -69,6 +69,14 @@ export class UserKycService {
   async getDocuments(userId: string) {
     const documents = await this.documentRepository.findByUserId(userId);
     return documents.map((document) => this.identityNumbers.mask(document));
+  }
+
+  /**
+   * Whether the person may use the earning features: PAN or an identity document uploaded and not rejected. Pending
+   * counts, by the owner's choice, so nobody waits on the review queue to start (see IDENTITY_DOCUMENT_TYPES).
+   */
+  async hasIdentityDocument(userId: string): Promise<boolean> {
+    return this.documentRepository.existsWithTypeAndStatus(userId, IDENTITY_DOCUMENT_TYPES, IDENTITY_UNLOCKING_STATUSES);
   }
 
   /** PAN is the specific document withdrawals gate on — matches the product's own "PAN verification (before withdrawals)" requirement. */

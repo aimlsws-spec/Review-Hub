@@ -21,7 +21,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const { statusCode, code, message, details } = this.resolveException(exception);
+    const resolved = this.resolveException(exception);
+    const { statusCode, code, details } = resolved;
+    // The rate limiter's own text ("ThrottlerException: Too Many Requests") is not something to show a person.
+    const message =
+      statusCode === HttpStatus.TOO_MANY_REQUESTS ? rateLimitMessage(response.getHeader('Retry-After')) : resolved.message;
 
     const errorResponse: ApiErrorResponse = {
       success: false,
@@ -100,4 +104,20 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     };
     return map[status] ?? ERROR_CODES.INTERNAL_SERVER_ERROR;
   }
+}
+
+/**
+ * What a person reads when they have tried something too often, with how long to wait when the limiter said
+ * (it sets Retry-After, in seconds, just before refusing).
+ */
+export function rateLimitMessage(retryAfter: unknown): string {
+  const seconds = Number(Array.isArray(retryAfter) ? retryAfter[0] : retryAfter);
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return 'Too many attempts. Please wait a little and try again.';
+  }
+  if (seconds < 60) {
+    return `Too many attempts. Please try again in ${Math.ceil(seconds)} second${Math.ceil(seconds) === 1 ? '' : 's'}.`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return `Too many attempts. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
 }

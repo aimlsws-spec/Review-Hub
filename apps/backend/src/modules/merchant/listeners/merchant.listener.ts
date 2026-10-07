@@ -3,6 +3,12 @@ import { OnEvent } from '@nestjs/event-emitter';
 
 import { EmailQueueService } from '../../../mail/email-queue.service';
 import {
+  buildMerchantApprovedEmail,
+  buildMerchantRegisteredEmail,
+  buildMerchantRejectedEmail,
+  buildTeamInviteEmail,
+} from '../emails/merchant-emails';
+import {
   MerchantApprovedEvent,
   MerchantKycUploadedEvent,
   MerchantRejectedEvent,
@@ -22,9 +28,7 @@ export class MerchantListener {
     try {
       await this.emailQueueService.enqueue({
         to: event.email,
-        subject: 'Merchant Registration Successful',
-        text: `Your merchant account "${event.businessName}" has been registered successfully. Please complete your KYC to start using our services.`,
-        html: `<p>Your merchant account "<strong>${event.businessName}</strong>" has been registered successfully. Please complete your KYC to start using our services.</p>`,
+        ...buildMerchantRegisteredEmail(event.businessName),
       });
     } catch (error) {
       this.logger.error(`Failed to enqueue registration email to ${event.email}:`, (error as Error).message);
@@ -37,9 +41,7 @@ export class MerchantListener {
     try {
       await this.emailQueueService.enqueue({
         to: event.email,
-        subject: 'Merchant Account Approved',
-        text: `Congratulations! Your merchant account "${event.businessName}" has been approved.`,
-        html: `<p>Congratulations! Your merchant account "<strong>${event.businessName}</strong>" has been approved.</p>`,
+        ...buildMerchantApprovedEmail(event.businessName),
       });
     } catch (error) {
       this.logger.error(`Failed to enqueue approval email:`, (error as Error).message);
@@ -52,9 +54,7 @@ export class MerchantListener {
     try {
       await this.emailQueueService.enqueue({
         to: event.email,
-        subject: 'Merchant Account Verification Update',
-        text: `Your merchant account "${event.businessName}" verification could not be completed.\n\nReason: ${event.reason}`,
-        html: `<p>Your merchant account "<strong>${event.businessName}</strong>" verification could not be completed.</p><p>Reason: ${event.reason}</p>`,
+        ...buildMerchantRejectedEmail(event.businessName, event.reason),
       });
     } catch (error) {
       this.logger.error(`Failed to enqueue rejection email:`, (error as Error).message);
@@ -73,9 +73,7 @@ export class MerchantListener {
       const inviteUrl = `${process.env.FRONTEND_URL || 'https://app.viralkar.com'}/accept-invite?token=${event.inviteToken}`;
       await this.emailQueueService.enqueue({
         to: event.email,
-        subject: 'You have been invited to join a merchant team',
-        text: `You have been invited to join a merchant team as ${event.role}.\n\nClick here to accept: ${inviteUrl}`,
-        html: `<p>You have been invited to join a merchant team as <strong>${event.role}</strong>.</p><p><a href="${inviteUrl}">Click here to accept</a></p>`,
+        ...buildTeamInviteEmail(event.role, inviteUrl),
       });
     } catch (error) {
       this.logger.error(`Failed to enqueue invitation email to ${event.email}:`, (error as Error).message);

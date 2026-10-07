@@ -1,4 +1,4 @@
-import { PASSWORD_HINT, PASSWORD_PATTERN, PageHeader } from '@viralkar/shared-ui'
+import { PageHeader, passwordPolicyError } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 
@@ -29,8 +29,9 @@ function ChangePasswordCard() {
       setError('New passwords do not match')
       return
     }
-    if (!PASSWORD_PATTERN.test(newPassword)) {
-      setError(`New password must have ${PASSWORD_HINT}`)
+    const policyError = passwordPolicyError(newPassword)
+    if (policyError) {
+      setError(policyError)
       return
     }
     setError(null)

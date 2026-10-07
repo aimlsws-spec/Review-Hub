@@ -6,6 +6,8 @@ class RoutePaths {
   static const String login = '/login';
   static const String register = '/register';
   static const String otpVerification = '/otp-verification';
+  /// The email code screen every account with an unverified email is kept on until it enters the code.
+  static const String verifyEmail = '/verify-email';
   static const String forgotPassword = '/forgot-password';
   static const String resetPassword = '/reset-password';
   static const String newDeviceVerification = '/login/verify-device';
@@ -54,7 +56,6 @@ class RoutePaths {
   static const String editProfile = '/profile/edit';
   static const String settings = '/profile/settings';
   static const String changePassword = '/profile/settings/change-password';
-  static const String changePhone = '/profile/settings/change-phone';
   static const String deleteAccount = '/profile/settings/delete-account';
   static const String kyc = '/profile/kyc';
 

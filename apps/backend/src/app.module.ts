@@ -41,6 +41,7 @@ import { SettlementModule } from './modules/settlement/settlement.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { SupportModule } from './modules/support/support.module';
 import { TaskModule } from './modules/task/task.module';
+import { IdentityVerificationGuard } from './modules/user-kyc/guards';
 import { UserKycModule } from './modules/user-kyc/user-kyc.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { WebhookModule } from './modules/webhooks/webhook.module';
@@ -151,6 +152,8 @@ import { StorageModule } from './storage/storage.module';
     { provide: APP_GUARD, useClass: AppThrottlerGuard },
     // After the sign-in guard: whether the caller is an administrator is only known once the token has been read.
     { provide: APP_GUARD, useClass: MaintenanceGuard },
+    // After the sign-in guard: only acts on @RequiresIdentityVerification() routes, for the signed-in person.
+    { provide: APP_GUARD, useClass: IdentityVerificationGuard },
   ],
 })
 export class AppModule implements NestModule {

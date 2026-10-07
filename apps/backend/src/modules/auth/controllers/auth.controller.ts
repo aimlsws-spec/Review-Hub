@@ -311,7 +311,9 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 3, ttl: 3600000 } })
+  // Counted per network address (nobody is signed in), which many phones on one carrier can share, so it stays
+  // generous; flooding one inbox is already stopped by OtpService's one-code-per-minute cooldown per account.
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Request password reset OTP' })
   @ApiBody({ type: ForgotPasswordDto })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
@@ -322,7 +324,9 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  // Each code already stops working after OTP_MAX_ATTEMPTS wrong guesses; this caps guessing across fresh codes
+  // without locking out someone who mistypes a few times.
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Reset password using OTP code' })
   @ApiBody({ type: ResetPasswordDto })
   async resetPassword(@Body() dto: ResetPasswordDto) {

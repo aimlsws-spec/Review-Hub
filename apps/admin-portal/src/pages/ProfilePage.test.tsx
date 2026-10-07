@@ -68,16 +68,21 @@ describe('ProfilePage', () => {
     expect(mutateMock).not.toHaveBeenCalled()
   })
 
-  it('rejects a weak new password', async () => {
+  it.each([
+    ['short1!', 'Password must be at least 10 characters'],
+    ['alllowercase1!', 'Password must contain an uppercase letter'],
+    ['NoDigits!!!!', 'Password must contain a number'],
+    ['NoSymbol1234', 'Password must contain a special character (!@#$%^&*)'],
+  ])('rejects the weak new password %s naming the missing rule', async (password, message) => {
     const testUser = userEvent.setup()
     renderPage()
 
     await testUser.type(screen.getByLabelText(/current password/i), 'oldpassword1')
-    await testUser.type(screen.getByLabelText(/^new password/i), 'weak')
-    await testUser.type(screen.getByLabelText(/confirm new password/i), 'weak')
+    await testUser.type(screen.getByLabelText(/^new password/i), password)
+    await testUser.type(screen.getByLabelText(/confirm new password/i), password)
     await testUser.click(screen.getByRole('button', { name: /change password/i }))
 
-    expect(await screen.findByText(/must have 10\+ characters/i)).toBeInTheDocument()
+    expect(await screen.findByText(message)).toBeInTheDocument()
     expect(mutateMock).not.toHaveBeenCalled()
   })
 

@@ -175,11 +175,23 @@ class _BalanceCard extends StatelessWidget {
                       child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 16),
                     ),
                     const SizedBox(width: 8),
-                    const Text('Available balance', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                    const Flexible(
+                      child: Text(
+                        'Available balance',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text('₹${available.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                // One line, scaled down if it has to be: a balance must never wrap or run off the card.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text('₹${available.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                ),
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -191,9 +203,9 @@ class _BalanceCard extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _StatChip(label: 'Pending', value: '₹${pending.toStringAsFixed(0)}'),
-                      Container(width: 1, height: 24, color: Colors.white.withValues(alpha: 0.2)),
-                      _StatChip(label: 'Lifetime earned', value: '₹${lifetime.toStringAsFixed(0)}'),
+                      Flexible(child: _StatChip(label: 'Pending', value: '₹${pending.toStringAsFixed(0)}')),
+                      Container(width: 1, height: 24, margin: const EdgeInsets.symmetric(horizontal: 12), color: Colors.white.withValues(alpha: 0.2)),
+                      Flexible(child: _StatChip(label: 'Lifetime earned', value: '₹${lifetime.toStringAsFixed(0)}')),
                     ],
                   ),
                 ),
@@ -217,9 +229,18 @@ class _StatChip extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w500)),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w500),
+        ),
         const SizedBox(height: 2),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+        ),
       ],
     );
   }

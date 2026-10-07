@@ -57,8 +57,11 @@ export class Api {
     return token ? req.set('Authorization', `Bearer ${token}`) : req;
   }
 
-  /** Registers an ordinary app user and signs them in. */
-  async registerUser(): Promise<TestUser> {
+  /**
+   * Registers an ordinary app user and signs them in. By default they also upload an identity document, as every real
+   * user must before the earning features open; pass `withIdentity: false` to test the locked state.
+   */
+  async registerUser({ withIdentity = true }: { withIdentity?: boolean } = {}): Promise<TestUser> {
     const id = unique();
     const email = `e2e-${id}@example.com`;
     const phone = `+9198${id.slice(-8).padStart(8, '0')}`;
@@ -67,7 +70,18 @@ export class Api {
       .send({ firstName: 'E2E', lastName: 'Person', email, phone, password: PASSWORD, acceptPolicies: true })
       .expect(201);
 
-    return { id: res.body.data.user.id, email, phone, token: res.body.data.tokens.accessToken };
+    const user = { id: res.body.data.user.id, email, phone, token: res.body.data.tokens.accessToken };
+    if (withIdentity) await this.uploadIdentityDocument(user);
+    return user;
+  }
+
+  /** Uploads an Aadhaar for the user, which unlocks the earning features while it waits for review. */
+  async uploadIdentityDocument(user: TestUser) {
+    await this.post('/kyc/documents', user.token)
+      .field('documentType', 'AADHAAR')
+      .field('documentNumber', `1234${String(Date.now()).slice(-8)}`)
+      .attach('file', PNG, { filename: 'aadhaar.png', contentType: 'image/png' })
+      .expect(201);
   }
 
   async login(email: string, password: string = PASSWORD): Promise<string> {

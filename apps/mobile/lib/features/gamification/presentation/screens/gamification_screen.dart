@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../kyc/presentation/widgets/identity_gate.dart';
 import '../../data/models/badge_model.dart';
 import '../../data/models/gamification_profile_model.dart';
 import '../../providers/gamification_providers.dart';
@@ -177,6 +178,7 @@ class _DailyRewardCard extends ConsumerWidget {
   const _DailyRewardCard();
 
   Future<void> _claim(BuildContext context, WidgetRef ref) async {
+    if (!await ensureIdentityVerified(context, ref) || !context.mounted) return;
     ref.read(_claimingProvider.notifier).state = true;
     final result = await ref.read(gamificationRepositoryProvider).claimDailyReward();
     ref.read(_claimingProvider.notifier).state = false;

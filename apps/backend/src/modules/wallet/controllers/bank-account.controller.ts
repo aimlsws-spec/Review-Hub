@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
+import { RequiresIdentityVerification } from '../../user-kyc/decorators';
 import { AddUserBankDto, UpdateUserBankDto } from '../dto';
 import { BankAccountService } from '../services';
 
@@ -13,6 +14,7 @@ export class BankAccountController {
   constructor(private readonly bankAccountService: BankAccountService) {}
 
   @Post()
+  @RequiresIdentityVerification()
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add a bank account for payouts' })

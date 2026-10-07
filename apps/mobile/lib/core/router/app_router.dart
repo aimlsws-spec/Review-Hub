@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/data/models/user_model.dart';
 import '../../features/auth/data/otp_type.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/data/models/login_challenge_model.dart';
@@ -19,6 +20,7 @@ import '../../features/campaigns/presentation/screens/campaigns_screen.dart';
 import '../../features/dashboard/presentation/screens/home_screen.dart';
 import '../../features/gamification/presentation/screens/gamification_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_screen.dart';
+import '../../features/kyc/presentation/widgets/identity_gate.dart';
 import '../../features/legal/presentation/screens/policy_acceptance_screen.dart';
 import '../../features/legal/presentation/screens/policy_document_screen.dart';
 import '../../features/leaderboard/presentation/screens/leaderboard_screen.dart';
@@ -30,7 +32,6 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/referral/presentation/screens/referral_screen.dart';
 import '../../features/permissions/presentation/screens/permissions_intro_screen.dart';
 import '../../features/settings/presentation/screens/change_password_screen.dart';
-import '../../features/settings/presentation/screens/change_phone_screen.dart';
 import '../../features/settings/presentation/screens/delete_account_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/support/presentation/screens/new_support_ticket_screen.dart';
@@ -122,6 +123,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (mustAcceptPolicies) return location == RoutePaths.policyAcceptance ? null : RoutePaths.policyAcceptance;
       if (location == RoutePaths.policyAcceptance) return RoutePaths.home;
 
+      // ...then proves the email address with a code: no account is used before its address is verified. Decided
+      // from the account itself, so closing the app halfway through sign-up lands back here. Google accounts arrive
+      // verified; an old phone-only account has no address to verify and is let through.
+      final user = authState.value!;
+      final mustVerifyEmail = user.email != null && !user.isEmailVerified;
+      if (mustVerifyEmail) return location == RoutePaths.verifyEmail ? null : RoutePaths.verifyEmail;
+      if (location == RoutePaths.verifyEmail) return RoutePaths.home;
+
       // ...then, once, sees why the app asks for each permission before any is asked for.
       final permissionsIntroSeen =
           ref.read(settingsBoxProvider).get(StorageKeys.permissionsIntroSeen, defaultValue: false) as bool;
@@ -154,6 +163,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: RoutePaths.permissionsIntro, builder: (context, state) => const PermissionsIntroScreen()),
       GoRoute(
+        path: RoutePaths.verifyEmail,
+        builder: (context, state) => const OtpVerificationScreen(type: OtpType.emailVerification, mandatory: true),
+      ),
+      GoRoute(
         path: RoutePaths.otpVerification,
         builder: (context, state) => OtpVerificationScreen(type: state.extra as OtpType),
       ),
@@ -172,7 +185,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(path: RoutePaths.tasks, builder: (context, state) => const CampaignsScreen()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: RoutePaths.wallet, builder: (context, state) => const WalletScreen()),
+            GoRoute(path: RoutePaths.wallet, builder: (context, state) => const IdentityGate(featureName: 'Wallet', child: WalletScreen())),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: RoutePaths.gamification, builder: (context, state) => const GamificationScreen()),
@@ -213,23 +226,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: RoutePaths.mySubmissions, builder: (context, state) => const MySubmissionsScreen()),
       GoRoute(path: RoutePaths.qrScanner, builder: (context, state) => const QrScannerScreen()),
 
-      GoRoute(path: RoutePaths.walletTransactions, builder: (context, state) => const TransactionsScreen()),
-      GoRoute(path: RoutePaths.walletRewards, builder: (context, state) => const RewardsScreen()),
-      GoRoute(path: RoutePaths.bankAccounts, builder: (context, state) => const BankAccountsScreen()),
-      GoRoute(path: RoutePaths.addBankAccount, builder: (context, state) => const AddBankAccountScreen()),
-      GoRoute(path: RoutePaths.withdraw, builder: (context, state) => const WithdrawScreen()),
-      GoRoute(path: RoutePaths.withdrawalHistory, builder: (context, state) => const WithdrawalHistoryScreen()),
+      // Earning features (wallet, rewards, referrals, marketplace) wait for identity verification: IdentityGate.
+      GoRoute(path: RoutePaths.walletTransactions, builder: (context, state) => const IdentityGate(featureName: 'Transactions', child: TransactionsScreen())),
+      GoRoute(path: RoutePaths.walletRewards, builder: (context, state) => const IdentityGate(featureName: 'Rewards', child: RewardsScreen())),
+      GoRoute(path: RoutePaths.bankAccounts, builder: (context, state) => const IdentityGate(featureName: 'Bank accounts', child: BankAccountsScreen())),
+      GoRoute(path: RoutePaths.addBankAccount, builder: (context, state) => const IdentityGate(featureName: 'Add bank account', child: AddBankAccountScreen())),
+      GoRoute(path: RoutePaths.withdraw, builder: (context, state) => const IdentityGate(featureName: 'Withdraw', child: WithdrawScreen())),
+      GoRoute(path: RoutePaths.withdrawalHistory, builder: (context, state) => const IdentityGate(featureName: 'Withdrawals', child: WithdrawalHistoryScreen())),
 
-      GoRoute(path: RoutePaths.referral, builder: (context, state) => const ReferralScreen()),
+      GoRoute(path: RoutePaths.referral, builder: (context, state) => const IdentityGate(featureName: 'Refer & Earn', child: ReferralScreen())),
       GoRoute(path: RoutePaths.leaderboard, builder: (context, state) => const LeaderboardScreen()),
 
-      GoRoute(path: RoutePaths.marketplace, builder: (context, state) => const MarketplaceScreen()),
-      GoRoute(path: RoutePaths.marketplaceRedemptions, builder: (context, state) => const MyRedemptionsScreen()),
+      GoRoute(path: RoutePaths.marketplace, builder: (context, state) => const IdentityGate(featureName: 'Marketplace', child: MarketplaceScreen())),
+      GoRoute(path: RoutePaths.marketplaceRedemptions, builder: (context, state) => const IdentityGate(featureName: 'My redemptions', child: MyRedemptionsScreen())),
 
       GoRoute(path: RoutePaths.editProfile, builder: (context, state) => const EditProfileScreen()),
       GoRoute(path: RoutePaths.settings, builder: (context, state) => const SettingsScreen()),
       GoRoute(path: RoutePaths.changePassword, builder: (context, state) => const ChangePasswordScreen()),
-      GoRoute(path: RoutePaths.changePhone, builder: (context, state) => const ChangePhoneScreen()),
       GoRoute(path: RoutePaths.deleteAccount, builder: (context, state) => const DeleteAccountScreen()),
       GoRoute(path: RoutePaths.kyc, builder: (context, state) => const KycScreen()),
 

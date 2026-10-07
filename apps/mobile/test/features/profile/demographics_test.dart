@@ -290,7 +290,24 @@ void main() {
         'gender': 'FEMALE',
         'stateId': 's-gj',
         'cityId': 'c-amd',
+        // No number on file: sent as empty, which leaves it empty.
+        'phone': '',
       });
+    });
+
+    testWidgets('saves a phone number as typed, without asking for a code', (tester) async {
+      await open(tester);
+
+      await tester.enterText(find.byKey(const Key('phone')), '12345');
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enter a valid phone number'), findsOneWidget);
+      expect(saved, isNull);
+
+      await tester.enterText(find.byKey(const Key('phone')), '9876543210');
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+      expect(saved?['phone'], '9876543210');
     });
 
     testWidgets('closes the screen and confirms once it is saved', (tester) async {
@@ -424,6 +441,7 @@ class _FakeAuthState extends AuthStateNotifier {
     required String? gender,
     required String? stateId,
     required String? cityId,
+    String? phone,
   }) async {
     return _onSave({
       'firstName': firstName,
@@ -432,6 +450,7 @@ class _FakeAuthState extends AuthStateNotifier {
       'gender': gender,
       'stateId': stateId,
       'cityId': cityId,
+      'phone': phone,
     });
   }
 }

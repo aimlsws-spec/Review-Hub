@@ -2,12 +2,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 
-import { escapeHtml, maskPhone } from '@common/utils';
+import { maskPhone } from '@common/utils';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { EmailQueueService } from '../../../mail/email-queue.service';
 import { SmsService } from '../../../sms/sms.service';
 import { AUTH_EVENTS } from '../constants';
+import {
+  buildAccountDeletedEmail,
+  buildNewSignInEmail,
+  buildPasswordChangedEmail,
+  buildPhoneChangedEmail,
+  buildWelcomeEmail,
+} from '../emails/account-emails';
 
 @Injectable()
 export class AuthListener {
@@ -20,18 +27,18 @@ export class AuthListener {
   ) {}
 
   @OnEvent(AUTH_EVENTS.USER_REGISTERED)
-  async handleUserRegistered(payload: { userId: string; email: string | null; phone: string | null }) {
+  async handleUserRegistered(payload: {
+    userId: string;
+    email: string | null;
+    phone: string | null;
+    firstName?: string | null;
+    emailVerified?: boolean;
+  }) {
     this.logger.log(`User registered: ${payload.userId}`);
 
-    if (payload.email) {
-      this.emailQueueService
-        .enqueue({
-          to: payload.email,
-          subject: 'Welcome to Viralkar!',
-          html: '<h1>Welcome!</h1><p>Thank you for registering on Viralkar platform.</p>',
-        })
-        .catch((err: Error) => this.logger.error('Welcome email enqueue failed', err.message));
-    }
+    // A password sign-up's first email is its verification code; the welcome follows once the address is verified
+    // (handleOtpVerified). A Google sign-up arrives verified, so it is welcomed straight away.
+    if (payload.email && payload.emailVerified) this.sendWelcome(payload.email, payload.firstName);
 
     await this.prisma.activityLog.create({
       data: {
@@ -103,14 +110,10 @@ export class AuthListener {
 
   @OnEvent(AUTH_EVENTS.PASSWORD_CHANGED)
   async handlePasswordChanged(payload: { userId: string }) {
-    const user = await this.prisma.user.findUnique({ where: { id: payload.userId }, select: { email: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: payload.userId }, select: { email: true, firstName: true } });
     if (user?.email) {
       this.emailQueueService
-        .enqueue({
-          to: user.email,
-          subject: 'Password Changed - Security Alert',
-          html: '<h1>Password Changed</h1><p>Your password was successfully changed.</p>',
-        })
+        .enqueue({ to: user.email, ...buildPasswordChangedEmail(user.firstName, new Date()) })
         .catch((err: Error) => this.logger.error('Password change alert email enqueue failed', err.message));
     }
 
@@ -158,6 +161,11 @@ export class AuthListener {
 
   @OnEvent(AUTH_EVENTS.OTP_VERIFIED)
   async handleOtpVerified(payload: { userId: string; type: string }) {
+    if (payload.type === 'EMAIL_VERIFICATION') {
+      const user = await this.prisma.user.findUnique({ where: { id: payload.userId }, select: { email: true, firstName: true } });
+      if (user?.email) this.sendWelcome(user.email, user.firstName);
+    }
+
     await this.prisma.activityLog.create({
       data: {
         userId: payload.userId,
@@ -181,14 +189,7 @@ export class AuthListener {
   async handleAccountDeleted(payload: { userId: string; email?: string | null }) {
     if (payload.email) {
       this.emailQueueService
-        .enqueue({
-          to: payload.email,
-          subject: 'Your Viralkar account has been deleted',
-          html:
-            '<h1>Account deleted</h1><p>Your Viralkar account has been deleted as you asked. ' +
-            'This email address and your phone number can be used to create a new account.</p>' +
-            '<p>If you did not do this, contact support immediately.</p>',
-        })
+        .enqueue({ to: payload.email, ...buildAccountDeletedEmail() })
         .catch((err: Error) => this.logger.error('Account deletion email enqueue failed', err.message));
     }
 
@@ -256,16 +257,10 @@ export class AuthListener {
     const user = await this.prisma.user.findUnique({ where: { id: payload.userId }, select: { email: true, firstName: true } });
     if (user?.email) {
       const device = [payload.deviceName, payload.os].filter(Boolean).join(' on ') || 'An unknown device';
-      const when = payload.at.toUTCString();
       this.emailQueueService
         .enqueue({
           to: user.email,
-          subject: 'New sign-in to your Viralkar account',
-          html:
-            `<h1>New sign-in</h1><p>Hi ${escapeHtml(user.firstName)}, your account was just used on a new device.</p>` +
-            `<ul><li>Device: ${escapeHtml(device)}</li><li>IP address: ${escapeHtml(payload.ipAddress ?? 'unknown')}</li>` +
-            `<li>Time: ${escapeHtml(when)}</li></ul>` +
-            '<p>If this was you, there is nothing to do. If not, change your password now and sign out of all devices from Settings.</p>',
+          ...buildNewSignInEmail({ firstName: user.firstName, device, ipAddress: payload.ipAddress ?? 'unknown', at: payload.at }),
         })
         .catch((err: Error) => this.logger.error('New device alert email enqueue failed', err.message));
     }
@@ -293,7 +288,7 @@ export class AuthListener {
     }
     if (user?.email) {
       this.emailQueueService
-        .enqueue({ to: user.email, subject: 'Your phone number was changed', html: `<h1>Phone number changed</h1><p>${escapeHtml(notice)}</p>` })
+        .enqueue({ to: user.email, ...buildPhoneChangedEmail(maskPhone(payload.newPhone)) })
         .catch((err: Error) => this.logger.error('Phone change email enqueue failed', err.message));
     }
 
@@ -317,5 +312,12 @@ export class AuthListener {
         after: { documents: payload.documents } as unknown as Prisma.InputJsonValue,
       },
     });
+  }
+
+  /** The welcome email: sent once per account, when its email address is first known to be real. */
+  private sendWelcome(email: string, firstName?: string | null): void {
+    this.emailQueueService
+      .enqueue({ to: email, ...buildWelcomeEmail(firstName) })
+      .catch((err: Error) => this.logger.error('Welcome email enqueue failed', err.message));
   }
 }

@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
 
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -111,7 +112,7 @@ describe('OtpService', () => {
         }),
       );
       expect(mockMailService.send).toHaveBeenCalledWith(
-        expect.objectContaining({ to: 'test@example.com', subject: expect.stringContaining('OTP') }),
+        expect.objectContaining({ to: 'test@example.com', subject: expect.stringMatching(/^\d{6} is your Viralkar code$/) }),
       );
       expect(mockSmsService.send).not.toHaveBeenCalled();
       expect(result).toHaveProperty('message', 'OTP sent successfully');
@@ -152,6 +153,50 @@ describe('OtpService', () => {
 
       expect(mockMailService.send).toHaveBeenCalled();
       expect(mockSmsService.send).toHaveBeenCalled();
+    });
+  });
+
+  describe('development code logging (OTP_PROVIDER=log)', () => {
+    let warnSpy: jest.SpyInstance;
+
+    function useEnv(env: Record<string, string>): void {
+      mockConfigService.get.mockImplementation((key: string) => env[key]);
+    }
+
+    beforeEach(() => {
+      warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      mockCacheService.get.mockResolvedValue(null);
+      mockOtpRepository.create.mockResolvedValue({ id: 'otp-1' });
+      mockUserRepository.findById.mockResolvedValue({ id: 'user-1', phone: '+919876543210' });
+    });
+
+    afterEach(() => warnSpy.mockRestore());
+
+    /** The plain code that was sent by SMS, read back from the message text. */
+    function sentCode(): string {
+      return /OTP is (\d+)/.exec(mockSmsService.send.mock.calls[0][1] as string)?.[1] ?? '';
+    }
+
+    it('logs the code in development so a phone-only account can verify without SMS', async () => {
+      useEnv({ OTP_PROVIDER: 'log', NODE_ENV: 'development' });
+
+      await service.sendOtp('user-1', OtpType.PHONE_VERIFICATION);
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('+919876543210'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(sentCode()));
+    });
+
+    it.each([
+      ['production', { OTP_PROVIDER: 'log', NODE_ENV: 'production' }],
+      ['no NODE_ENV', { OTP_PROVIDER: 'log' }],
+      ['another provider', { OTP_PROVIDER: 'twilio', NODE_ENV: 'development' }],
+    ])('never logs the code with %s', async (_label, env) => {
+      useEnv(env);
+
+      await service.sendOtp('user-1', OtpType.PHONE_VERIFICATION);
+
+      const code = sentCode();
+      expect(warnSpy.mock.calls.flat().some((arg) => String(arg).includes(code))).toBe(false);
     });
   });
 

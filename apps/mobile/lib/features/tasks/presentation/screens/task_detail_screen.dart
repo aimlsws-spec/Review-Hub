@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../../campaigns/data/models/campaign_task_model.dart';
 import '../../../campaigns/providers/campaign_providers.dart';
+import '../../../kyc/presentation/widgets/identity_gate.dart';
 import '../../providers/task_providers.dart';
 import '../widgets/honest_feedback_notice.dart';
 import '../widgets/report_issue_sheet.dart';
@@ -51,6 +52,7 @@ class TaskDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _startAndContinue(BuildContext context, WidgetRef ref, CampaignTaskModel task) async {
+    if (!await ensureIdentityVerified(context, ref) || !context.mounted) return;
     final success = await ref.read(_startTaskSubmitProvider.notifier).start(taskId);
     if (!context.mounted || !success) return;
     context.push(RoutePaths.taskSubmissionPath(taskId), extra: task);

@@ -12,6 +12,7 @@ import '../../support/router_harness.dart';
 /// Signed out, and records what a sign-up would send instead of calling the server.
 class _FakeAuth extends AuthStateNotifier {
   final List<bool> acceptedPolicies = [];
+  final List<Map<String, String?>> contacts = [];
 
   @override
   Future<UserModel?> build() async => null;
@@ -27,6 +28,7 @@ class _FakeAuth extends AuthStateNotifier {
     String? referralCode,
   }) async {
     acceptedPolicies.add(acceptPolicies);
+    contacts.add({'email': email, 'phone': phone});
     return const Result.success(null);
   }
 }
@@ -44,16 +46,24 @@ void main() {
     return auth;
   }
 
-  LoadingButton createButton(WidgetTester tester) =>
-      tester.widget<LoadingButton>(find.widgetWithText(LoadingButton, 'Create account'));
-
-  Future<void> fillForm(WidgetTester tester) async {
+  // Fields in order: first name, last name, email, phone (optional), password, confirm password, referral code.
+  Future<void> fillForm(WidgetTester tester, {String email = 'asha@example.com', String phone = ''}) async {
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'Asha');
     await tester.enterText(fields.at(1), 'Patel');
-    await tester.enterText(fields.at(2), '9876543210');
-    await tester.enterText(fields.at(3), 'Passw0rd!23');
+    await tester.enterText(fields.at(2), email);
+    await tester.enterText(fields.at(3), phone);
     await tester.enterText(fields.at(4), 'Passw0rd!23');
+    await tester.enterText(fields.at(5), 'Passw0rd!23');
+  }
+
+  Future<void> acceptAndSubmit(WidgetTester tester) async {
+    await tester.ensureVisible(find.byKey(const Key('acceptPolicies')));
+    await tester.tap(find.byKey(const Key('acceptPolicies')));
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(LoadingButton, 'Create account'));
+    await tester.tap(find.widgetWithText(LoadingButton, 'Create account'));
+    await tester.pumpAndSettle();
   }
 
   testWidgets('links to all three policies', (tester) async {
@@ -84,12 +94,20 @@ void main() {
     final auth = await open(tester);
     await fillForm(tester);
 
-    expect(createButton(tester).onPressed, isNull);
+    await tester.ensureVisible(find.widgetWithText(LoadingButton, 'Create account'));
+    await tester.tap(find.widgetWithText(LoadingButton, 'Create account'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Please accept the Terms & Conditions, Privacy Policy and Reward Policy'),
+      findsOneWidget,
+    );
+    expect(auth.acceptedPolicies, isEmpty);
 
     await tester.ensureVisible(find.byKey(const Key('acceptPolicies')));
     await tester.tap(find.byKey(const Key('acceptPolicies')));
     await tester.pump();
-    expect(createButton(tester).onPressed, isNotNull);
+    expect(find.byKey(const Key('policyRequiredError')), findsNothing);
 
     await tester.ensureVisible(find.widgetWithText(LoadingButton, 'Create account'));
     await tester.tap(find.widgetWithText(LoadingButton, 'Create account'));
@@ -104,9 +122,9 @@ void main() {
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'Asha');
     await tester.enterText(fields.at(1), 'Patel');
-    await tester.enterText(fields.at(2), '9876543210');
-    await tester.enterText(fields.at(3), 'Pass@123');
+    await tester.enterText(fields.at(2), 'asha@example.com');
     await tester.enterText(fields.at(4), 'Pass@123');
+    await tester.enterText(fields.at(5), 'Pass@123');
     await tester.ensureVisible(find.byKey(const Key('acceptPolicies')));
     await tester.tap(find.byKey(const Key('acceptPolicies')));
     await tester.pump();
@@ -115,6 +133,40 @@ void main() {
     await tester.tap(find.widgetWithText(LoadingButton, 'Create account'));
     await tester.pump();
 
-    expect(find.text('Use at least 10 characters'), findsOneWidget);
+    expect(find.text('Password must be at least 10 characters'), findsOneWidget);
+  });
+
+  testWidgets('asks for an email address, since every code goes by email', (tester) async {
+    final auth = await open(tester);
+    await fillForm(tester, email: '');
+
+    await acceptAndSubmit(tester);
+
+    expect(find.text('Enter your email address'), findsOneWidget);
+    expect(auth.contacts, isEmpty);
+  });
+
+  testWidgets('signs up with an email and no phone number', (tester) async {
+    final auth = await open(tester);
+    await fillForm(tester);
+
+    await acceptAndSubmit(tester);
+
+    expect(auth.contacts.single, {'email': 'asha@example.com', 'phone': null});
+  });
+
+  testWidgets('sends a phone number when one is given, and checks it', (tester) async {
+    final auth = await open(tester);
+    await fillForm(tester, phone: '12345');
+    await acceptAndSubmit(tester);
+    expect(find.text('Enter a valid phone number'), findsOneWidget);
+    expect(auth.contacts, isEmpty);
+
+    await tester.enterText(find.byType(TextFormField).at(3), '9876543210');
+    await tester.ensureVisible(find.widgetWithText(LoadingButton, 'Create account'));
+    await tester.tap(find.widgetWithText(LoadingButton, 'Create account'));
+    await tester.pumpAndSettle();
+
+    expect(auth.contacts.single, {'email': 'asha@example.com', 'phone': '9876543210'});
   });
 }

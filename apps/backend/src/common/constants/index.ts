@@ -188,6 +188,8 @@ export const ERROR_CODES = {
   USER_SUSPENDED: 'USER_SUSPENDED',
   USER_BANNED: 'USER_BANNED',
   EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
+  /** The person has not uploaded PAN or an identity document yet, which every earning feature needs. */
+  IDENTITY_VERIFICATION_REQUIRED: 'IDENTITY_VERIFICATION_REQUIRED',
 
   // Merchant
   MERCHANT_NOT_FOUND: 'MERCHANT_NOT_FOUND',

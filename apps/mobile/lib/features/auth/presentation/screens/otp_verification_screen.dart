@@ -77,12 +77,17 @@ class _ResendSubmitNotifier extends AsyncNotifier<void> {
 }
 
 /// Verifies the signed-in user's email or phone. Reached from a
-/// "verify now" prompt elsewhere in the app (e.g. the profile screen) —
+/// "verify now" prompt elsewhere in the app (e.g. the profile screen), or
+/// as the screen the router keeps an unverified account on ([mandatory]) —
 /// `send-otp`/`verify-otp` both require an authenticated session.
 class OtpVerificationScreen extends ConsumerStatefulWidget {
-  const OtpVerificationScreen({super.key, required this.type});
+  const OtpVerificationScreen({super.key, required this.type, this.mandatory = false});
 
   final OtpType type;
+
+  /// The account can't be used until the code is entered: no way back, only signing out (for a mistyped address).
+  /// A correct code reloads the profile, and the router then moves on into the app by itself.
+  final bool mandatory;
 
   @override
   ConsumerState<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -112,12 +117,14 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
   Future<void> _verify() async {
     final success = await ref.read(_verifySubmitProvider.notifier).verify(widget.type, _codeController.text.trim());
-    if (mounted && success) context.pop();
+    if (!mounted || !success || widget.mandatory) return;
+    context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final cooldownSeconds = ref.watch(_cooldownProvider);
+    final user = ref.watch(authStateProvider).value;
     final verifyState = ref.watch(_verifySubmitProvider);
     final resendState = ref.watch(_resendSubmitProvider);
     final errorMessage = verifyState.hasError
@@ -125,7 +132,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
         : (resendState.hasError ? resendState.error.toString() : null);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify your account')),
+      appBar: AppBar(
+        title: Text(widget.type == OtpType.emailVerification ? 'Verify your email' : 'Verify your account'),
+        automaticallyImplyLeading: !widget.mandatory,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -169,6 +179,25 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                         child: Text(resendState.isLoading ? 'Sending…' : 'Resend code'),
                       ),
               ),
+              if (widget.mandatory) ...[
+                const SizedBox(height: 24),
+                Text(
+                  user?.email == null
+                      ? 'Check your inbox and spam folder for an email from Viralkar.'
+                      : 'Sent to ${user!.email}. Check your inbox and spam folder for an email from Viralkar.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.slate500, height: 1.5),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    key: const Key('signOutFromVerification'),
+                    onPressed: () => ref.read(authStateProvider.notifier).logout(),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.slate500),
+                    child: const Text('Wrong email address? Sign out'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

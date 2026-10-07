@@ -10,15 +10,12 @@ import '../../../auth/providers/auth_providers.dart';
 import '../../data/models/notification_preference_model.dart';
 import '../../providers/settings_providers.dart';
 
-const _languages = {'en': 'English', 'hi': 'हिन्दी', 'gu': 'ગુજરાતી'};
-
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final preferencesAsync = ref.watch(notificationPreferencesProvider);
-    final user = ref.watch(authStateProvider).value;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -36,19 +33,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const _SectionHeader('Language'),
-          ..._languages.entries.map(
-            (entry) {
-              final isSelected = (user?.language ?? 'en') == entry.key;
-              return ListTile(
-                title: Text(entry.value),
-                trailing: isSelected
-                    ? const Icon(Icons.check_circle_rounded, color: AppColors.primary600)
-                    : const Icon(Icons.circle_outlined, color: AppColors.slate300),
-                onTap: () => ref.read(authStateProvider.notifier).updateProfile(language: entry.key),
-              );
-            },
-          ),
           const _SectionHeader('Security'),
           const _AppLockTile(),
           const _SectionHeader('Account'),
@@ -57,13 +41,6 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Change password'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(RoutePaths.changePassword),
-          ),
-          ListTile(
-            leading: const Icon(Icons.phone_iphone_rounded, color: AppColors.primary600),
-            title: const Text('Change phone number'),
-            subtitle: user?.phone == null ? null : Text(user!.phone!),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(RoutePaths.changePhone),
           ),
           const Divider(height: 1),
           ListTile(

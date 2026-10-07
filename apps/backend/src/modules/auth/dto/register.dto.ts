@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Equals, IsBoolean, IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
-import { PASSWORD_PATTERN, PASSWORD_PATTERN_MESSAGE, PASSWORD_POLICY } from '../constants';
+import { PASSWORD_POLICY, PHONE_PATTERN, PHONE_PATTERN_MESSAGE } from '../constants';
+import { IsPolicyPassword } from '../validators';
 
 import { DemographicsDto } from './demographics.dto';
 
@@ -18,22 +19,21 @@ export class RegisterDto extends DemographicsDto {
   @MaxLength(50)
   lastName!: string;
 
-  @ApiPropertyOptional({ example: 'john@example.com' })
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  /** Required: codes (verification, sign-in checks, password reset) go by email; SMS is not part of the product. */
+  @ApiProperty({ example: 'john@example.com' })
+  @IsEmail({}, { message: 'Enter a valid email address' })
+  email!: string;
 
+  /** Optional contact number. Never verified by SMS. */
   @ApiPropertyOptional({ example: '+919876543210' })
   @IsOptional()
   @IsString()
-  @Matches(/^\+?[1-9]\d{9,14}$/, { message: 'Phone must be in international format (e.g. +919876543210)' })
+  @Matches(PHONE_PATTERN, { message: PHONE_PATTERN_MESSAGE })
   phone?: string;
 
-  @ApiProperty({ example: 'Passw0rd!23' })
+  @ApiProperty({ example: 'Passw0rd!23', minLength: PASSWORD_POLICY.MIN_LENGTH, maxLength: PASSWORD_POLICY.MAX_LENGTH })
   @IsString()
-  @MinLength(PASSWORD_POLICY.MIN_LENGTH)
-  @MaxLength(PASSWORD_POLICY.MAX_LENGTH)
-  @Matches(PASSWORD_PATTERN, { message: PASSWORD_PATTERN_MESSAGE })
+  @IsPolicyPassword()
   password!: string;
 
   @ApiProperty({

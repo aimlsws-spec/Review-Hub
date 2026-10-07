@@ -32,8 +32,8 @@ class AuthInterceptor extends Interceptor {
     ApiEndpoints.loginResendDeviceCode,
     ApiEndpoints.register,
     ApiEndpoints.refresh,
-    ApiEndpoints.sendOtp,
-    ApiEndpoints.verifyOtp,
+    // send-otp / verify-otp / resend-otp are NOT here: the server only issues and checks those codes for the
+    // signed-in person, so leaving the token off made every email verification fail with a 401.
     ApiEndpoints.forgotPassword,
     ApiEndpoints.resetPassword,
   };

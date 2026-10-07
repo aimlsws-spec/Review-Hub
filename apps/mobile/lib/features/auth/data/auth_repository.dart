@@ -206,6 +206,8 @@ class AuthRepository {
     required String? gender,
     required String? stateId,
     required String? cityId,
+    // Contact number, saved without any code. Null leaves it as it is; an empty string removes it.
+    String? phone,
   }) async {
     try {
       final response = await _dio.patch<Map<String, dynamic>>(
@@ -217,6 +219,7 @@ class AuthRepository {
           'gender': gender,
           'stateId': stateId,
           'cityId': cityId,
+          'phone': ?phone,
         },
       );
       return Result.success(UserModel.fromJson(response.data!['data'] as Map<String, dynamic>));

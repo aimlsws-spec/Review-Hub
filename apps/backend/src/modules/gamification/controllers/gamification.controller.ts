@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
+import { RequiresIdentityVerification } from '../../user-kyc/decorators';
 import { DailyRewardService, GamificationService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.GAMIFICATION)
@@ -31,6 +32,7 @@ export class GamificationController {
   }
 
   @Post('daily-reward/claim')
+  @RequiresIdentityVerification()
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Claim today's reward (daily bonus / spin wheel / scratch card)" })

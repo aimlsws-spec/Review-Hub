@@ -7,6 +7,7 @@ import { CurrentUser } from '@common/decorators';
 import { FINANCE_ROLES } from '../../auth/constants';
 import { Roles } from '../../auth/decorators';
 import { RolesGuard } from '../../auth/guards';
+import { RequiresIdentityVerification } from '../../user-kyc/decorators';
 import { CreateWithdrawalDto, MarkWithdrawalFailedDto, MarkWithdrawalPaidDto, RejectWithdrawalDto } from '../dto';
 import { WithdrawalService } from '../services';
 
@@ -16,6 +17,7 @@ export class WithdrawalController {
   constructor(private readonly withdrawalService: WithdrawalService) {}
 
   @Post()
+  @RequiresIdentityVerification()
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Request a withdrawal' })

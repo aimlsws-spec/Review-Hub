@@ -124,6 +124,8 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       phone: user.phone,
+      firstName: user.firstName,
+      emailVerified: user.emailVerifiedAt !== null,
       referredById: user.referredById,
       referralCode: referrer ? input.referralCode : undefined,
     });
@@ -371,6 +373,8 @@ export class AuthService {
           userId: user.id,
           email: user.email,
           phone: user.phone,
+          firstName: user.firstName,
+          emailVerified: user.emailVerifiedAt !== null,
         });
       }
     }
@@ -519,14 +523,34 @@ export class AuthService {
     const user = await this.userRepository.findByIdSimple(userId);
     if (!user) throw new NotFoundException('User');
 
-    const { dateOfBirth, gender, stateId, cityId, ...basic } = data;
+    const { dateOfBirth, gender, stateId, cityId, phone, ...basic } = data;
     const { data: demographics, changed } = await this.demographicsService.resolve({ dateOfBirth, gender, stateId, cityId }, { stateId: user.stateId });
+    const contact = await this.resolvePhoneChange(userId, user.phone, phone);
 
-    await this.userRepository.update(userId, { ...basic, ...demographics });
+    await this.userRepository.update(userId, { ...basic, ...demographics, ...contact });
     // Personal details are logged as "changed", never with their values.
     this.eventEmitter.emit(AUTH_EVENTS.PROFILE_UPDATED, { userId, changes: { ...basic, ...changed } as Record<string, unknown> });
 
     return this.getProfile(userId);
+  }
+
+  /**
+   * A new contact number from the profile form. Phone is contact information only (codes go by email), so it is saved
+   * without an SMS code; it is still unique, because the number can be used to sign in.
+   */
+  private async resolvePhoneChange(
+    userId: string,
+    currentPhone: string | null,
+    phone: string | undefined,
+  ): Promise<{ phone?: string | null; phoneVerifiedAt?: null }> {
+    if (phone === undefined) return {};
+    const next = phone.trim() || null;
+    if (next === currentPhone) return {};
+    if (next) {
+      const owner = await this.userRepository.findByPhone(next);
+      if (owner && owner.id !== userId) throw new ConflictException('User', 'phone');
+    }
+    return { phone: next, phoneVerifiedAt: null };
   }
 
   async uploadAvatar(userId: string, file: Express.Multer.File): Promise<UserProfile> {

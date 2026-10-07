@@ -64,6 +64,39 @@ describe('RegisterPage', () => {
     expect(mutateMock).not.toHaveBeenCalled()
   })
 
+  it('refuses to register until the policies are accepted', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.type(screen.getByLabelText(/first name/i), 'Jane')
+    await user.type(screen.getByLabelText(/last name/i), 'Doe')
+    await user.type(screen.getByLabelText(/email address/i), 'jane@shop.com')
+    await user.type(screen.getByLabelText(/^password/i), 'Passw0rd!123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'Passw0rd!123')
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+
+    expect(
+      await screen.findByText('Please accept the Terms & Conditions, Privacy Policy and Reward Policy'),
+    ).toBeInTheDocument()
+    expect(mutateMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['short1!', 'Password must be at least 10 characters'],
+    ['alllowercase1!', 'Password must contain an uppercase letter'],
+    ['NoDigits!!!!', 'Password must contain a number'],
+    ['NoSymbol1234', 'Password must contain a special character (!@#$%^&*)'],
+  ])('rejects the weak password %s naming the missing rule', async (password, message) => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.type(screen.getByLabelText(/^password/i), password)
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(mutateMock).not.toHaveBeenCalled()
+  })
+
   it('registers, stores the session, and redirects on success', async () => {
     mutateMock.mockImplementation((_data, { onSuccess }: { onSuccess: (res: unknown) => void }) =>
       onSuccess({
@@ -140,6 +173,6 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/^password/i), 'Pass@123')
     await user.click(screen.getByRole('button', { name: /create account/i }))
 
-    expect(await screen.findByText(/minimum 10 characters/i)).toBeInTheDocument()
+    expect(await screen.findByText('Password must be at least 10 characters')).toBeInTheDocument()
   })
 })

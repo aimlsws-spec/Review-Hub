@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
+import { RequiresIdentityVerification } from '../../user-kyc/decorators';
 import { MarketplaceItemQueryDto, RedemptionQueryDto } from '../dto';
 import { MarketplaceService } from '../services';
 
@@ -21,6 +22,7 @@ export class MarketplaceController {
   }
 
   @Post('items/:itemId/redeem')
+  @RequiresIdentityVerification()
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Redeem a catalogue item with my wallet balance' })

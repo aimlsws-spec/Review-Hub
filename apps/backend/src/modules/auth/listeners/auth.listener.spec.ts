@@ -74,7 +74,7 @@ describe('AuthListener', () => {
       await listener.handlePhoneChanged({ userId: 'user-1', oldPhone: '+919876543210', newPhone: '+919811122233' });
 
       expect(mockSms.send).toHaveBeenCalledWith('+919876543210', expect.stringContaining('****2233'));
-      expect(mockEmailQueue.enqueue).toHaveBeenCalledWith(expect.objectContaining({ to: 'john@example.com', subject: 'Your phone number was changed' }));
+      expect(mockEmailQueue.enqueue).toHaveBeenCalledWith(expect.objectContaining({ to: 'john@example.com', subject: 'Your Viralkar phone number was changed' }));
       const audit = JSON.stringify(mockPrisma.auditLog.create.mock.calls[0][0]);
       expect(audit).not.toContain('9876543210');
       expect(audit).not.toContain('9811122233');
@@ -86,6 +86,39 @@ describe('AuthListener', () => {
       await listener.handlePhoneChanged({ userId: 'user-1', oldPhone: null, newPhone: '+919811122233' });
 
       expect(mockSms.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('welcome email', () => {
+    const welcomed = () =>
+      mockEmailQueue.enqueue.mock.calls.filter(([mail]) => String(mail.subject).startsWith('Welcome to Viralkar'));
+
+    it('waits for a password sign-up to verify its email: the first email it gets is the code', async () => {
+      await listener.handleUserRegistered({ userId: 'user-1', email: 'new@example.com', phone: null, firstName: 'Asha', emailVerified: false });
+
+      expect(welcomed()).toHaveLength(0);
+    });
+
+    it('welcomes once the email is verified', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ email: 'new@example.com', firstName: 'Asha' });
+
+      await listener.handleOtpVerified({ userId: 'user-1', type: 'EMAIL_VERIFICATION' });
+
+      expect(welcomed()).toHaveLength(1);
+      expect(welcomed()[0][0]).toMatchObject({ to: 'new@example.com' });
+      expect(welcomed()[0][0].html).toContain('Hi Asha,');
+    });
+
+    it('welcomes a Google sign-up straight away, since it arrives verified', async () => {
+      await listener.handleUserRegistered({ userId: 'user-1', email: 'g@example.com', phone: null, firstName: 'Ravi', emailVerified: true });
+
+      expect(welcomed()).toHaveLength(1);
+    });
+
+    it('sends nothing for other kinds of code', async () => {
+      await listener.handleOtpVerified({ userId: 'user-1', type: 'PASSWORD_RESET' });
+
+      expect(welcomed()).toHaveLength(0);
     });
   });
 

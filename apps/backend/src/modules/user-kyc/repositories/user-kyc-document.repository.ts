@@ -33,6 +33,18 @@ export class UserKycDocumentRepository {
     });
   }
 
+  /** Whether the person has any of these document types in one of these statuses. */
+  async existsWithTypeAndStatus(
+    userId: string,
+    documentTypes: readonly UserDocumentType[],
+    statuses: readonly DocumentVerificationStatus[],
+  ): Promise<boolean> {
+    const count = await this.prisma.userKycDocument.count({
+      where: { userId, deletedAt: null, documentType: { in: [...documentTypes] }, verificationStatus: { in: [...statuses] } },
+    });
+    return count > 0;
+  }
+
   async create(data: Prisma.UserKycDocumentCreateInput) {
     return this.prisma.userKycDocument.create({ data });
   }

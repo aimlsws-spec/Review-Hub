@@ -34,6 +34,11 @@ Future<void> main() async {
   // the auth feature (see the Core Layer rule); this composition root is the
   // one place allowed to wire the two together.
   final container = ProviderContainer(
+    // Riverpod 3 retries every failed provider up to 10 times by default (~38 s), keeping the screen on its spinner
+    // the whole time — even for answers a retry cannot change, like a 404. Transient failures (timeouts, dropped
+    // connections, 5xx) are already retried by Dio's RetryInterceptor, and screens offer "Try again", so failures
+    // are shown straight away instead.
+    retry: (retryCount, error) => null,
     overrides: [
       pushTokenSyncProvider.overrideWith((ref) {
         return (token) async {

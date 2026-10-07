@@ -16,6 +16,11 @@ final _obscurePasswordProvider = StateProvider.autoDispose<bool>((ref) => true);
 final _obscureConfirmPasswordProvider = StateProvider.autoDispose<bool>((ref) => true);
 final _acceptedPoliciesProvider = StateProvider.autoDispose<bool>((ref) => false);
 
+/// Set when Create account is tapped before the policies are accepted, so the person is told why nothing happened.
+final _showPolicyErrorProvider = StateProvider.autoDispose<bool>((ref) => false);
+
+const _policyRequiredMessage = 'Please accept the Terms & Conditions, Privacy Policy and Reward Policy';
+
 final _registerSubmitProvider =
     AsyncNotifierProvider.autoDispose<_RegisterSubmitNotifier, void>(_RegisterSubmitNotifier.new);
 
@@ -26,7 +31,8 @@ class _RegisterSubmitNotifier extends AsyncNotifier<void> {
   Future<bool> submit({
     required String firstName,
     required String lastName,
-    required String phone,
+    required String email,
+    String? phone,
     required String password,
     String? referralCode,
   }) async {
@@ -34,6 +40,7 @@ class _RegisterSubmitNotifier extends AsyncNotifier<void> {
     final result = await ref.read(authStateProvider.notifier).register(
           firstName: firstName,
           lastName: lastName,
+          email: email,
           phone: phone,
           password: password,
           // The screen only submits once the box is ticked; the server refuses the sign-up without it anyway.
@@ -60,6 +67,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -82,6 +90,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -90,13 +99,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (!ref.read(_acceptedPoliciesProvider)) return;
+    final acceptedPolicies = ref.read(_acceptedPoliciesProvider);
+    ref.read(_showPolicyErrorProvider.notifier).state = !acceptedPolicies;
+    final formValid = _formKey.currentState!.validate();
+    if (!formValid || !acceptedPolicies) return;
 
     final success = await ref.read(_registerSubmitProvider.notifier).submit(
           firstName: _firstNameController.text.trim(),
           lastName: _lastNameController.text.trim(),
-          phone: _phoneController.text.trim(),
+          email: _emailController.text.trim(),
+          phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
           password: _passwordController.text,
           referralCode: _referralCodeController.text.trim().isEmpty ? null : _referralCodeController.text.trim(),
         );
@@ -111,6 +123,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final obscurePassword = ref.watch(_obscurePasswordProvider);
     final obscureConfirmPassword = ref.watch(_obscureConfirmPasswordProvider);
     final acceptedPolicies = ref.watch(_acceptedPoliciesProvider);
+    final showPolicyError = ref.watch(_showPolicyErrorProvider);
     final errorMessage = submitState.hasError ? submitState.error.toString() : null;
 
     return Scaffold(
@@ -165,11 +178,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  label: 'Email',
+                  // Every code (verification, password reset) goes to this address.
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter your email address';
+                    return AppConstants.emailPattern.hasMatch(v.trim()) ? null : 'Enter a valid email address';
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  label: 'Phone',
+                  label: 'Phone (optional)',
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Enter a phone number';
+                    if (v == null || v.trim().isEmpty) return null;
                     return AppConstants.phonePattern.hasMatch(v.trim()) ? null : 'Enter a valid phone number';
                   },
                 ),
@@ -216,22 +240,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       child: Checkbox(
                         key: const Key('acceptPolicies'),
                         value: acceptedPolicies,
-                        onChanged: (v) => ref.read(_acceptedPoliciesProvider.notifier).state = v ?? false,
+                        onChanged: (v) {
+                          ref.read(_acceptedPoliciesProvider.notifier).state = v ?? false;
+                          if (v ?? false) ref.read(_showPolicyErrorProvider.notifier).state = false;
+                        },
                         activeColor: AppColors.orange500,
-                        side: const BorderSide(color: AppColors.slate300),
+                        side: BorderSide(color: showPolicyError ? AppColors.danger : AppColors.slate300),
                       ),
                     ),
                     const SizedBox(width: 10),
                     const Expanded(child: PolicyLinks(prefix: 'I have read and accept the')),
                   ],
                 ),
+                if (showPolicyError)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8, left: 34),
+                    child: Text(
+                      _policyRequiredMessage,
+                      key: Key('policyRequiredError'),
+                      style: TextStyle(color: AppColors.danger, fontSize: 12.5),
+                    ),
+                  ),
                 const SizedBox(height: 24),
                 LoadingButton(
                   label: 'Create account',
                   isLoading: submitState.isLoading,
                   gradient: true,
-                  // Disabled until the policies are accepted (FR-008).
-                  onPressed: acceptedPolicies ? _submit : null,
+                  // Always tappable: submitting without accepting the policies (FR-008) is refused with a message, which
+                  // a greyed-out button would not explain.
+                  onPressed: _submit,
                 ),
                 const SizedBox(height: 24),
                 const Row(

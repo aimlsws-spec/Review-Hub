@@ -8,6 +8,7 @@ import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
 
 import { DraftReviewDto } from '../../ai/dto';
+import { RequiresIdentityVerification } from '../../user-kyc/decorators';
 import { SubmitTaskDto, TaskIssueDto } from '../dto';
 import { TaskParticipationService } from '../services';
 
@@ -20,6 +21,7 @@ export class TaskParticipationController {
   constructor(private readonly participationService: TaskParticipationService) {}
 
   @Post(':taskId/start')
+  @RequiresIdentityVerification()
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Join the campaign and start this task' })
@@ -78,6 +80,7 @@ export class TaskParticipationController {
   }
 
   @Post(':taskId/submit')
+  @RequiresIdentityVerification()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('file'))
   @ApiBearerAuth()

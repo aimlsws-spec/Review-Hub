@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
 
+import { htmlToPlainText, renderEmailLayout } from './templates';
+
 export interface SendMailOptions {
   to: string | string[];
   subject: string;
@@ -11,6 +13,8 @@ export interface SendMailOptions {
   cc?: string | string[];
   bcc?: string | string[];
   replyTo?: string;
+  /** The preview line inbox lists show after the subject. */
+  preheader?: string;
 }
 
 @Injectable()
@@ -42,11 +46,23 @@ export class MailService implements OnModuleInit {
     }
   }
 
+  /**
+   * Sends one email. A body that is not already a full HTML document is wrapped in the Viralkar layout, so every
+   * message carries the same branding without each sender repeating it; a plain-text version is added for mail apps
+   * that do not show HTML.
+   */
   async send(options: SendMailOptions): Promise<void> {
     const from = `"${this.config.get<string>('smtp.fromName', 'Viralkar')}" <${this.config.get<string>('smtp.fromEmail')}>`;
+    const { preheader, html, text, ...rest } = options;
+    const isFullDocument = /<html[\s>]/i.test(html);
 
     try {
-      await this.transporter.sendMail({ from, ...options });
+      await this.transporter.sendMail({
+        from,
+        ...rest,
+        html: isFullDocument ? html : renderEmailLayout(html, preheader),
+        text: text ?? htmlToPlainText(html),
+      });
       this.logger.log(`Email sent to ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`);
     } catch (error) {
       this.logger.error('Failed to send email', error instanceof Error ? error.message : String(error));

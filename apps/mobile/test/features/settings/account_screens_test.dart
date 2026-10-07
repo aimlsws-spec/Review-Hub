@@ -9,7 +9,6 @@ import 'package:viral_kar/features/auth/data/models/phone_change_request_model.d
 import 'package:viral_kar/features/auth/data/models/user_model.dart';
 import 'package:viral_kar/features/auth/presentation/screens/new_device_verification_screen.dart';
 import 'package:viral_kar/features/auth/providers/auth_providers.dart';
-import 'package:viral_kar/features/settings/presentation/screens/change_phone_screen.dart';
 import 'package:viral_kar/features/settings/presentation/screens/delete_account_screen.dart';
 
 import '../../support/router_harness.dart';
@@ -136,44 +135,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(auth.deletePasswords, [null]);
-    });
-  });
-
-  group('ChangePhoneScreen', () {
-    testWidgets('sends a code to the new number, then confirms with it', (tester) async {
-      final auth = _FakeAuth();
-      final repository = _FakeRepository();
-      await _pump(tester, const ChangePhoneScreen(), auth: auth, repository: repository);
-
-      expect(find.text('Your current number is +919876543210.'), findsOneWidget);
-      await tester.enterText(find.byKey(const Key('newPhone')), '9811122233');
-      await tester.enterText(find.byKey(const Key('currentPassword')), 'Passw0rd!23');
-      await tester.tap(find.text('Send code'));
-      await tester.pumpAndSettle();
-
-      expect(repository.phoneRequests.single, {'newPhone': '9811122233', 'currentPassword': 'Passw0rd!23'});
-      expect(find.text('Enter the code we sent by SMS to ****2233.'), findsOneWidget);
-
-      await tester.enterText(find.byKey(const Key('phoneCode')), '123456');
-      await tester.tap(find.text('Confirm new number'));
-      await tester.pumpAndSettle();
-
-      expect(repository.phoneCodes, ['123456']);
-      expect(auth.refreshed, 1);
-      expect(find.text('Root'), findsOneWidget);
-    });
-
-    testWidgets('refuses a malformed number before sending anything', (tester) async {
-      final repository = _FakeRepository();
-      await _pump(tester, const ChangePhoneScreen(), repository: repository);
-
-      await tester.enterText(find.byKey(const Key('newPhone')), '12345');
-      await tester.enterText(find.byKey(const Key('currentPassword')), 'Passw0rd!23');
-      await tester.tap(find.text('Send code'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Enter a valid phone number'), findsOneWidget);
-      expect(repository.phoneRequests, isEmpty);
     });
   });
 

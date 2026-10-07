@@ -72,6 +72,8 @@ export interface DemographicsInput {
 export interface UpdateProfileInput extends DemographicsInput {
   firstName?: string;
   lastName?: string;
+  /** Empty string removes the number. */
+  phone?: string;
   timezone?: string;
   language?: string;
 }
