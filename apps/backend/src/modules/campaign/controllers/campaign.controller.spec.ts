@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MerchantRepository, MerchantTeamRepository } from '../../merchant/repositories';
 import { CampaignOwnershipGuard } from '../guards';
 import { CampaignRepository } from '../repositories';
-import { CampaignService } from '../services';
+import { CampaignCoverService, CampaignService } from '../services';
 
 import { CampaignController } from './campaign.controller';
 
@@ -12,6 +12,7 @@ describe('CampaignController', () => {
 
   const mockCampaignService = {
     getById: jest.fn(),
+    getForOwner: jest.fn(),
     update: jest.fn(),
     submitForApproval: jest.fn(),
     activate: jest.fn(),
@@ -20,12 +21,14 @@ describe('CampaignController', () => {
     cancel: jest.fn(),
     remove: jest.fn(),
   };
+  const mockCoverService = { setCover: jest.fn(), removeCover: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CampaignController],
       providers: [
         { provide: CampaignService, useValue: mockCampaignService },
+        { provide: CampaignCoverService, useValue: mockCoverService },
         CampaignOwnershipGuard,
         { provide: CampaignRepository, useValue: {} },
         { provide: MerchantRepository, useValue: {} },
@@ -42,9 +45,22 @@ describe('CampaignController', () => {
   });
 
   describe('getOne', () => {
-    it('should call campaignService.getById', async () => {
+    it('should call campaignService.getForOwner', async () => {
       await controller.getOne('campaign-1');
-      expect(mockCampaignService.getById).toHaveBeenCalledWith('campaign-1');
+      expect(mockCampaignService.getForOwner).toHaveBeenCalledWith('campaign-1');
+    });
+  });
+
+  describe('cover image', () => {
+    it('passes the uploaded picture to the cover service', async () => {
+      const file = { originalname: 'cover.jpg', mimetype: 'image/jpeg' } as Express.Multer.File;
+      await controller.setCover('campaign-1', file);
+      expect(mockCoverService.setCover).toHaveBeenCalledWith('campaign-1', file);
+    });
+
+    it('removes the cover', async () => {
+      await controller.removeCover('campaign-1');
+      expect(mockCoverService.removeCover).toHaveBeenCalledWith('campaign-1');
     });
   });
 

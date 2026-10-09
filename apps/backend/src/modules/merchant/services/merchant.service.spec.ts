@@ -183,6 +183,35 @@ describe('MerchantService', () => {
       const result = await service.updateProfile('merchant-1', { businessName: 'Updated Corp' });
       expect(result).toHaveProperty('businessName', 'Updated Corp');
     });
+
+    it('saves the store location so the app can sort campaigns by distance', async () => {
+      mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
+      mockMerchantRepository.update.mockResolvedValue({ ...mockMerchant, latitude: 23.0225, longitude: 72.5714 });
+
+      await service.updateProfile('merchant-1', { latitude: 23.0225, longitude: 72.5714 });
+
+      expect(mockMerchantRepository.update).toHaveBeenCalledWith('merchant-1', { latitude: 23.0225, longitude: 72.5714 });
+    });
+
+    it('clears the store location when both halves are null', async () => {
+      mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
+      mockMerchantRepository.update.mockResolvedValue(mockMerchant);
+
+      await service.updateProfile('merchant-1', { latitude: null, longitude: null });
+
+      expect(mockMerchantRepository.update).toHaveBeenCalledWith('merchant-1', { latitude: null, longitude: null });
+    });
+
+    it.each([
+      [{ latitude: 23.0225 }],
+      [{ longitude: 72.5714 }],
+      [{ latitude: 23.0225, longitude: null }],
+    ])('refuses half a store location (%o)', async (dto) => {
+      mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
+
+      await expect(service.updateProfile('merchant-1', dto)).rejects.toThrow('Send the store latitude and longitude together');
+      expect(mockMerchantRepository.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('getVerificationStatus', () => {

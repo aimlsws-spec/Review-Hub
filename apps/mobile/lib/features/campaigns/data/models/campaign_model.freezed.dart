@@ -15,7 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CampaignModel {
 
- String get id; String get title; String get slug; String? get shortDescription; String get description; String? get thumbnailUrl; String? get bannerUrl; String get campaignType; String get status; String get rewardType; String get rewardAmount; int? get maxParticipants; int get currentParticipants; DateTime? get startAt; DateTime? get endAt; bool get featured;
+ String get id; String get title; String get slug; String? get shortDescription; String get description; String? get thumbnailUrl; String? get bannerUrl; String get campaignType; String get status; String get rewardType; String get rewardAmount; int? get maxParticipants; int get currentParticipants; DateTime? get startAt; DateTime? get endAt; bool get featured;/// Metres from the phone to the merchant's store, sent only when sorting by "Nearest"; null when the store has no
+/// location (those come last).
+ double? get distanceMeters;
 /// Create a copy of CampaignModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +30,16 @@ $CampaignModelCopyWith<CampaignModel> get copyWith => _$CampaignModelCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CampaignModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.shortDescription, shortDescription) || other.shortDescription == shortDescription)&&(identical(other.description, description) || other.description == description)&&(identical(other.thumbnailUrl, thumbnailUrl) || other.thumbnailUrl == thumbnailUrl)&&(identical(other.bannerUrl, bannerUrl) || other.bannerUrl == bannerUrl)&&(identical(other.campaignType, campaignType) || other.campaignType == campaignType)&&(identical(other.status, status) || other.status == status)&&(identical(other.rewardType, rewardType) || other.rewardType == rewardType)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.maxParticipants, maxParticipants) || other.maxParticipants == maxParticipants)&&(identical(other.currentParticipants, currentParticipants) || other.currentParticipants == currentParticipants)&&(identical(other.startAt, startAt) || other.startAt == startAt)&&(identical(other.endAt, endAt) || other.endAt == endAt)&&(identical(other.featured, featured) || other.featured == featured));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CampaignModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.shortDescription, shortDescription) || other.shortDescription == shortDescription)&&(identical(other.description, description) || other.description == description)&&(identical(other.thumbnailUrl, thumbnailUrl) || other.thumbnailUrl == thumbnailUrl)&&(identical(other.bannerUrl, bannerUrl) || other.bannerUrl == bannerUrl)&&(identical(other.campaignType, campaignType) || other.campaignType == campaignType)&&(identical(other.status, status) || other.status == status)&&(identical(other.rewardType, rewardType) || other.rewardType == rewardType)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.maxParticipants, maxParticipants) || other.maxParticipants == maxParticipants)&&(identical(other.currentParticipants, currentParticipants) || other.currentParticipants == currentParticipants)&&(identical(other.startAt, startAt) || other.startAt == startAt)&&(identical(other.endAt, endAt) || other.endAt == endAt)&&(identical(other.featured, featured) || other.featured == featured)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,slug,shortDescription,description,thumbnailUrl,bannerUrl,campaignType,status,rewardType,rewardAmount,maxParticipants,currentParticipants,startAt,endAt,featured);
+int get hashCode => Object.hash(runtimeType,id,title,slug,shortDescription,description,thumbnailUrl,bannerUrl,campaignType,status,rewardType,rewardAmount,maxParticipants,currentParticipants,startAt,endAt,featured,distanceMeters);
 
 @override
 String toString() {
-  return 'CampaignModel(id: $id, title: $title, slug: $slug, shortDescription: $shortDescription, description: $description, thumbnailUrl: $thumbnailUrl, bannerUrl: $bannerUrl, campaignType: $campaignType, status: $status, rewardType: $rewardType, rewardAmount: $rewardAmount, maxParticipants: $maxParticipants, currentParticipants: $currentParticipants, startAt: $startAt, endAt: $endAt, featured: $featured)';
+  return 'CampaignModel(id: $id, title: $title, slug: $slug, shortDescription: $shortDescription, description: $description, thumbnailUrl: $thumbnailUrl, bannerUrl: $bannerUrl, campaignType: $campaignType, status: $status, rewardType: $rewardType, rewardAmount: $rewardAmount, maxParticipants: $maxParticipants, currentParticipants: $currentParticipants, startAt: $startAt, endAt: $endAt, featured: $featured, distanceMeters: $distanceMeters)';
 }
 
 
@@ -48,7 +50,7 @@ abstract mixin class $CampaignModelCopyWith<$Res>  {
   factory $CampaignModelCopyWith(CampaignModel value, $Res Function(CampaignModel) _then) = _$CampaignModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String title, String slug, String? shortDescription, String description, String? thumbnailUrl, String? bannerUrl, String campaignType, String status, String rewardType, String rewardAmount, int? maxParticipants, int currentParticipants, DateTime? startAt, DateTime? endAt, bool featured
+ String id, String title, String slug, String? shortDescription, String description, String? thumbnailUrl, String? bannerUrl, String campaignType, String status, String rewardType, String rewardAmount, int? maxParticipants, int currentParticipants, DateTime? startAt, DateTime? endAt, bool featured, double? distanceMeters
 });
 
 
@@ -65,7 +67,7 @@ class _$CampaignModelCopyWithImpl<$Res>
 
 /// Create a copy of CampaignModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? slug = null,Object? shortDescription = freezed,Object? description = null,Object? thumbnailUrl = freezed,Object? bannerUrl = freezed,Object? campaignType = null,Object? status = null,Object? rewardType = null,Object? rewardAmount = null,Object? maxParticipants = freezed,Object? currentParticipants = null,Object? startAt = freezed,Object? endAt = freezed,Object? featured = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? slug = null,Object? shortDescription = freezed,Object? description = null,Object? thumbnailUrl = freezed,Object? bannerUrl = freezed,Object? campaignType = null,Object? status = null,Object? rewardType = null,Object? rewardAmount = null,Object? maxParticipants = freezed,Object? currentParticipants = null,Object? startAt = freezed,Object? endAt = freezed,Object? featured = null,Object? distanceMeters = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -83,7 +85,8 @@ as int?,currentParticipants: null == currentParticipants ? _self.currentParticip
 as int,startAt: freezed == startAt ? _self.startAt : startAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,endAt: freezed == endAt ? _self.endAt : endAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,featured: null == featured ? _self.featured : featured // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,distanceMeters: freezed == distanceMeters ? _self.distanceMeters : distanceMeters // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -168,10 +171,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  String slug,  String? shortDescription,  String description,  String? thumbnailUrl,  String? bannerUrl,  String campaignType,  String status,  String rewardType,  String rewardAmount,  int? maxParticipants,  int currentParticipants,  DateTime? startAt,  DateTime? endAt,  bool featured)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  String slug,  String? shortDescription,  String description,  String? thumbnailUrl,  String? bannerUrl,  String campaignType,  String status,  String rewardType,  String rewardAmount,  int? maxParticipants,  int currentParticipants,  DateTime? startAt,  DateTime? endAt,  bool featured,  double? distanceMeters)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CampaignModel() when $default != null:
-return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.description,_that.thumbnailUrl,_that.bannerUrl,_that.campaignType,_that.status,_that.rewardType,_that.rewardAmount,_that.maxParticipants,_that.currentParticipants,_that.startAt,_that.endAt,_that.featured);case _:
+return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.description,_that.thumbnailUrl,_that.bannerUrl,_that.campaignType,_that.status,_that.rewardType,_that.rewardAmount,_that.maxParticipants,_that.currentParticipants,_that.startAt,_that.endAt,_that.featured,_that.distanceMeters);case _:
   return orElse();
 
 }
@@ -189,10 +192,10 @@ return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.des
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  String slug,  String? shortDescription,  String description,  String? thumbnailUrl,  String? bannerUrl,  String campaignType,  String status,  String rewardType,  String rewardAmount,  int? maxParticipants,  int currentParticipants,  DateTime? startAt,  DateTime? endAt,  bool featured)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  String slug,  String? shortDescription,  String description,  String? thumbnailUrl,  String? bannerUrl,  String campaignType,  String status,  String rewardType,  String rewardAmount,  int? maxParticipants,  int currentParticipants,  DateTime? startAt,  DateTime? endAt,  bool featured,  double? distanceMeters)  $default,) {final _that = this;
 switch (_that) {
 case _CampaignModel():
-return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.description,_that.thumbnailUrl,_that.bannerUrl,_that.campaignType,_that.status,_that.rewardType,_that.rewardAmount,_that.maxParticipants,_that.currentParticipants,_that.startAt,_that.endAt,_that.featured);case _:
+return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.description,_that.thumbnailUrl,_that.bannerUrl,_that.campaignType,_that.status,_that.rewardType,_that.rewardAmount,_that.maxParticipants,_that.currentParticipants,_that.startAt,_that.endAt,_that.featured,_that.distanceMeters);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -209,10 +212,10 @@ return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.des
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  String slug,  String? shortDescription,  String description,  String? thumbnailUrl,  String? bannerUrl,  String campaignType,  String status,  String rewardType,  String rewardAmount,  int? maxParticipants,  int currentParticipants,  DateTime? startAt,  DateTime? endAt,  bool featured)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  String slug,  String? shortDescription,  String description,  String? thumbnailUrl,  String? bannerUrl,  String campaignType,  String status,  String rewardType,  String rewardAmount,  int? maxParticipants,  int currentParticipants,  DateTime? startAt,  DateTime? endAt,  bool featured,  double? distanceMeters)?  $default,) {final _that = this;
 switch (_that) {
 case _CampaignModel() when $default != null:
-return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.description,_that.thumbnailUrl,_that.bannerUrl,_that.campaignType,_that.status,_that.rewardType,_that.rewardAmount,_that.maxParticipants,_that.currentParticipants,_that.startAt,_that.endAt,_that.featured);case _:
+return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.description,_that.thumbnailUrl,_that.bannerUrl,_that.campaignType,_that.status,_that.rewardType,_that.rewardAmount,_that.maxParticipants,_that.currentParticipants,_that.startAt,_that.endAt,_that.featured,_that.distanceMeters);case _:
   return null;
 
 }
@@ -224,7 +227,7 @@ return $default(_that.id,_that.title,_that.slug,_that.shortDescription,_that.des
 @JsonSerializable()
 
 class _CampaignModel implements CampaignModel {
-  const _CampaignModel({required this.id, required this.title, required this.slug, this.shortDescription, required this.description, this.thumbnailUrl, this.bannerUrl, required this.campaignType, required this.status, required this.rewardType, required this.rewardAmount, this.maxParticipants, this.currentParticipants = 0, this.startAt, this.endAt, this.featured = false});
+  const _CampaignModel({required this.id, required this.title, required this.slug, this.shortDescription, required this.description, this.thumbnailUrl, this.bannerUrl, required this.campaignType, required this.status, required this.rewardType, required this.rewardAmount, this.maxParticipants, this.currentParticipants = 0, this.startAt, this.endAt, this.featured = false, this.distanceMeters});
   factory _CampaignModel.fromJson(Map<String, dynamic> json) => _$CampaignModelFromJson(json);
 
 @override final  String id;
@@ -243,6 +246,9 @@ class _CampaignModel implements CampaignModel {
 @override final  DateTime? startAt;
 @override final  DateTime? endAt;
 @override@JsonKey() final  bool featured;
+/// Metres from the phone to the merchant's store, sent only when sorting by "Nearest"; null when the store has no
+/// location (those come last).
+@override final  double? distanceMeters;
 
 /// Create a copy of CampaignModel
 /// with the given fields replaced by the non-null parameter values.
@@ -257,16 +263,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CampaignModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.shortDescription, shortDescription) || other.shortDescription == shortDescription)&&(identical(other.description, description) || other.description == description)&&(identical(other.thumbnailUrl, thumbnailUrl) || other.thumbnailUrl == thumbnailUrl)&&(identical(other.bannerUrl, bannerUrl) || other.bannerUrl == bannerUrl)&&(identical(other.campaignType, campaignType) || other.campaignType == campaignType)&&(identical(other.status, status) || other.status == status)&&(identical(other.rewardType, rewardType) || other.rewardType == rewardType)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.maxParticipants, maxParticipants) || other.maxParticipants == maxParticipants)&&(identical(other.currentParticipants, currentParticipants) || other.currentParticipants == currentParticipants)&&(identical(other.startAt, startAt) || other.startAt == startAt)&&(identical(other.endAt, endAt) || other.endAt == endAt)&&(identical(other.featured, featured) || other.featured == featured));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CampaignModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.shortDescription, shortDescription) || other.shortDescription == shortDescription)&&(identical(other.description, description) || other.description == description)&&(identical(other.thumbnailUrl, thumbnailUrl) || other.thumbnailUrl == thumbnailUrl)&&(identical(other.bannerUrl, bannerUrl) || other.bannerUrl == bannerUrl)&&(identical(other.campaignType, campaignType) || other.campaignType == campaignType)&&(identical(other.status, status) || other.status == status)&&(identical(other.rewardType, rewardType) || other.rewardType == rewardType)&&(identical(other.rewardAmount, rewardAmount) || other.rewardAmount == rewardAmount)&&(identical(other.maxParticipants, maxParticipants) || other.maxParticipants == maxParticipants)&&(identical(other.currentParticipants, currentParticipants) || other.currentParticipants == currentParticipants)&&(identical(other.startAt, startAt) || other.startAt == startAt)&&(identical(other.endAt, endAt) || other.endAt == endAt)&&(identical(other.featured, featured) || other.featured == featured)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,slug,shortDescription,description,thumbnailUrl,bannerUrl,campaignType,status,rewardType,rewardAmount,maxParticipants,currentParticipants,startAt,endAt,featured);
+int get hashCode => Object.hash(runtimeType,id,title,slug,shortDescription,description,thumbnailUrl,bannerUrl,campaignType,status,rewardType,rewardAmount,maxParticipants,currentParticipants,startAt,endAt,featured,distanceMeters);
 
 @override
 String toString() {
-  return 'CampaignModel(id: $id, title: $title, slug: $slug, shortDescription: $shortDescription, description: $description, thumbnailUrl: $thumbnailUrl, bannerUrl: $bannerUrl, campaignType: $campaignType, status: $status, rewardType: $rewardType, rewardAmount: $rewardAmount, maxParticipants: $maxParticipants, currentParticipants: $currentParticipants, startAt: $startAt, endAt: $endAt, featured: $featured)';
+  return 'CampaignModel(id: $id, title: $title, slug: $slug, shortDescription: $shortDescription, description: $description, thumbnailUrl: $thumbnailUrl, bannerUrl: $bannerUrl, campaignType: $campaignType, status: $status, rewardType: $rewardType, rewardAmount: $rewardAmount, maxParticipants: $maxParticipants, currentParticipants: $currentParticipants, startAt: $startAt, endAt: $endAt, featured: $featured, distanceMeters: $distanceMeters)';
 }
 
 
@@ -277,7 +283,7 @@ abstract mixin class _$CampaignModelCopyWith<$Res> implements $CampaignModelCopy
   factory _$CampaignModelCopyWith(_CampaignModel value, $Res Function(_CampaignModel) _then) = __$CampaignModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title, String slug, String? shortDescription, String description, String? thumbnailUrl, String? bannerUrl, String campaignType, String status, String rewardType, String rewardAmount, int? maxParticipants, int currentParticipants, DateTime? startAt, DateTime? endAt, bool featured
+ String id, String title, String slug, String? shortDescription, String description, String? thumbnailUrl, String? bannerUrl, String campaignType, String status, String rewardType, String rewardAmount, int? maxParticipants, int currentParticipants, DateTime? startAt, DateTime? endAt, bool featured, double? distanceMeters
 });
 
 
@@ -294,7 +300,7 @@ class __$CampaignModelCopyWithImpl<$Res>
 
 /// Create a copy of CampaignModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? slug = null,Object? shortDescription = freezed,Object? description = null,Object? thumbnailUrl = freezed,Object? bannerUrl = freezed,Object? campaignType = null,Object? status = null,Object? rewardType = null,Object? rewardAmount = null,Object? maxParticipants = freezed,Object? currentParticipants = null,Object? startAt = freezed,Object? endAt = freezed,Object? featured = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? slug = null,Object? shortDescription = freezed,Object? description = null,Object? thumbnailUrl = freezed,Object? bannerUrl = freezed,Object? campaignType = null,Object? status = null,Object? rewardType = null,Object? rewardAmount = null,Object? maxParticipants = freezed,Object? currentParticipants = null,Object? startAt = freezed,Object? endAt = freezed,Object? featured = null,Object? distanceMeters = freezed,}) {
   return _then(_CampaignModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -312,7 +318,8 @@ as int?,currentParticipants: null == currentParticipants ? _self.currentParticip
 as int,startAt: freezed == startAt ? _self.startAt : startAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,endAt: freezed == endAt ? _self.endAt : endAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,featured: null == featured ? _self.featured : featured // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,distanceMeters: freezed == distanceMeters ? _self.distanceMeters : distanceMeters // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 

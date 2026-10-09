@@ -93,6 +93,14 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.emoji_events_outlined, color: AppColors.primary600),
+                  title: const Text('My campaigns'),
+                  subtitle: const Text('In progress and completed'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(RoutePaths.myCampaigns),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.history_rounded, color: AppColors.primary600),
                   title: const Text('My submissions'),
                   trailing: const Icon(Icons.chevron_right),

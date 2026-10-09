@@ -2,7 +2,7 @@ import { StatusBadge, EmptyState, ErrorState, TableSkeleton, Pagination } from '
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { ROUTES, ITEMS_PER_PAGE, REWARD_TYPE_LABELS } from '@/constants'
+import { ROUTES, ITEMS_PER_PAGE } from '@/constants'
 import { useMerchantRewardsQuery } from '@/hooks/useRewards'
 import { useAuthStore } from '@/stores/auth.store'
 import { formatCurrency, formatDateTime, getInitials } from '@/utils'
@@ -70,7 +70,7 @@ export default function RewardsPage() {
                   </td>
                   <td className="table-td text-gray-500">{reward.campaign?.title ?? '—'}</td>
                   <td className="table-td font-semibold text-gray-900">
-                    {formatCurrency(reward.amount)} <span className="font-normal text-gray-400">({REWARD_TYPE_LABELS[reward.rewardType] ?? reward.rewardType})</span>
+                    {formatCurrency(reward.amount)}
                   </td>
                   <td className="table-td"><StatusBadge status={reward.status} /></td>
                   <td className="table-td text-gray-500">{formatDateTime(reward.createdAt)}</td>

@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SWAGGER_TAGS } from '@common/constants';
 import { CurrentUser } from '@common/decorators';
@@ -7,22 +8,26 @@ import { CurrentUser } from '@common/decorators';
 import { MERCHANT_TEAM_PERMISSIONS } from '../../merchant/constants';
 import { TeamRoles } from '../../merchant/decorators';
 import { MerchantTeamRoleGuard } from '../../merchant/guards';
+import { CAMPAIGN_COVER } from '../constants';
 import { UpdateCampaignDto } from '../dto';
 import { CampaignOwnershipGuard } from '../guards';
-import { CampaignService } from '../services';
+import { CampaignCoverService, CampaignService } from '../services';
 
 @ApiTags(SWAGGER_TAGS.CAMPAIGNS)
 @Controller({ path: 'campaigns', version: '1' })
 @UseGuards(CampaignOwnershipGuard)
 export class CampaignController {
-  constructor(private readonly campaignService: CampaignService) {}
+  constructor(
+    private readonly campaignService: CampaignService,
+    private readonly campaignCoverService: CampaignCoverService,
+  ) {}
 
   @Get(':campaignId')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a campaign by id' })
+  @ApiOperation({ summary: 'One of my campaigns, with its tasks and the feedback from each review' })
   async getOne(@Param('campaignId') campaignId: string) {
-    return this.campaignService.getById(campaignId);
+    return this.campaignService.getForOwner(campaignId);
   }
 
   @Patch(':campaignId')
@@ -37,6 +42,30 @@ export class CampaignController {
     @Body() dto: UpdateCampaignDto,
   ) {
     return this.campaignService.update(campaignId, userId, dto);
+  }
+
+  @Post(':campaignId/cover')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
+  // The size limit is also enforced while receiving, so an oversized upload is cut off before it is held in memory.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: CAMPAIGN_COVER.MAX_SIZE_BYTES, files: 1 } }))
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({ summary: 'Set the cover image shown on the campaign card in the app (JPEG, PNG or WebP, up to 5 MB)' })
+  async setCover(@Param('campaignId') campaignId: string, @UploadedFile() file: Express.Multer.File) {
+    return this.campaignCoverService.setCover(campaignId, file);
+  }
+
+  @Delete(':campaignId/cover')
+  @UseGuards(MerchantTeamRoleGuard)
+  @TeamRoles(...MERCHANT_TEAM_PERMISSIONS.MANAGE_CAMPAIGNS)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove the campaign cover image' })
+  async removeCover(@Param('campaignId') campaignId: string) {
+    return this.campaignCoverService.removeCover(campaignId);
   }
 
   @Post(':campaignId/duplicate')

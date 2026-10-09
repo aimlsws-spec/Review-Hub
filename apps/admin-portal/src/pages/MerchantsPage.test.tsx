@@ -12,6 +12,9 @@ import {
 
 import MerchantsPage from './MerchantsPage'
 
+// The campaigns panel has its own test; here it only needs to render without a router or query client.
+vi.mock('@/components/MerchantCampaignsPanel', () => ({ MerchantCampaignsPanel: () => <div>Merchant campaigns</div> }))
+
 vi.mock('@/hooks/useMerchants', () => ({
   usePendingMerchantsQuery: vi.fn(),
   useAllMerchantsQuery: vi.fn(),

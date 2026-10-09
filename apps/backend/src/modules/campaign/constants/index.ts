@@ -2,6 +2,7 @@ import { CampaignStatus } from '@prisma/client';
 
 export * from './campaign-builder.constants';
 export * from './campaign-insights.constants';
+export * from './enabled-types.constants';
 
 export const DEFAULT_AI_THRESHOLD = 0.8;
 
@@ -17,12 +18,13 @@ export const SAVED_CAMPAIGNS_MAX = 30;
  */
 export const CAMPAIGN_STATUS_TRANSITIONS: Record<CampaignStatus, CampaignStatus[]> = {
   DRAFT: ['PENDING_REVIEW', 'CANCELLED'],
-  PENDING_REVIEW: ['APPROVED', 'CHANGES_REQUESTED', 'REJECTED'],
+  // The merchant may withdraw it while it waits: nothing is reserved until it is activated.
+  PENDING_REVIEW: ['APPROVED', 'CHANGES_REQUESTED', 'REJECTED', 'CANCELLED'],
   CHANGES_REQUESTED: ['PENDING_REVIEW', 'CANCELLED'],
   APPROVED: ['SCHEDULED', 'ACTIVE', 'CANCELLED'],
-  SCHEDULED: ['ACTIVE', 'CANCELLED'],
+  SCHEDULED: ['ACTIVE', 'CANCELLED', 'EXPIRED'],
   ACTIVE: ['PAUSED', 'COMPLETED', 'CANCELLED', 'EXPIRED'],
-  PAUSED: ['ACTIVE', 'CANCELLED'],
+  PAUSED: ['ACTIVE', 'CANCELLED', 'EXPIRED'],
   COMPLETED: [],
   CANCELLED: [],
   REJECTED: ['DRAFT'],
@@ -32,3 +34,10 @@ export const CAMPAIGN_STATUS_TRANSITIONS: Record<CampaignStatus, CampaignStatus[
 export const EDITABLE_CAMPAIGN_STATUSES: CampaignStatus[] = ['DRAFT', 'CHANGES_REQUESTED'];
 
 export const DELETABLE_CAMPAIGN_STATUSES: CampaignStatus[] = ['DRAFT', 'CANCELLED', 'REJECTED'];
+
+/** A campaign's cover image (CampaignCoverService): kept in the publicly served uploads/campaign folder. */
+export const CAMPAIGN_COVER = {
+  FOLDER: 'campaign',
+  ALLOWED_MIME_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
+  MAX_SIZE_BYTES: 5 * 1024 * 1024,
+};

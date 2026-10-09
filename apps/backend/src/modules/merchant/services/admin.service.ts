@@ -24,14 +24,8 @@ export class AdminService {
     const merchant = await this.merchantRepository.findById(dto.merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
 
-    const updated = await this.merchantRepository.update(dto.merchantId, {
-      status: 'ACTIVE' as MerchantStatus,
-      // Not "VERIFIED" — that value doesn't exist in the MerchantVerificationStatus
-      // enum and previously crashed this endpoint with a 500 at the database layer.
-      verificationStatus: 'APPROVED' as MerchantVerificationStatus,
-      verifiedAt: new Date(),
-      verifiedBy: approvedBy,
-    });
+    const { merchant: updated, documentsApproved, bankAccountsVerified } =
+      await this.merchantRepository.approveWithDetails(dto.merchantId, approvedBy);
 
     this.eventEmitter.emit('merchant.approved', new MerchantApprovedEvent(
       dto.merchantId, merchant.businessName, merchant.email, approvedBy,
@@ -44,7 +38,7 @@ export class AdminService {
       entityId: dto.merchantId,
       action: 'APPROVE',
       before: { status: merchant.status, verificationStatus: merchant.verificationStatus },
-      after: { status: 'ACTIVE', verificationStatus: 'APPROVED' },
+      after: { status: 'ACTIVE', verificationStatus: 'APPROVED', documentsApproved, bankAccountsVerified },
     });
 
     return updated;
@@ -54,10 +48,8 @@ export class AdminService {
     const merchant = await this.merchantRepository.findById(dto.merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
 
-    const updated = await this.merchantRepository.update(dto.merchantId, {
-      status: 'SUSPENDED' as MerchantStatus,
-      verificationStatus: 'REJECTED' as MerchantVerificationStatus,
-    });
+    const { merchant: updated, documentsRejected } =
+      await this.merchantRepository.rejectWithDocuments(dto.merchantId, dto.reason);
 
     this.eventEmitter.emit('merchant.rejected', new MerchantRejectedEvent(
       dto.merchantId, merchant.businessName, merchant.email, dto.reason,
@@ -70,7 +62,7 @@ export class AdminService {
       entityId: dto.merchantId,
       action: 'REJECT',
       before: { status: merchant.status, verificationStatus: merchant.verificationStatus },
-      after: { status: 'SUSPENDED', verificationStatus: 'REJECTED', reason: dto.reason },
+      after: { status: 'SUSPENDED', verificationStatus: 'REJECTED', reason: dto.reason, documentsRejected },
     });
 
     return updated;

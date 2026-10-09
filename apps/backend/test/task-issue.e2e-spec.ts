@@ -39,7 +39,7 @@ describe('Task issue reports (e2e)', () => {
     const campaignId: string = campaign.body.data.id;
     const task = await api
       .post(`/campaigns/${campaignId}/tasks`, merchant.token)
-      .send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 10 })
+      .send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 10 })
       .expect(201);
     taskId = task.body.data.id;
     await api.post(`/campaigns/${campaignId}/submit`, merchant.token).expect(200);
@@ -53,7 +53,7 @@ describe('Task issue reports (e2e)', () => {
 
   const submitAs = async (token: string) => {
     await api.post(`/tasks/${taskId}/start`, token).expect(200);
-    const res = await api.post(`/tasks/${taskId}/submit`, token).field('textAnswer', 'The coffee was great and the staff were friendly.').expect(201);
+    const res = await api.post(`/tasks/${taskId}/submit`, token).field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/').expect(201);
     return res.body.data.id as string;
   };
 

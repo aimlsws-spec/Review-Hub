@@ -10,6 +10,7 @@ import {
 } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
+import { CampaignDetailModal } from '@/components/CampaignDetailModal'
 import PolicyFlags, { hasBlockingFlag } from '@/components/PolicyFlags'
 import { ITEMS_PER_PAGE } from '@/constants'
 import { useCampaignQueueQuery, useCampaignReviewMutation } from '@/hooks/useCampaignQueue'
@@ -28,6 +29,7 @@ export default function CampaignQueuePage() {
   const [page, setPage] = useState(1)
   const [reviewTarget, setReviewTarget] = useState<{ campaign: Campaign; kind: ReviewKind } | null>(null)
   const [note, setNote] = useState('')
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   const { data, isLoading, isError, refetch } = useCampaignQueueQuery({ page, limit: ITEMS_PER_PAGE })
 
@@ -82,17 +84,26 @@ export default function CampaignQueuePage() {
               {campaigns.map((campaign) => (
                 <tr key={campaign.id} className="table-tr">
                   <td className="table-td">
-                    <p className="font-medium text-gray-900">{campaign.title}</p>
+                    <button
+                      type="button"
+                      className="text-left font-medium text-gray-900 hover:text-primary-600 hover:underline"
+                      onClick={() => setDetailId(campaign.id)}
+                    >
+                      {campaign.title}
+                    </button>
                     <p className="text-xs text-gray-400">{campaign.campaignType}</p>
                     <PolicyFlags flags={campaign.policyFlags} />
                   </td>
                   <td className="table-td">
-                    {formatCurrency(campaign.rewardAmount)} <span className="text-gray-400">({campaign.rewardType})</span>
+                    {formatCurrency(campaign.rewardAmount)}
                   </td>
                   <td className="table-td">{formatCurrency(campaign.totalBudget)}</td>
                   <td className="table-td text-gray-500">{formatDate(campaign.updatedAt)}</td>
                   <td className="table-td text-right">
                     <div className="flex justify-end gap-2">
+                      <button className="btn-ghost btn-sm" onClick={() => setDetailId(campaign.id)}>
+                        View
+                      </button>
                       <button
                         className="btn-ghost btn-sm text-green-700 hover:bg-green-50"
                         disabled={hasBlockingFlag(campaign.policyFlags)}
@@ -115,6 +126,17 @@ export default function CampaignQueuePage() {
           </table>
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
+      )}
+
+      {detailId && (
+        <CampaignDetailModal
+          campaignId={detailId}
+          onClose={() => setDetailId(null)}
+          onReview={(campaign, kind) => {
+            setDetailId(null)
+            openReview(campaign, kind)
+          }}
+        />
       )}
 
       {reviewTarget && copy && (

@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsLatitude, IsLongitude, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 
 import { IsBusinessUrl } from '../validators';
 
@@ -60,4 +60,18 @@ export class UpdateMerchantDto {
   @IsOptional()
   @IsString()
   postalCode?: string;
+
+  /**
+   * Where the store is, so the app can sort campaigns by distance ("Nearest"). Both or neither: null for both clears
+   * it. A business with no location still shows, after those that have one.
+   */
+  @ApiPropertyOptional({ example: 23.0225, nullable: true, description: 'Store latitude; send with longitude, or null to clear' })
+  @ValidateIf((dto: UpdateMerchantDto) => dto.latitude !== null && dto.latitude !== undefined)
+  @IsLatitude({ message: 'Latitude must be between -90 and 90' })
+  latitude?: number | null;
+
+  @ApiPropertyOptional({ example: 72.5714, nullable: true, description: 'Store longitude; send with latitude, or null to clear' })
+  @ValidateIf((dto: UpdateMerchantDto) => dto.longitude !== null && dto.longitude !== undefined)
+  @IsLongitude({ message: 'Longitude must be between -180 and 180' })
+  longitude?: number | null;
 }

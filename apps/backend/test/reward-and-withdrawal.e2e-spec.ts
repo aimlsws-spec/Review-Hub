@@ -54,7 +54,7 @@ describe('Rewards and withdrawals (e2e)', () => {
   /** The user starts the task, submits a text answer, and an admin approves the submission. Returns the submission id. */
   const completeTask = async (user: TestUser): Promise<string> => {
     await api.post(`/tasks/${taskId}/start`, user.token).expect(200);
-    const submitted = await api.post(`/tasks/${taskId}/submit`, user.token).field('textAnswer', 'The coffee was great and the staff were friendly.').expect(201);
+    const submitted = await api.post(`/tasks/${taskId}/submit`, user.token).field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/').expect(201);
     const submissionId: string = submitted.body.data.id;
     await api.post(`/submissions/${submissionId}/approve`, adminToken).expect(200);
     return submissionId;
@@ -90,7 +90,7 @@ describe('Rewards and withdrawals (e2e)', () => {
     campaignId = campaign.body.data.id;
     const task = await api
       .post(`/campaigns/${campaignId}/tasks`, merchant.token)
-      .send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 50 })
+      .send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50 })
       .expect(201);
     taskId = task.body.data.id;
     await api.post(`/campaigns/${campaignId}/submit`, merchant.token).expect(200);
@@ -129,7 +129,7 @@ describe('Rewards and withdrawals (e2e)', () => {
       // like this. The retry used to see the row, decide the job was done, and skip it: the user was never paid.
       const user = await api.registerUser();
       await api.post(`/tasks/${taskId}/start`, user.token).expect(200);
-      const submitted = await api.post(`/tasks/${taskId}/submit`, user.token).field('textAnswer', 'Wonderful evening, the service was great.').expect(201);
+      const submitted = await api.post(`/tasks/${taskId}/submit`, user.token).field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/').expect(201);
       const submissionId: string = submitted.body.data.id;
       const before = (await api.get(`/campaigns/${campaignId}`, merchant.token).expect(200)).body.data;
       await app.get(PrismaService).reward.create({
@@ -153,7 +153,7 @@ describe('Rewards and withdrawals (e2e)', () => {
     it('two admins approving the same submission at the same moment pay the reward once', async () => {
       const user = await api.registerUser();
       await api.post(`/tasks/${taskId}/start`, user.token).expect(200);
-      const submitted = await api.post(`/tasks/${taskId}/submit`, user.token).field('textAnswer', 'Lovely place, the food and service were excellent.').expect(201);
+      const submitted = await api.post(`/tasks/${taskId}/submit`, user.token).field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/').expect(201);
       const submissionId: string = submitted.body.data.id;
 
       await Promise.all([
@@ -172,7 +172,7 @@ describe('Rewards and withdrawals (e2e)', () => {
     it('a normal user can not approve a submission, even their own', async () => {
       const user = await api.registerUser();
       await api.post(`/tasks/${taskId}/start`, user.token).expect(200);
-      const submitted = await api.post(`/tasks/${taskId}/submit`, user.token).field('textAnswer', 'Great cafe, friendly staff and good coffee.').expect(201);
+      const submitted = await api.post(`/tasks/${taskId}/submit`, user.token).field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/').expect(201);
 
       await api.post(`/submissions/${submitted.body.data.id}/approve`, user.token).expect(403);
 

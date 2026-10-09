@@ -58,6 +58,7 @@ cp apps/backend/.env.example apps/backend/.env
 cp apps/admin-portal/.env.example apps/admin-portal/.env
 cp apps/merchant-portal/.env.example apps/merchant-portal/.env
 cp apps/ai-services/.env.example apps/ai-services/.env
+cp apps/mobile/.env.example apps/mobile/.env
 ```
 
 The backend's defaults already match `docker-compose.yml` — you don't need to change `DATABASE_URL` or `REDIS_*` for local development.
@@ -108,7 +109,7 @@ uvicorn src.main:app --reload
 cd apps/mobile
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs   # generates freezed/json_serializable code
-flutter run
+flutter run   # reads apps/mobile/.env: set API_BASE_URL there for an emulator, a USB phone or Wi-Fi
 ```
 
 ## Everyday checks before pushing

@@ -212,6 +212,15 @@ describe('SubmissionService', () => {
       expect(mockAuditLogService.record).toHaveBeenCalledWith(expect.objectContaining({ actorType: 'SYSTEM', after: { status: 'PENDING_MANUAL' } }));
     });
 
+    it('names the check that sent it on, so the audit log shows a matched QR code apart from the AI', async () => {
+      mockSubmissionRepository.findById.mockResolvedValueOnce({ ...pendingSubmission, status: 'PENDING' }).mockResolvedValue({ ...pendingSubmission, status: 'PENDING_MANUAL' });
+      mockSubmissionRepository.updateIfStatusIn.mockResolvedValue(true);
+
+      await service.deferToManualReview('submission-1', 'qr_scan-check');
+
+      expect(mockAuditLogService.record).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'qr_scan-check', actorType: 'SYSTEM' }));
+    });
+
     it('leaves a decision a person made while the automatic check was running, and says nothing more', async () => {
       // Read as still open, but a reviewer approved before the write.
       mockSubmissionRepository.findById.mockResolvedValue({ ...pendingSubmission, status: 'PENDING' });

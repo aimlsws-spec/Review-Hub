@@ -386,7 +386,7 @@ describe('Manual wallet top-up (e2e)', () => {
         .post(`/merchants/${target.merchantId}/campaigns`, target.token)
         .send({ title: `E2E reversal ${Date.now()}`, description: 'Share your honest experience after visiting our cafe this week.', campaignType: 'REVIEW', rewardAmount: 50, totalBudget: 1500, maxParticipants: 20 })
         .expect(201);
-      await api.post(`/campaigns/${campaign.body.data.id}/tasks`, target.token).send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 50 }).expect(201);
+      await api.post(`/campaigns/${campaign.body.data.id}/tasks`, target.token).send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50 }).expect(201);
       await api.post(`/campaigns/${campaign.body.data.id}/submit`, target.token).expect(200);
       await api.post(`/admin/campaigns/${campaign.body.data.id}/approve`, adminToken).send({}).expect(200);
       await api.post(`/merchants/${target.merchantId}/campaigns/${campaign.body.data.id}/fund`, target.token).expect(200);
@@ -480,7 +480,7 @@ describe('Manual wallet top-up (e2e)', () => {
       .expect(201);
     await api
       .post(`/campaigns/${campaign.body.data.id}/tasks`, funded.token)
-      .send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 50 })
+      .send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50 })
       .expect(201);
     await api.post(`/campaigns/${campaign.body.data.id}/submit`, funded.token).expect(200);
     await api.post(`/admin/campaigns/${campaign.body.data.id}/approve`, adminToken).send({}).expect(200);

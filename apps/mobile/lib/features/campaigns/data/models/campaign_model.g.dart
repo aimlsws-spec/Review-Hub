@@ -28,6 +28,7 @@ _CampaignModel _$CampaignModelFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['endAt'] as String),
       featured: json['featured'] as bool? ?? false,
+      distanceMeters: (json['distanceMeters'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$CampaignModelToJson(_CampaignModel instance) =>
@@ -48,4 +49,5 @@ Map<String, dynamic> _$CampaignModelToJson(_CampaignModel instance) =>
       'startAt': instance.startAt?.toIso8601String(),
       'endAt': instance.endAt?.toIso8601String(),
       'featured': instance.featured,
+      'distanceMeters': instance.distanceMeters,
     };

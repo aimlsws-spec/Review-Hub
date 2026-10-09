@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
@@ -12,6 +13,7 @@ export class WalletService {
     private readonly merchantRepository: MerchantRepository,
     private readonly walletRepository: MerchantWalletRepository,
     @Inject(PAYMENT_PROVIDER) private readonly paymentService: PaymentProvider,
+    private readonly config: ConfigService,
   ) {}
 
   /** Every merchant has a wallet from first view onward — getOrCreate rather than
@@ -42,7 +44,11 @@ export class WalletService {
       const order = await this.paymentService.createOrder(amount, `recharge-${wallet.id.slice(0, 8)}-${Date.now()}`);
       await this.walletRepository.createPendingTopUp({ merchantWalletId: wallet.id, amount, razorpayOrderId: order.id });
 
-      return { razorpayOrderId: order.id, amount, currency: order.currency };
+      // The public Key ID the order was created under, so Checkout opens with the same account. A copy kept in the
+      // portal's own config could drift from this one, and an order can only be paid with the key that created it.
+      // Never the secret.
+      const keyId = this.config.get<string>('payment.razorpayKeyId') ?? '';
+      return { razorpayOrderId: order.id, amount, currency: order.currency, keyId };
     } catch (error) {
       throw new BadRequestException('Failed to create recharge order');
     }

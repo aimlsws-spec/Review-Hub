@@ -12,8 +12,10 @@ import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../data/models/campaign_browse.dart';
 import '../../data/models/campaign_model.dart';
+import '../../data/models/campaign_progress_model.dart';
 import '../../data/models/campaign_task_model.dart';
 import '../../providers/campaign_providers.dart';
+import '../widgets/task_progress_badge.dart';
 
 class CampaignDetailScreen extends ConsumerWidget {
   const CampaignDetailScreen({super.key, required this.campaignId});
@@ -27,6 +29,9 @@ class CampaignDetailScreen extends ConsumerWidget {
     final campaignAsync = ref.watch(campaignProvider(campaignId));
     final tasksAsync = ref.watch(campaignTasksProvider(campaignId));
     final campaign = campaignAsync.value?.valueOrNull;
+    // What this person has already done here. Without it (still loading, or it failed) tasks show without a badge;
+    // the server still refuses a task that is done.
+    final progress = ref.watch(campaignProgressProvider(campaignId)).value?.valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -69,10 +74,15 @@ class CampaignDetailScreen extends ConsumerWidget {
                 }
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => _TaskTile(
-                      task: tasks[index],
-                      onTap: () => context.push(RoutePaths.taskDetailPath(campaignId, tasks[index].id)),
-                    ),
+                    (context, index) {
+                      final tile = _TaskTile(
+                        task: tasks[index],
+                        progress: progress?.forTask(tasks[index].id),
+                        onTap: () => context.push(RoutePaths.taskDetailPath(campaignId, tasks[index].id)),
+                      );
+                      if (index > 0 || progress?.allDone != true) return tile;
+                      return Column(children: [const _AllDoneBanner(), tile]);
+                    },
                     childCount: tasks.length,
                   ),
                 );
@@ -99,14 +109,16 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (campaign.bannerUrl != null)
+          if (campaign.bannerImageUrl != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: CachedNetworkImage(
-                imageUrl: campaign.bannerUrl!,
+                imageUrl: campaign.bannerImageUrl!,
                 height: 160,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                // A picture that can not be loaded leaves no broken image behind.
+                errorWidget: (context, url, error) => const SizedBox.shrink(),
               ),
             ),
           const SizedBox(height: 12),
@@ -198,10 +210,49 @@ class _ShareButton extends ConsumerWidget {
   }
 }
 
+/// Shown above the tasks once the person has completed every one of them for good.
+class _AllDoneBanner extends StatelessWidget {
+  const _AllDoneBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Material(
+        color: AppColors.successBg,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.push('${RoutePaths.myCampaigns}?tab=completed'),
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(Icons.verified_rounded, color: AppColors.success),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'You have completed this campaign. See all your completed campaigns.',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: AppColors.slate500),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TaskTile extends StatelessWidget {
-  const _TaskTile({required this.task, required this.onTap});
+  const _TaskTile({required this.task, required this.progress, required this.onTap});
 
   final CampaignTaskModel task;
+
+  /// This person's state on the task; null when unknown, shown as available.
+  final TaskProgressModel? progress;
   final VoidCallback onTap;
 
   @override
@@ -224,7 +275,12 @@ class _TaskTile extends StatelessWidget {
                   style: const TextStyle(fontSize: 12.5, color: AppColors.success),
                 )
               : null,
-          trailing: const Icon(Icons.chevron_right, color: AppColors.slate300),
+          trailing: progress != null && !progress!.canStart
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: TaskProgressBadge(progress: progress!),
+                )
+              : const Icon(Icons.chevron_right, color: AppColors.slate300),
         ),
       ),
     );

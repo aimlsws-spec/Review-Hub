@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, TargetGender } from '@prisma/client';
+import { CampaignStatus, CampaignType, Prisma, TargetGender } from '@prisma/client';
 
 import { CampaignSort } from '@common/enums';
 import { haversineDistanceMeters } from '@common/utils';
@@ -8,6 +8,9 @@ import { PrismaService } from '../../../database/prisma/prisma.service';
 
 /** How many candidates the "nearest" sort scans before paginating in memory — distance can't be computed in SQL through Prisma, so this bounds the cost instead of loading every public campaign. */
 const NEAREST_SORT_CANDIDATE_LIMIT = 500;
+
+/** Has no end date, or ends later than now. */
+const notEnded = (): Prisma.CampaignWhereInput => ({ OR: [{ endAt: null }, { endAt: { gt: new Date() } }] });
 
 @Injectable()
 export class CampaignRepository {
@@ -20,7 +23,9 @@ export class CampaignRepository {
   async findById(id: string) {
     return this.prisma.campaign.findFirst({
       where: { id, deletedAt: null },
-      include: { tasks: true, media: true, targets: true },
+      // Only live tasks, in the order participants do them: a removed task must not count towards "has tasks" or show
+      // in the merchant's task list.
+      include: { tasks: { where: { deletedAt: null }, orderBy: { taskOrder: 'asc' } }, media: true, targets: true },
     });
   }
 
@@ -71,6 +76,52 @@ export class CampaignRepository {
     return { data, total, page, limit };
   }
 
+  /**
+   * One campaign for its own merchant: live tasks and media, and what each review decided and said. Which admin
+   * reviewed it is internal, so their name is not included.
+   */
+  async findForOwner(id: string) {
+    return this.prisma.campaign.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        tasks: { where: { deletedAt: null }, orderBy: { taskOrder: 'asc' } },
+        media: { where: { deletedAt: null }, orderBy: { displayOrder: 'asc' } },
+        approvals: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, select: { status: true, comments: true, createdAt: true } },
+      },
+    });
+  }
+
+  /**
+   * Everything an admin needs to judge a campaign: its live tasks (QR codes included, since the admin checks them),
+   * media, who the merchant is, and every earlier review with the reviewer's name. The merchant summary is limited to
+   * what moderation needs; bank and KYC details stay on the merchant's own page.
+   */
+  async findForAdminReview(id: string) {
+    return this.prisma.campaign.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        tasks: { where: { deletedAt: null }, orderBy: { taskOrder: 'asc' } },
+        media: { where: { deletedAt: null }, orderBy: { displayOrder: 'asc' } },
+        merchant: {
+          select: {
+            id: true,
+            businessName: true,
+            email: true,
+            phone: true,
+            status: true,
+            verificationStatus: true,
+            city: { select: { name: true } },
+          },
+        },
+        approvals: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          select: { status: true, comments: true, createdAt: true, reviewer: { select: { firstName: true, lastName: true } } },
+        },
+      },
+    });
+  }
+
   async createApproval(data: Prisma.CampaignApprovalCreateInput) {
     return this.prisma.campaignApproval.create({ data });
   }
@@ -92,6 +143,41 @@ export class CampaignRepository {
     return { data, total, page, limit };
   }
 
+  /**
+   * Every merchant's campaigns for the admin, in any status, newest first, each with the business that runs it.
+   * `statusCounts` counts the same filters across every status, so the list's status tabs show how many each holds.
+   */
+  async findForAdmin(params: {
+    page: number;
+    limit: number;
+    status?: CampaignStatus;
+    campaignType?: CampaignType;
+    merchantId?: string;
+    search?: string;
+  }) {
+    const { page, limit, status, campaignType, merchantId, search } = params;
+    const base: Prisma.CampaignWhereInput = { deletedAt: null };
+    if (campaignType) base.campaignType = campaignType;
+    if (merchantId) base.merchantId = merchantId;
+    if (search) base.OR = [{ title: { contains: search } }, { merchant: { businessName: { contains: search } } }];
+    const where: Prisma.CampaignWhereInput = status ? { ...base, status } : base;
+
+    const [data, total, byStatus] = await Promise.all([
+      this.prisma.campaign.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { merchant: { select: { id: true, businessName: true } } },
+      }),
+      this.prisma.campaign.count({ where }),
+      this.prisma.campaign.groupBy({ by: ['status'], where: base, _count: { _all: true } }),
+    ]);
+
+    const statusCounts = Object.fromEntries(byStatus.map((row) => [row.status, row._count._all])) as Partial<Record<CampaignStatus, number>>;
+    return { data, total, page, limit, statusCounts };
+  }
+
   async findPublic(params: {
     page: number;
     limit: number;
@@ -106,6 +192,8 @@ export class CampaignRepository {
       deletedAt: null,
       status: 'ACTIVE' as never,
       visibility: 'PUBLIC' as never,
+      // Past its end date it is over, even in the few minutes before the schedule job marks it EXPIRED.
+      AND: [notEnded()],
     };
     if (campaignType) where.campaignType = campaignType as never;
     if (search) {
@@ -116,7 +204,7 @@ export class CampaignRepository {
     }
 
     // A campaign with no end date never "ends soon", so that sort leaves those out instead of sorting nulls somewhere odd.
-    if (sort === CampaignSort.EndingSoon) where.endAt = { gte: new Date() };
+    if (sort === CampaignSort.EndingSoon) where.endAt = { not: null };
 
     if (sort === CampaignSort.Nearest && latitude !== undefined && longitude !== undefined) {
       return this.findPublicNearest(where, { page, limit, latitude, longitude });
@@ -186,7 +274,27 @@ export class CampaignRepository {
    */
   async findPublicById(id: string) {
     return this.prisma.campaign.findFirst({
-      where: { id, deletedAt: null, status: 'ACTIVE' as never, visibility: 'PUBLIC' as never },
+      where: { id, deletedAt: null, status: 'ACTIVE' as never, visibility: 'PUBLIC' as never, AND: [notEnded()] },
+    });
+  }
+
+  /** SCHEDULED campaigns whose start time has come (CampaignScheduleService starts them). Oldest start first. */
+  async findDueToStart(now: Date, take: number) {
+    return this.prisma.campaign.findMany({
+      where: { deletedAt: null, status: 'SCHEDULED' as never, startAt: { lte: now } },
+      orderBy: { startAt: 'asc' },
+      take,
+      select: { id: true },
+    });
+  }
+
+  /** Campaigns still running or waiting to run whose end date has passed (CampaignScheduleService expires them). */
+  async findPastEnd(now: Date, take: number) {
+    return this.prisma.campaign.findMany({
+      where: { deletedAt: null, status: { in: ['SCHEDULED', 'ACTIVE', 'PAUSED'] as never }, endAt: { lte: now } },
+      orderBy: { endAt: 'asc' },
+      take,
+      select: { id: true },
     });
   }
 
@@ -227,6 +335,7 @@ export class CampaignRepository {
       status: 'ACTIVE',
       visibility: 'PUBLIC',
       remainingBudget: { gt: 0 },
+      AND: [notEnded()],
       // Target matching
       targets: {
         some: {

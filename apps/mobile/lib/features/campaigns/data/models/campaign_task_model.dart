@@ -59,6 +59,27 @@ extension CampaignTaskModelX on CampaignTaskModel {
   /// generateCaptions — this is a mobile-side UX choice about where it's worth showing the option.
   bool get isStoryTask => const {'INSTAGRAM_STORY_SHARE', 'FACEBOOK_SHARE'}.contains(taskType);
 
+  /// Where the participant goes to do the task: the merchant's Google review page, Instagram profile, the post to
+  /// share... Only an https address is used, since the app opens it on the phone; anything else is treated as none.
+  Uri? get targetUri {
+    final value = configuration?['targetUrl'];
+    if (value is! String) return null;
+    final uri = Uri.tryParse(value.trim());
+    return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty ? uri : null;
+  }
+
+  /// The site [targetUri] opens, for its button ("Open on Instagram"). Mirrors TASK_LINK_SITES in
+  /// apps/backend/src/modules/campaign/task-link.ts; null for a task that may link anywhere.
+  String? get targetSiteName => switch (taskType) {
+        'GOOGLE_REVIEW' => 'Google',
+        'PLAY_STORE_REVIEW' => 'Google Play',
+        'INSTAGRAM_FOLLOW' || 'INSTAGRAM_LIKE' || 'INSTAGRAM_COMMENT' || 'INSTAGRAM_STORY_SHARE' => 'Instagram',
+        'FACEBOOK_SHARE' || 'FACEBOOK_LIKE' => 'Facebook',
+        'YOUTUBE_SUBSCRIBE' => 'YouTube',
+        'TWITTER_FOLLOW' => 'X',
+        _ => null,
+      };
+
   bool get isQrScanTask => taskType == 'QR_SCAN';
 
   bool get isLocationCheckInTask => taskType == 'LOCATION_CHECKIN';

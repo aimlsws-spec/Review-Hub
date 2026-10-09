@@ -7,6 +7,7 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { MerchantWalletRepository } from '../../merchant/repositories';
+import { CampaignBudgetNotCoveredException } from '../exceptions/budget-not-covered.exception';
 import { CampaignPolicyViolationException } from '../exceptions/policy-violation.exception';
 import { CampaignRepository } from '../repositories';
 
@@ -28,9 +29,11 @@ describe('CampaignService', () => {
     findPublicById: jest.fn(),
     createApproval: jest.fn(),
     findPendingReview: jest.fn(),
+    findForAdminReview: jest.fn(),
   };
 
   const mockMerchantWalletRepository = {
+    findByMerchantId: jest.fn(),
     reserveCampaignBudget: jest.fn(),
     spendCampaignBudget: jest.fn(),
     releaseCampaignBudget: jest.fn(),
@@ -57,11 +60,18 @@ describe('CampaignService', () => {
     id: 'campaign-1',
     merchantId: 'merchant-1',
     title: 'Try our menu',
+    campaignType: 'REVIEW',
     status: 'DRAFT',
     autoApprove: false,
     totalBudget: 5000,
     spentBudget: 0,
+    startAt: null,
+    endAt: null,
+    tasks: [{ id: 'task-1' }],
   };
+
+  const DAY = 24 * 60 * 60 * 1000;
+  const daysFromNow = (days: number) => new Date(Date.now() + days * DAY);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -83,6 +93,8 @@ describe('CampaignService', () => {
     jest.resetAllMocks();
     mockPolicyService.assertCampaignAllowed.mockResolvedValue(undefined);
     mockPolicyService.findingsForCampaigns.mockResolvedValue(new Map());
+    // Enough to cover any campaign here, unless a test says otherwise.
+    mockMerchantWalletRepository.findByMerchantId.mockResolvedValue({ availableBalance: 100000 });
   });
 
   describe('create', () => {
@@ -101,6 +113,7 @@ describe('CampaignService', () => {
           status: 'DRAFT',
           createdBy: 'user-1',
           remainingBudget: 5000,
+          rewardType: 'CASH',
         }),
       );
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('campaign.created', expect.any(Object));
@@ -163,6 +176,14 @@ describe('CampaignService', () => {
       expect(data.targetCountries).toBeUndefined();
     });
 
+    it('makes the copy a cash campaign even when the original carries an old non-cash label', async () => {
+      mockCampaignRepository.findForDuplication.mockResolvedValueOnce({ ...original, rewardType: 'COUPON' });
+
+      await service.duplicate('campaign-1', 'user-1');
+
+      expect(mockCampaignRepository.create.mock.calls[0][0]).toMatchObject({ rewardType: 'CASH' });
+    });
+
     it('copies tasks (QR code included), media, targets, categories and tags', async () => {
       await service.duplicate('campaign-1', 'user-1');
 
@@ -186,6 +207,23 @@ describe('CampaignService', () => {
     it('refuses a campaign that does not exist or was deleted', async () => {
       mockCampaignRepository.findForDuplication.mockResolvedValue(null);
       await expect(service.duplicate('missing', 'user-1')).rejects.toThrow(NotFoundException);
+      expect(mockCampaignRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses to copy a campaign of a kind that can not be created at the moment', async () => {
+      mockCampaignRepository.findForDuplication.mockResolvedValue({ ...original, campaignType: 'SURVEY' });
+
+      await expect(service.duplicate('campaign-1', 'user-1')).rejects.toThrow('SURVEY campaigns can not be created at the moment');
+      expect(mockCampaignRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses to copy a campaign with a task of a kind that can not be added at the moment', async () => {
+      mockCampaignRepository.findForDuplication.mockResolvedValue({
+        ...original,
+        tasks: [...original.tasks, { title: 'Install our app', taskType: 'APP_INSTALL', taskOrder: 1, configuration: null }],
+      });
+
+      await expect(service.duplicate('campaign-1', 'user-1')).rejects.toThrow('a task of a kind that can not be added');
       expect(mockCampaignRepository.create).not.toHaveBeenCalled();
     });
   });
@@ -256,6 +294,69 @@ describe('CampaignService', () => {
 
       await expect(service.update('campaign-1', 'user-1', { title: 'x' })).rejects.toThrow(BadRequestException);
     });
+
+    it('sets the dates, and clears one that is sent as null', async () => {
+      const start = daysFromNow(1).toISOString();
+      const end = daysFromNow(10).toISOString();
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, endAt: daysFromNow(5) });
+
+      await service.update('campaign-1', 'user-1', { startAt: start, endAt: end });
+      expect(mockCampaignRepository.update).toHaveBeenLastCalledWith(
+        'campaign-1',
+        expect.objectContaining({ startAt: new Date(start), endAt: new Date(end) }),
+      );
+
+      await service.update('campaign-1', 'user-1', { endAt: null as never });
+      expect(mockCampaignRepository.update).toHaveBeenLastCalledWith('campaign-1', expect.objectContaining({ endAt: null }));
+    });
+
+    it('keeps the stored value of a column that always has one when an edit sends null, but clears the participant cap', async () => {
+      mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+
+      await service.update('campaign-1', 'user-1', { minimumFollowers: null, maxParticipants: null } as never);
+
+      const data = mockCampaignRepository.update.mock.calls[0][1];
+      expect(data).not.toHaveProperty('minimumFollowers');
+      expect(data.maxParticipants).toBeNull();
+    });
+
+    it('checks a new start date against the end date already saved', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, endAt: daysFromNow(5) });
+
+      await expect(service.update('campaign-1', 'user-1', { startAt: daysFromNow(6).toISOString() })).rejects.toThrow(
+        'The end date must be after the start date',
+      );
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('dates on create', () => {
+    const dto = { title: 'Try our menu', description: 'Visit us and tell us honestly how it went.', campaignType: 'REVIEW', rewardAmount: 50, totalBudget: 500 };
+
+    it('refuses an end date that has already passed', async () => {
+      await expect(service.create('merchant-1', 'user-1', { ...dto, endAt: daysFromNow(-1).toISOString() } as never)).rejects.toThrow(
+        'The end date must be in the future',
+      );
+      expect(mockCampaignRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('treats null for a column that always has a value as not given, so its default applies', async () => {
+      mockCampaignRepository.findBySlug.mockResolvedValue(null);
+      mockCampaignRepository.create.mockResolvedValue({ id: 'campaign-1' });
+      mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+
+      await service.create('merchant-1', 'user-1', { ...dto, minimumFollowers: null, targetGender: null, maxParticipants: null } as never);
+
+      const data = mockCampaignRepository.create.mock.calls[0][0];
+      expect(data.minimumFollowers).toBeUndefined();
+      expect(data.targetGender).toBeUndefined();
+    });
+
+    it('refuses an end date before the start date', async () => {
+      await expect(
+        service.create('merchant-1', 'user-1', { ...dto, startAt: daysFromNow(5).toISOString(), endAt: daysFromNow(2).toISOString() } as never),
+      ).rejects.toThrow('The end date must be after the start date');
+    });
   });
 
   describe('submitForApproval', () => {
@@ -270,6 +371,35 @@ describe('CampaignService', () => {
         'campaign.submitted',
         expect.objectContaining({ campaignId: 'campaign-1', merchantId: draftCampaign.merchantId }),
       );
+    });
+
+    it('refuses a campaign whose online task has no link, naming the task', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({
+        ...draftCampaign,
+        tasks: [{ id: 'task-1', title: 'Follow us on Instagram', taskType: 'INSTAGRAM_FOLLOW', configuration: null }],
+      });
+
+      await expect(service.submitForApproval('campaign-1')).rejects.toThrow(
+        'Task "Follow us on Instagram": Add the link to Instagram that participants open to do this task',
+      );
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('submits a campaign whose online task has its link', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({
+        ...draftCampaign,
+        tasks: [
+          {
+            id: 'task-1',
+            title: 'Follow us on Instagram',
+            taskType: 'INSTAGRAM_FOLLOW',
+            configuration: { targetUrl: 'https://www.instagram.com/prernatestcafe/' },
+          },
+        ],
+      });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'PENDING_REVIEW' });
+
+      await expect(service.submitForApproval('campaign-1')).resolves.toHaveProperty('status', 'PENDING_REVIEW');
     });
 
     it('still needs an admin when the merchant asked for auto-approval: a merchant can not approve their own campaign', async () => {
@@ -313,6 +443,52 @@ describe('CampaignService', () => {
       expect(mockEventEmitter.emit).not.toHaveBeenCalled();
     });
 
+    it('refuses a campaign with no tasks: there would be nothing to do once it is live', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, tasks: [] });
+
+      await expect(service.submitForApproval('campaign-1')).rejects.toThrow('Add at least one task');
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses a campaign the wallet can not pay for, saying what is there, what is needed and that nothing was taken", async () => {
+      mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+      mockMerchantWalletRepository.findByMerchantId.mockResolvedValue({ availableBalance: 1200.5 });
+
+      const error = await service.submitForApproval('campaign-1').catch((e) => e);
+
+      expect(error).toBeInstanceOf(CampaignBudgetNotCoveredException);
+      expect(error.message).toContain('₹1,200.50 available');
+      expect(error.message).toContain('₹5,000.00');
+      expect(error.message).toContain('Add ₹3,799.50');
+      expect(error.message).toContain('Nothing is taken from your wallet until the campaign is approved');
+      expect(error.details).toEqual({ available: 1200.5, required: 5000, shortfall: 3799.5 });
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+      expect(mockMerchantWalletRepository.reserveCampaignBudget).not.toHaveBeenCalled();
+    });
+
+    it('treats a merchant with no wallet yet as having nothing in it', async () => {
+      mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+      mockMerchantWalletRepository.findByMerchantId.mockResolvedValue(null);
+
+      await expect(service.submitForApproval('campaign-1')).rejects.toThrow(CampaignBudgetNotCoveredException);
+    });
+
+    it('accepts a wallet that holds exactly the budget, and takes nothing from it', async () => {
+      mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+      mockMerchantWalletRepository.findByMerchantId.mockResolvedValue({ availableBalance: '5000.00' });
+
+      await service.submitForApproval('campaign-1');
+
+      expect(mockCampaignRepository.update).toHaveBeenCalledWith('campaign-1', { status: 'PENDING_REVIEW' });
+      expect(mockMerchantWalletRepository.reserveCampaignBudget).not.toHaveBeenCalled();
+    });
+
+    it('refuses a campaign whose end date has passed while it was a draft', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, endAt: daysFromNow(-1) });
+
+      await expect(service.submitForApproval('campaign-1')).rejects.toThrow('The end date must be in the future');
+    });
+
     it('should reject submitting a campaign that is not DRAFT/CHANGES_REQUESTED', async () => {
       mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'ACTIVE' });
 
@@ -351,6 +527,40 @@ describe('CampaignService', () => {
       });
     });
 
+    it('schedules an approved campaign whose start date is ahead, reserving its budget now', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'APPROVED', startAt: daysFromNow(2) });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'SCHEDULED' });
+
+      await expect(service.activate('campaign-1')).resolves.toHaveProperty('status', 'SCHEDULED');
+      expect(mockCampaignRepository.update).toHaveBeenCalledWith('campaign-1', { status: 'SCHEDULED' });
+      expect(mockMerchantWalletRepository.reserveCampaignBudget).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000 }));
+    });
+
+    it('starts a scheduled campaign without reserving its budget a second time', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'SCHEDULED', startAt: daysFromNow(-0.01) });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'ACTIVE' });
+
+      await expect(service.startScheduled('campaign-1')).resolves.toHaveProperty('status', 'ACTIVE');
+      expect(mockCampaignRepository.update).toHaveBeenCalledWith('campaign-1', expect.objectContaining({ status: 'ACTIVE', publishedAt: expect.any(Date) }));
+      expect(mockMerchantWalletRepository.reserveCampaignBudget).not.toHaveBeenCalled();
+    });
+
+    it('refuses to activate a campaign whose end date has passed, and touches no wallet', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'APPROVED', endAt: daysFromNow(-1) });
+
+      await expect(service.activate('campaign-1')).rejects.toThrow('end date has passed');
+      expect(mockMerchantWalletRepository.reserveCampaignBudget).not.toHaveBeenCalled();
+      expect(mockCampaignRepository.update).not.toHaveBeenCalled();
+    });
+
+    it.each(['ACTIVE', 'PAUSED', 'SCHEDULED'])('expires a %s campaign and hands back the budget it did not spend', async (status) => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'EXPIRED' });
+
+      await expect(service.expire('campaign-1')).resolves.toHaveProperty('status', 'EXPIRED');
+      expect(mockMerchantWalletRepository.releaseCampaignBudget).toHaveBeenCalledWith({ merchantId: 'merchant-1', campaignId: 'campaign-1' });
+    });
+
     it('should reject activating a DRAFT campaign', async () => {
       mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
 
@@ -375,6 +585,14 @@ describe('CampaignService', () => {
       await expect(service.resume('campaign-1')).resolves.toHaveProperty('status', 'ACTIVE');
 
       expect(mockMerchantWalletRepository.reserveCampaignBudget).not.toHaveBeenCalled();
+    });
+
+    it('lets the merchant withdraw a campaign that is waiting for review', async () => {
+      mockCampaignRepository.findById.mockResolvedValue({ ...draftCampaign, status: 'PENDING_REVIEW' });
+      mockCampaignRepository.update.mockResolvedValue({ ...draftCampaign, status: 'CANCELLED' });
+
+      await expect(service.cancel('campaign-1')).resolves.toHaveProperty('status', 'CANCELLED');
+      expect(mockCampaignRepository.update).toHaveBeenCalledWith('campaign-1', { status: 'CANCELLED' });
     });
 
     it('should cancel a DRAFT campaign and release any reserved budget', async () => {
@@ -447,6 +665,24 @@ describe('CampaignService', () => {
       expect(mockAuditLogService.record).toHaveBeenCalledWith(
         expect.objectContaining({ actorId: 'admin-1', action: 'STATUS_CHANGE' }),
       );
+    });
+  });
+
+  describe('getAdminDetail', () => {
+    it('returns the campaign in full with its wording flags, as the queue shows them', async () => {
+      const campaign = { ...draftCampaign, status: 'PENDING_REVIEW', merchant: { businessName: 'Prerna Test Cafe' }, approvals: [] };
+      mockCampaignRepository.findForAdminReview.mockResolvedValue(campaign);
+      mockPolicyService.findingsForCampaigns.mockResolvedValue(new Map([['campaign-1', [{ rule: 'REQUIRES_RATING' }]]]));
+
+      const detail = await service.getAdminDetail('campaign-1');
+
+      expect(detail).toMatchObject({ id: 'campaign-1', merchant: { businessName: 'Prerna Test Cafe' }, policyFlags: [{ rule: 'REQUIRES_RATING' }] });
+    });
+
+    it('says not found for a campaign that does not exist or was deleted', async () => {
+      mockCampaignRepository.findForAdminReview.mockResolvedValue(null);
+
+      await expect(service.getAdminDetail('missing')).rejects.toThrow(NotFoundException);
     });
   });
 

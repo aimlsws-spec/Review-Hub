@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -15,6 +16,8 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+
+import { ENABLED_CAMPAIGN_TYPES } from '../constants/enabled-types.constants';
 
 export class CreateCampaignDto {
   @ApiProperty({ example: 'Try our new summer menu' })
@@ -44,8 +47,8 @@ export class CreateCampaignDto {
   @IsString()
   bannerUrl?: string;
 
-  @ApiProperty({ enum: CampaignType, example: CampaignType.REVIEW })
-  @IsEnum(CampaignType)
+  @ApiProperty({ enum: ENABLED_CAMPAIGN_TYPES, example: CampaignType.REVIEW })
+  @IsIn(ENABLED_CAMPAIGN_TYPES, { message: `campaignType must be one of: ${ENABLED_CAMPAIGN_TYPES.join(', ')}` })
   campaignType!: CampaignType;
 
   @ApiPropertyOptional({ enum: CampaignVisibility, default: CampaignVisibility.PUBLIC })
@@ -58,9 +61,13 @@ export class CreateCampaignDto {
   @IsEnum(CampaignPriority)
   priority?: CampaignPriority;
 
-  @ApiPropertyOptional({ enum: RewardType, default: RewardType.CASH })
+  /**
+   * Kept so clients that still send CASH keep working. Every reward is money credited to the user's wallet: the other
+   * RewardType values (points, coupons, gift cards...) were never paid out as anything but cash, so they are refused.
+   */
+  @ApiPropertyOptional({ enum: [RewardType.CASH], default: RewardType.CASH, description: 'Always CASH: rewards are paid into the user\'s wallet' })
   @IsOptional()
-  @IsEnum(RewardType)
+  @IsIn([RewardType.CASH], { message: 'Rewards are always paid as money into the user\'s wallet, so rewardType can only be CASH' })
   rewardType?: RewardType;
 
   @ApiProperty({ example: 50, description: 'Reward per participant, in rupees' })

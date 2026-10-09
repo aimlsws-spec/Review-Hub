@@ -7,7 +7,8 @@ import '../../data/models/recommended_task_model.dart';
 
 /// Fixed-width card for Home's "✨ AI Recommended for you" carousel — same
 /// shape as `CampaignCardCompact`, plus reward/time metadata and a
-/// "High Reward" badge when the task clears [RecommendedTaskModel.isHighReward].
+/// "High Reward" badge when the task clears [RecommendedTaskModel.isHighReward]. Needs a bounded height: the
+/// picture fills what the text leaves.
 class RecommendedTaskCard extends StatelessWidget {
   const RecommendedTaskCard({super.key, required this.task, required this.onTap});
 
@@ -26,12 +27,13 @@ class RecommendedTaskCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                child: task.thumbnailUrl != null
+              // The picture takes whatever height the row leaves after the text, so a large system text size
+              // shrinks the picture instead of pushing the text out of the card.
+              Expanded(
+                child: task.thumbnailImageUrl != null
                     ? CachedNetworkImage(
-                        imageUrl: task.thumbnailUrl!,
-                        width: 160,
-                        height: 90,
+                        imageUrl: task.thumbnailImageUrl!,
+                        width: double.infinity,
                         fit: BoxFit.cover,
                         errorWidget: (context, url, error) => _fallbackThumb(),
                       )
@@ -56,13 +58,24 @@ class RecommendedTaskCard extends StatelessWidget {
                       style: const TextStyle(fontSize: 11, color: AppColors.slate500),
                     ),
                     const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 4,
-                      children: [
-                        AppBadge(label: '₹${task.rewardAmountValue.toStringAsFixed(0)}', variant: BadgeVariant.green),
-                        if (task.isHighReward) const AppBadge(label: 'High Reward', variant: BadgeVariant.purple),
-                      ],
+                    // One line only: a second line of badges would not fit the card's height. With large system text
+                    // the line is shrunk to the card's width rather than running past its edge.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppBadge(
+                            label: '₹${task.rewardAmountValue.toStringAsFixed(0)}',
+                            variant: BadgeVariant.green,
+                          ),
+                          if (task.isHighReward) ...[
+                            const SizedBox(width: 5),
+                            const AppBadge(label: 'High Reward', variant: BadgeVariant.purple),
+                          ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -76,8 +89,7 @@ class RecommendedTaskCard extends StatelessWidget {
 
   Widget _fallbackThumb() {
     return Container(
-      width: 160,
-      height: 90,
+      width: double.infinity,
       color: AppColors.brand500.withValues(alpha: 0.08),
       child: const Icon(Icons.auto_awesome_rounded, color: AppColors.brand500),
     );

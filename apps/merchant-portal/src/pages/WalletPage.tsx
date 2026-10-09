@@ -119,17 +119,17 @@ export default function WalletPage() {
         onClose={() => setRechargeOpen(false)}
         title="Add Funds"
         footer={
-          <div className="w-full flex justify-between">
+          <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2">
             {PAYMENT_SIMULATION_ENABLED && (
               <button
-                className="btn-ghost text-primary-600 font-medium"
+                className="btn-ghost -ml-3 whitespace-nowrap font-medium text-primary-600"
                 onClick={handleSubmit((v) => simulateMutation.mutate(Number(v.amount)))}
                 disabled={simulateMutation.isPending || rechargeMutation.isPending}
               >
-                {simulateMutation.isPending ? 'Simulating…' : 'Simulate Payment (Dev)'}
+                {simulateMutation.isPending ? 'Simulating…' : 'Simulate payment (dev)'}
               </button>
             )}
-            <div className="ml-auto space-x-2">
+            <div className="ml-auto flex items-center gap-2">
               <button className="btn-secondary" onClick={() => setRechargeOpen(false)} disabled={rechargeMutation.isPending || simulateMutation.isPending}>
                 Cancel
               </button>
@@ -237,17 +237,17 @@ export default function WalletPage() {
         onClose={() => setAutoRechargeOpen(false)}
         title="Auto-recharge settings"
         footer={
-          <div className="w-full flex justify-between">
+          <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2">
             {autoRecharge?.enabled && (
               <button
-                className="btn-ghost text-red-600 font-medium"
+                className="btn-ghost -ml-3 whitespace-nowrap font-medium text-red-600"
                 onClick={onDisableAutoRecharge}
                 disabled={autoRechargeMutation.isPending}
               >
                 Turn off
               </button>
             )}
-            <div className="ml-auto space-x-2">
+            <div className="ml-auto flex items-center gap-2">
               <button className="btn-secondary" onClick={() => setAutoRechargeOpen(false)} disabled={autoRechargeMutation.isPending}>
                 Cancel
               </button>

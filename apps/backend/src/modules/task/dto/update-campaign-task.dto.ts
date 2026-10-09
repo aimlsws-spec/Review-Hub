@@ -1,7 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { EvidenceType, TaskCompletionLimit, VerificationType } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, MinLength } from 'class-validator';
+
+import { ENABLED_PROOF_TYPES } from '../../campaign/constants/enabled-types.constants';
 
 export class UpdateCampaignTaskDto {
   @ApiPropertyOptional({ example: 'Follow us on Instagram' })
@@ -55,9 +57,9 @@ export class UpdateCampaignTaskDto {
   @IsBoolean()
   proofRequired?: boolean;
 
-  @ApiPropertyOptional({ enum: EvidenceType })
+  @ApiPropertyOptional({ enum: ENABLED_PROOF_TYPES })
   @IsOptional()
-  @IsEnum(EvidenceType)
+  @IsIn(ENABLED_PROOF_TYPES, { message: `proofType must be one of: ${ENABLED_PROOF_TYPES.join(', ')}` })
   proofType?: EvidenceType;
 
   @ApiPropertyOptional({ type: 'object' })

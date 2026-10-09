@@ -7,7 +7,7 @@ import '../../data/models/campaign_model.dart';
 
 /// Fixed-width card for a horizontal campaign carousel (e.g. Home's
 /// "Popular Campaigns" row) — a denser alternative to [CampaignCard]'s
-/// full-width list-row layout.
+/// full-width list-row layout. Needs a bounded height: the picture fills what the text leaves.
 class CampaignCardCompact extends StatelessWidget {
   const CampaignCardCompact({super.key, required this.campaign, required this.onTap});
 
@@ -26,12 +26,13 @@ class CampaignCardCompact extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                child: campaign.thumbnailUrl != null
+              // The picture takes whatever height the row leaves after the text, so a large system text size
+              // shrinks the picture instead of pushing the text out of the card.
+              Expanded(
+                child: campaign.thumbnailImageUrl != null
                     ? CachedNetworkImage(
-                        imageUrl: campaign.thumbnailUrl!,
-                        width: 160,
-                        height: 90,
+                        imageUrl: campaign.thumbnailImageUrl!,
+                        width: double.infinity,
                         fit: BoxFit.cover,
                         errorWidget: (context, url, error) => _fallbackThumb(),
                       )
@@ -62,8 +63,7 @@ class CampaignCardCompact extends StatelessWidget {
 
   Widget _fallbackThumb() {
     return Container(
-      width: 160,
-      height: 90,
+      width: double.infinity,
       color: AppColors.primary50,
       child: const Icon(Icons.campaign_outlined, color: AppColors.primary400),
     );

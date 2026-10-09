@@ -11,6 +11,9 @@ import { RejectSubmissionDto, SubmissionQueryDto } from '../dto';
 import { SubmissionApprovedEvent, SubmissionRejectedEvent } from '../events';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
 
+/** Who made a reviewer's decision, for the audit log: a platform admin, or the merchant whose campaign it is. */
+export type ReviewerType = 'ADMIN' | 'MERCHANT';
+
 @Injectable()
 export class SubmissionService {
   private readonly logger = new Logger(SubmissionService.name);
@@ -44,33 +47,31 @@ export class SubmissionService {
   }
 
   /**
-   * Minimal reviewer action so Phase 3's reward pipeline has something to
-   * trigger off. Phase 5 builds the admin queue/dashboard around this same
-   * action; this is not that dashboard.
+   * A person approves a submission, which pays its reward. This is the only way a submission is approved: the AI and
+   * the QR/location checks only send it to a reviewer (see {@link deferToManualReview}), so no reward is ever paid
+   * without a merchant or admin deciding.
    */
-  async approve(submissionId: string, reviewerId: string) {
-    return this.finalizeApproval(submissionId, { actorId: reviewerId, actorType: 'ADMIN' });
+  async approve(submissionId: string, reviewerId: string, actorType: ReviewerType = 'ADMIN') {
+    return this.finalizeApproval(submissionId, { actorId: reviewerId, actorType });
   }
 
-  async reject(submissionId: string, reviewerId: string, dto: RejectSubmissionDto) {
-    return this.finalizeRejection(submissionId, dto.rejectionReason, { actorId: reviewerId, actorType: 'ADMIN' });
+  async reject(submissionId: string, reviewerId: string, dto: RejectSubmissionDto, actorType: ReviewerType = 'ADMIN') {
+    return this.finalizeRejection(submissionId, dto.rejectionReason, { actorId: reviewerId, actorType });
   }
 
   /**
-   * Same outcome as {@link approve}, but for an automatic decision with no human reviewer to connect — the AI
-   * service's own verdict, or a deterministic QR/location check from TaskParticipationService.
+   * Same outcome as {@link reject}, for a QR code that does not match or a check-in too far away. Refusing pays
+   * nothing and the participant can simply try again, so this one decision needs no person.
    */
-  async aiApprove(submissionId: string) {
-    return this.finalizeApproval(submissionId, { actorType: 'SYSTEM' });
-  }
-
-  /** Same outcome as {@link reject}, but for an automatic decision — see {@link aiApprove}. */
   async aiReject(submissionId: string, reason: string) {
     return this.finalizeRejection(submissionId, reason, { actorType: 'SYSTEM' });
   }
 
-  /** AI confidence was too low (or fraud risk too high) to auto-decide — escalate to a human reviewer. */
-  async deferToManualReview(submissionId: string) {
+  /**
+   * An automatic check is done (the AI's advice, a QR code that matched, a check-in in range): the submission now
+   * waits for the merchant or an admin to approve or reject it. `checkedBy` names the check in the audit log.
+   */
+  async deferToManualReview(submissionId: string, checkedBy = 'ai-verification-service') {
     const submission = await this.getReviewable(submissionId);
 
     // A person may have decided while the automatic check was running. Theirs stands: this only moves a submission that
@@ -83,7 +84,7 @@ export class SubmissionService {
     const updated = await this.submissionRepository.findById(submissionId);
 
     await this.auditLogService.record({
-      actorId: 'ai-verification-service',
+      actorId: checkedBy,
       actorType: 'SYSTEM',
       entity: 'TaskSubmission',
       entityId: submissionId,
@@ -95,10 +96,8 @@ export class SubmissionService {
     return updated;
   }
 
-  private async finalizeApproval(
-    submissionId: string,
-    actor: { actorType: 'ADMIN' | 'SYSTEM'; actorId?: string },
-  ) {
+  /** Approves and pays. Only a person can: the actor is always a named merchant or admin, never the system. */
+  private async finalizeApproval(submissionId: string, actor: { actorType: ReviewerType; actorId: string }) {
     const submission = await this.getReviewable(submissionId);
 
     const task = await this.campaignTaskRepository.findById(submission.taskId);
@@ -123,7 +122,7 @@ export class SubmissionService {
     );
 
     await this.auditLogService.record({
-      actorId: actor.actorId ?? 'ai-verification-service',
+      actorId: actor.actorId,
       actorType: actor.actorType,
       entity: 'TaskSubmission',
       entityId: submissionId,
@@ -138,7 +137,7 @@ export class SubmissionService {
   private async finalizeRejection(
     submissionId: string,
     reason: string,
-    actor: { actorType: 'ADMIN' | 'SYSTEM'; actorId?: string },
+    actor: { actorType: ReviewerType | 'SYSTEM'; actorId?: string },
   ) {
     const submission = await this.getReviewable(submissionId);
 

@@ -14,6 +14,7 @@ const ROUTE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   users: 'Users',
   campaigns: 'Campaign Queue',
+  'all-campaigns': 'All Campaigns',
   withdrawals: 'Withdrawal Queue',
   fraud: 'Fraud Flags',
   cms: 'Content',

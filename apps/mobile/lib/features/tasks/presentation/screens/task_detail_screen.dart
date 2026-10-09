@@ -5,12 +5,15 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
+import '../../../campaigns/data/models/campaign_progress_model.dart';
 import '../../../campaigns/data/models/campaign_task_model.dart';
+import '../../../campaigns/presentation/widgets/task_progress_badge.dart';
 import '../../../campaigns/providers/campaign_providers.dart';
 import '../../../kyc/presentation/widgets/identity_gate.dart';
 import '../../providers/task_providers.dart';
 import '../widgets/honest_feedback_notice.dart';
 import '../widgets/report_issue_sheet.dart';
+import '../widgets/task_link_button.dart';
 
 final _startTaskSubmitProvider = AsyncNotifierProvider.autoDispose<_StartTaskSubmitNotifier, void>(_StartTaskSubmitNotifier.new);
 
@@ -61,6 +64,7 @@ class TaskDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasksAsync = ref.watch(campaignTasksProvider(campaignId));
+    final progress = ref.watch(campaignProgressProvider(campaignId)).value?.valueOrNull?.forTask(taskId);
     final submitState = ref.watch(_startTaskSubmitProvider);
     final errorMessage = submitState.hasError ? submitState.error.toString() : null;
 
@@ -110,6 +114,7 @@ class TaskDetailScreen extends ConsumerWidget {
                               const SizedBox(height: 16),
                               Text(task.description!, style: const TextStyle(fontSize: 14, color: AppColors.slate600, height: 1.5)),
                             ],
+                            if (task.targetUri != null) ...[const SizedBox(height: 16), TaskLinkButton(task: task)],
                             if (completionLimitLabel(task.completionLimit, task.maxCompletionsPerPeriod).isNotEmpty) ...[
                               const SizedBox(height: 16),
                               Row(
@@ -158,17 +163,50 @@ class TaskDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    LoadingButton(
-                      label: 'Start task',
-                      isLoading: submitState.isLoading,
-                      onPressed: () => _startAndContinue(context, ref, task),
-                    ),
+                    if (progress != null && !progress.canStart)
+                      _NotAvailableNotice(progress: progress)
+                    else
+                      LoadingButton(
+                        label: 'Start task',
+                        isLoading: submitState.isLoading,
+                        onPressed: () => _startAndContinue(context, ref, task),
+                      ),
                   ],
                 ),
               ),
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+/// In place of "Start task" when the task can not be done now: says why, so nobody takes a screenshot for nothing.
+class _NotAvailableNotice extends StatelessWidget {
+  const _NotAvailableNotice({required this.progress});
+
+  final TaskProgressModel progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = switch (progress.state) {
+      TaskProgressState.completed => 'You have completed this task. Each person can do it only once.',
+      TaskProgressState.inReview => 'Your proof is being checked. You will be notified when it is approved.',
+      TaskProgressState.limitReached => 'You have done this task as often as allowed for now.',
+      TaskProgressState.available => '',
+    };
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TaskProgressBadge(progress: progress),
+          const SizedBox(height: 8),
+          Text(message, style: const TextStyle(fontSize: 13, color: AppColors.slate600, height: 1.4)),
+        ],
       ),
     );
   }

@@ -1,5 +1,7 @@
 import { CampaignType } from '@prisma/client';
 
+import { ENABLED_CAMPAIGN_TYPES } from './enabled-types.constants';
+
 /** What a merchant is trying to achieve. The builder maps each goal to the campaign type that serves it. */
 export enum CampaignGoal {
   MORE_REVIEWS = 'MORE_REVIEWS',
@@ -126,3 +128,8 @@ export const OWN_HISTORY_LOOKBACK = 5;
 export const OWN_HISTORY_LOW_COMPLETION = 0.25;
 
 export const DEFAULT_CAMPAIGN_DURATION_DAYS = 7;
+
+/** The goals the builder offers: those whose campaign type a merchant can create today (ENABLED_CAMPAIGN_TYPES). */
+export const ENABLED_CAMPAIGN_GOALS: readonly CampaignGoal[] = Object.values(CampaignGoal).filter((goal) =>
+  ENABLED_CAMPAIGN_TYPES.includes(GOAL_PROFILES[goal].campaignType),
+);

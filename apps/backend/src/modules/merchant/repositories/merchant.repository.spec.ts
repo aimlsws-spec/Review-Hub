@@ -16,7 +16,12 @@ describe('MerchantRepository', () => {
       count: jest.fn(),
     },
     merchantSubscription: { count: jest.fn() },
+    merchantDocument: { updateMany: jest.fn() },
+    merchantBankAccount: { updateMany: jest.fn() },
+    transaction: jest.fn(),
   };
+  // The transaction runs its callback against the same mock, standing in for the transaction client.
+  mockPrisma.transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma));
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -112,6 +117,55 @@ describe('MerchantRepository', () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
 
       await expect(repository.findVerificationFacts('nope')).resolves.toBeNull();
+    });
+  });
+  describe('approveWithDetails', () => {
+    it('approves the merchant and only the documents and bank accounts still waiting, in one transaction', async () => {
+      mockPrisma.merchant.update.mockResolvedValue({ id: 'merchant-1', status: 'ACTIVE' });
+      mockPrisma.merchantDocument.updateMany.mockResolvedValue({ count: 2 });
+      mockPrisma.merchantBankAccount.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await repository.approveWithDetails('merchant-1', 'admin-1');
+
+      expect(mockPrisma.transaction).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.merchant.update).toHaveBeenCalledWith({
+        where: { id: 'merchant-1' },
+        data: expect.objectContaining({ status: 'ACTIVE', verificationStatus: 'APPROVED', verifiedBy: 'admin-1' }),
+      });
+      expect(mockPrisma.merchantDocument.updateMany).toHaveBeenCalledWith({
+        where: { merchantId: 'merchant-1', deletedAt: null, verificationStatus: { in: ['PENDING', 'UNDER_REVIEW'] } },
+        data: expect.objectContaining({ verificationStatus: 'APPROVED', verifiedBy: 'admin-1', rejectionReason: null }),
+      });
+      expect(mockPrisma.merchantBankAccount.updateMany).toHaveBeenCalledWith({
+        where: { merchantId: 'merchant-1', deletedAt: null, verificationStatus: 'PENDING' },
+        data: expect.objectContaining({ verificationStatus: 'VERIFIED' }),
+      });
+      expect(result).toEqual({
+        merchant: { id: 'merchant-1', status: 'ACTIVE' },
+        documentsApproved: 2,
+        bankAccountsVerified: 1,
+      });
+    });
+  });
+
+  describe('rejectWithDocuments', () => {
+    it('rejects the merchant and the waiting documents with the reason, and leaves bank accounts alone', async () => {
+      mockPrisma.merchant.update.mockResolvedValue({ id: 'merchant-1', status: 'SUSPENDED' });
+      mockPrisma.merchantDocument.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await repository.rejectWithDocuments('merchant-1', 'PAN does not match');
+
+      expect(mockPrisma.transaction).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.merchant.update).toHaveBeenCalledWith({
+        where: { id: 'merchant-1' },
+        data: { status: 'SUSPENDED', verificationStatus: 'REJECTED' },
+      });
+      expect(mockPrisma.merchantDocument.updateMany).toHaveBeenCalledWith({
+        where: { merchantId: 'merchant-1', deletedAt: null, verificationStatus: { in: ['PENDING', 'UNDER_REVIEW'] } },
+        data: { verificationStatus: 'REJECTED', rejectionReason: 'PAN does not match' },
+      });
+      expect(mockPrisma.merchantBankAccount.updateMany).not.toHaveBeenCalled();
+      expect(result).toEqual({ merchant: { id: 'merchant-1', status: 'SUSPENDED' }, documentsRejected: 1 });
     });
   });
 });

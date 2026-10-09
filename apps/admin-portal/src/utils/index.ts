@@ -1,6 +1,14 @@
+import { resolveUploadUrl } from '@viralkar/shared-ui'
 import { clsx, type ClassValue } from 'clsx'
 import { format, formatDistanceToNow } from 'date-fns'
 import { twMerge } from 'tailwind-merge'
+
+import { API_BASE_URL } from '@/constants'
+
+/** The address of an uploaded file (a campaign cover), from the path the API returns. */
+export function uploadUrl(path: string): string {
+  return resolveUploadUrl(path, API_BASE_URL)
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -29,6 +37,12 @@ export function formatRelativeTime(date: string | Date): string {
 
 export function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+}
+
+/** An enum value as words: "INSTAGRAM_STORY_SHARE" → "Instagram story share". */
+export function humanize(value: string): string {
+  const words = value.toLowerCase().replace(/_/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 export function truncate(str: string, length: number): string {

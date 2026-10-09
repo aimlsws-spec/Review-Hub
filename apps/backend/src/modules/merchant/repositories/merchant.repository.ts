@@ -64,6 +64,53 @@ export class MerchantRepository {
     return this.prisma.merchant.update({ where: { id }, data });
   }
 
+  /**
+   * Approves the merchant together with the KYC documents and bank accounts that were waiting on that decision, in one
+   * transaction. The admin reviews them all on the merchant's page before approving, so approving the merchant is
+   * approving what they looked at; without this the merchant's own Documents page kept showing PENDING forever.
+   *
+   * Only rows still waiting are touched: a document already rejected stays rejected, and a bank account that failed
+   * verification stays failed.
+   */
+  async approveWithDetails(merchantId: string, approvedBy: string) {
+    const now = new Date();
+    return this.prisma.transaction(async (tx) => {
+      const merchant = await tx.merchant.update({
+        where: { id: merchantId },
+        data: { status: 'ACTIVE', verificationStatus: 'APPROVED', verifiedAt: now, verifiedBy: approvedBy },
+      });
+      const documents = await tx.merchantDocument.updateMany({
+        where: { merchantId, deletedAt: null, verificationStatus: { in: ['PENDING', 'UNDER_REVIEW'] } },
+        data: { verificationStatus: 'APPROVED', verifiedBy: approvedBy, verifiedAt: now, rejectionReason: null },
+      });
+      const bankAccounts = await tx.merchantBankAccount.updateMany({
+        where: { merchantId, deletedAt: null, verificationStatus: 'PENDING' },
+        data: { verificationStatus: 'VERIFIED', verifiedAt: now },
+      });
+      return { merchant, documentsApproved: documents.count, bankAccountsVerified: bankAccounts.count };
+    });
+  }
+
+  /**
+   * Rejects the merchant and the KYC documents that were waiting, in one transaction, giving each document the same
+   * reason. A rejected document is what lets the merchant upload a replacement (KycService refuses to replace an
+   * approved one). Bank accounts are left as they are: rejecting the business says nothing about whether the account
+   * exists, and marking it FAILED would block refunds to it later.
+   */
+  async rejectWithDocuments(merchantId: string, reason: string) {
+    return this.prisma.transaction(async (tx) => {
+      const merchant = await tx.merchant.update({
+        where: { id: merchantId },
+        data: { status: 'SUSPENDED', verificationStatus: 'REJECTED' },
+      });
+      const documents = await tx.merchantDocument.updateMany({
+        where: { merchantId, deletedAt: null, verificationStatus: { in: ['PENDING', 'UNDER_REVIEW'] } },
+        data: { verificationStatus: 'REJECTED', rejectionReason: reason },
+      });
+      return { merchant, documentsRejected: documents.count };
+    });
+  }
+
   async findPending(verificationStatus?: string) {
     const where: Prisma.MerchantWhereInput = { deletedAt: null };
     if (verificationStatus) {

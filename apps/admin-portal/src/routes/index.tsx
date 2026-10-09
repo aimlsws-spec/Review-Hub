@@ -19,6 +19,7 @@ const MerchantsPage = lazy(() => import('@/pages/MerchantsPage'))
 const UserKycPage = lazy(() => import('@/pages/UserKycPage'))
 const NotificationCenterPage = lazy(() => import('@/pages/NotificationCenterPage'))
 const CampaignQueuePage = lazy(() => import('@/pages/CampaignQueuePage'))
+const AllCampaignsPage = lazy(() => import('@/pages/AllCampaignsPage'))
 const WithdrawalQueuePage = lazy(() => import('@/pages/WithdrawalQueuePage'))
 const FinancePage = lazy(() => import('@/pages/FinancePage'))
 const RefundApprovalsPage = lazy(() => import('@/pages/RefundApprovalsPage'))
@@ -75,6 +76,7 @@ export const router = createBrowserRouter(
             { path: ROUTES.NOTIFICATIONS, element: <NotificationCenterPage /> },
             { path: ROUTES.MERCHANTS, element: <MerchantsPage /> },
             { path: ROUTES.CAMPAIGNS, element: <CampaignQueuePage /> },
+            { path: ROUTES.ALL_CAMPAIGNS, element: <AllCampaignsPage /> },
             { path: ROUTES.WITHDRAWALS, element: <WithdrawalQueuePage /> },
             { path: ROUTES.FINANCE, element: <FinancePage /> },
             { path: ROUTES.REFUNDS, element: <RefundApprovalsPage /> },

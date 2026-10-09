@@ -162,4 +162,27 @@ describe('TaskSubmissionRepository', () => {
       expect(mockPrisma.taskSubmission.count.mock.calls[1][0].where).not.toHaveProperty('createdAt');
     });
   });
+
+  describe('findOwnForTasks', () => {
+    it("reads one person's counting submissions for the given tasks", async () => {
+      mockPrisma.taskSubmission.findMany.mockResolvedValue([]);
+
+      await repository.findOwnForTasks('user-1', ['task-1', 'task-2']);
+
+      expect(mockPrisma.taskSubmission.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          taskId: { in: ['task-1', 'task-2'] },
+          deletedAt: null,
+          status: { in: ['PENDING', 'AI_PROCESSING', 'PENDING_MANUAL', 'APPROVED'] },
+        },
+        select: { taskId: true, status: true, createdAt: true },
+      });
+    });
+
+    it('asks nothing for an empty list', async () => {
+      expect(await repository.findOwnForTasks('user-1', [])).toEqual([]);
+      expect(mockPrisma.taskSubmission.findMany).not.toHaveBeenCalled();
+    });
+  });
 });

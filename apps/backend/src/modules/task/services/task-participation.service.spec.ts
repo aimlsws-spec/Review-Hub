@@ -36,6 +36,7 @@ describe('TaskParticipationService', () => {
     findAttachmentByChecksum: jest.fn(),
     createVerificationJob: jest.fn(),
     createFraudFlag: jest.fn(),
+    findOwnForTasks: jest.fn().mockResolvedValue([]),
   };
   const mockStorageService = { saveFile: jest.fn() };
   const mockEventEmitter = { emit: jest.fn() };
@@ -63,7 +64,7 @@ describe('TaskParticipationService', () => {
 
   const mockSubmissionRisk = { assess: jest.fn() };
   const mockAiQueue = { add: jest.fn() };
-  const mockSubmissionService = { aiApprove: jest.fn(), aiReject: jest.fn() };
+  const mockSubmissionService = { deferToManualReview: jest.fn(), aiReject: jest.fn() };
   const mockQrScanVerification = { verify: jest.fn() };
   const mockLocationCheckinVerification = { verify: jest.fn() };
   const mockSupportService = { createTaskIssueAsUser: jest.fn() };
@@ -120,6 +121,35 @@ describe('TaskParticipationService', () => {
       mockCampaignTaskRepository.findById.mockResolvedValue(null);
 
       await expect(service.startTask('unknown', 'user-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('refuses to start a once-only task this person already completed, before any proof is taken', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, completionLimit: 'ONCE', maxCompletionsPerPeriod: 1 });
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+      mockParticipantRepository.findByCampaignAndUser.mockResolvedValue(participant);
+      mockSubmissionRepository.findOwnForTasks.mockResolvedValueOnce([{ taskId: 'task-1', status: 'APPROVED', createdAt: new Date() }]);
+
+      await expect(service.startTask('task-1', 'user-1')).rejects.toThrow('You have already completed this task');
+      expect(mockSubmissionRepository.findOwnForTasks).toHaveBeenCalledWith('user-1', ['task-1']);
+      expect(mockEventEmitter.emit).not.toHaveBeenCalledWith('task.started', expect.anything());
+    });
+
+    it('refuses to start a task whose last submission is still being checked', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, completionLimit: 'ONCE', maxCompletionsPerPeriod: 1 });
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+      mockParticipantRepository.findByCampaignAndUser.mockResolvedValue(participant);
+      mockSubmissionRepository.findOwnForTasks.mockResolvedValueOnce([{ taskId: 'task-1', status: 'PENDING_MANUAL', createdAt: new Date() }]);
+
+      await expect(service.startTask('task-1', 'user-1')).rejects.toThrow('already has a submission being checked');
+    });
+
+    it('lets a person try again after a rejection', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, completionLimit: 'ONCE', maxCompletionsPerPeriod: 1 });
+      mockCampaignRepository.findById.mockResolvedValue(activeCampaign);
+      mockParticipantRepository.findByCampaignAndUser.mockResolvedValue(participant);
+      mockSubmissionRepository.findOwnForTasks.mockResolvedValueOnce([]);
+
+      await expect(service.startTask('task-1', 'user-1')).resolves.toMatchObject({ participant });
     });
 
     it('should reject continuing a disqualified participation', async () => {
@@ -309,6 +339,31 @@ describe('TaskParticipationService', () => {
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('task.submitted', expect.any(Object));
     });
 
+    it('sends a task the merchant checks themselves straight to them, with no AI job', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, verificationType: 'MANUAL' });
+
+      await service.submitTask('task-1', 'user-1', { externalUrl: 'https://instagram.com/p/abc' });
+
+      expect(mockSubmissionRepository.createWithinLimit).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'PENDING_MANUAL', verificationSource: 'MANUAL' }) }),
+      );
+      expect(mockSubmissionRepository.createVerificationJob).not.toHaveBeenCalled();
+      expect(mockAiQueue.add).not.toHaveBeenCalled();
+      // The duplicate and risk checks still run, so the merchant sees their flags.
+      expect(mockSubmissionRisk.assess).toHaveBeenCalled();
+    });
+
+    it('sends an "AI checks, then I confirm" task to the AI first', async () => {
+      mockCampaignTaskRepository.findById.mockResolvedValue({ ...task, verificationType: 'HYBRID' });
+
+      await service.submitTask('task-1', 'user-1', { externalUrl: 'https://instagram.com/p/abc' });
+
+      expect(mockSubmissionRepository.createWithinLimit).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'PENDING', verificationSource: 'HYBRID' }) }),
+      );
+      expect(mockAiQueue.add).toHaveBeenCalledWith('verify-submission', expect.objectContaining({ submissionId: 'submission-1' }));
+    });
+
     it('should reject resubmitting while a prior attempt is still pending', async () => {
       mockSubmissionRepository.findLatestAttempt.mockResolvedValue({ attemptNumber: 1, status: 'PENDING_MANUAL' });
 
@@ -441,14 +496,14 @@ describe('TaskParticipationService', () => {
       expect(mockSubmissionRepository.createWithinLimit).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ verificationSource: 'SYSTEM' }) }));
     });
 
-    it('approves a QR_SCAN submission immediately when the scanned code matches', async () => {
+    it('sends a QR_SCAN submission whose code matches to the merchant, never paying it on its own', async () => {
       mockCampaignTaskRepository.findById.mockResolvedValue(qrTask);
       mockQrScanVerification.verify.mockReturnValue({ passed: true });
 
       await service.submitTask('task-1', 'user-1', { textAnswer: 'STORE-42' });
 
       expect(mockQrScanVerification.verify).toHaveBeenCalledWith(qrTask.configuration, 'STORE-42');
-      expect(mockSubmissionService.aiApprove).toHaveBeenCalledWith('submission-1');
+      expect(mockSubmissionService.deferToManualReview).toHaveBeenCalledWith('submission-1', 'qr_scan-check');
       expect(mockSubmissionService.aiReject).not.toHaveBeenCalled();
     });
 
@@ -459,10 +514,10 @@ describe('TaskParticipationService', () => {
       await service.submitTask('task-1', 'user-1', { textAnswer: 'WRONG' });
 
       expect(mockSubmissionService.aiReject).toHaveBeenCalledWith('submission-1', 'That QR code does not match this task');
-      expect(mockSubmissionService.aiApprove).not.toHaveBeenCalled();
+      expect(mockSubmissionService.deferToManualReview).not.toHaveBeenCalled();
     });
 
-    it('approves a LOCATION_CHECKIN submission immediately when within radius', async () => {
+    it('sends a LOCATION_CHECKIN submission within radius to the merchant, never paying it on its own', async () => {
       mockCampaignTaskRepository.findById.mockResolvedValue(locationTask);
       mockLocationCheckinVerification.verify.mockReturnValue({ passed: true, distanceMeters: 10 });
 
@@ -470,7 +525,7 @@ describe('TaskParticipationService', () => {
 
       expect(mockLocationCheckinVerification.verify).toHaveBeenCalledWith(locationTask.configuration, { latitude: 12.9716, longitude: 77.5946 });
       expect(mockSubmissionRepository.createWithinLimit).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ metadata: { latitude: 12.9716, longitude: 77.5946 } }) }));
-      expect(mockSubmissionService.aiApprove).toHaveBeenCalledWith('submission-1');
+      expect(mockSubmissionService.deferToManualReview).toHaveBeenCalledWith('submission-1', 'location_checkin-check');
     });
 
     it('rejects a LOCATION_CHECKIN submission with no location sent, without throwing a generic proof error', async () => {

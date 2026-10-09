@@ -1,4 +1,6 @@
 import type {
+  AdminCampaignList,
+  AllCampaignsParams,
   AdminUser,
   AiModel,
   AiProvider,
@@ -11,6 +13,7 @@ import type {
   Badge,
   BadgeCriteriaType,
   Campaign,
+  CampaignDetail,
   CMSPage,
   CMSPageStatus,
   DailyAnalytics,
@@ -163,6 +166,13 @@ export const adminApi = {
   // ── Campaign approval queue ───────────────────────────────────────────
   listPendingCampaigns: (params: { page: number; limit: number }) =>
     apiClient.get<ApiResponse<PaginatedResult<Campaign>>>('/admin/campaigns/pending', { params }),
+
+  /** Every merchant's campaigns in any status, with performance and a count per status. */
+  listAllCampaigns: (params: AllCampaignsParams) =>
+    apiClient.get<ApiResponse<AdminCampaignList>>('/admin/campaigns', { params }),
+
+  /** One campaign in full: merchant, wording, reward, dates, audience, tasks, review history and performance. */
+  getCampaignDetail: (campaignId: string) => apiClient.get<ApiResponse<CampaignDetail>>(`/admin/campaigns/${campaignId}`),
 
   approveCampaign: (campaignId: string, comments?: string) =>
     apiClient.post<ApiResponse<Campaign>>(`/admin/campaigns/${campaignId}/approve`, { comments }),

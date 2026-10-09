@@ -1,6 +1,14 @@
+import { resolveUploadUrl } from '@viralkar/shared-ui'
 import { clsx, type ClassValue } from 'clsx'
 import { format, formatDistanceToNow } from 'date-fns'
 import { twMerge } from 'tailwind-merge'
+
+import { API_BASE_URL } from '@/constants'
+
+/** The address of an uploaded file (a campaign cover), from the path the API returns. */
+export function uploadUrl(path: string): string {
+  return resolveUploadUrl(path, API_BASE_URL)
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

@@ -23,7 +23,7 @@ describe('Submission decisions (e2e)', () => {
   const submit = async (): Promise<string> => {
     const user = await api.registerUser();
     await api.post(`/tasks/${taskId}/start`, user.token).expect(200);
-    const res = await api.post(`/tasks/${taskId}/submit`, user.token).field('textAnswer', 'The coffee was great and the staff were friendly.').expect(201);
+    const res = await api.post(`/tasks/${taskId}/submit`, user.token).field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/').expect(201);
     return res.body.data.id;
   };
   const statusOf = async (id: string) => (await prisma.taskSubmission.findUniqueOrThrow({ where: { id } })).status;
@@ -41,7 +41,7 @@ describe('Submission decisions (e2e)', () => {
       .post(`/merchants/${merchant.merchantId}/campaigns`, merchant.token)
       .send({ title: `E2E decisions ${Date.now()}`, description: 'Share your honest experience after visiting our cafe this week.', campaignType: 'REVIEW', rewardAmount: 50, totalBudget: 5000, maxParticipants: 200 })
       .expect(201);
-    const task = await api.post(`/campaigns/${campaign.body.data.id}/tasks`, merchant.token).send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 50 }).expect(201);
+    const task = await api.post(`/campaigns/${campaign.body.data.id}/tasks`, merchant.token).send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50 }).expect(201);
     taskId = task.body.data.id;
     await api.post(`/campaigns/${campaign.body.data.id}/submit`, merchant.token).expect(200);
     await api.post(`/admin/campaigns/${campaign.body.data.id}/approve`, adminToken).send({}).expect(200);

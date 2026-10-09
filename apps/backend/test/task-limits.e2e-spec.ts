@@ -32,7 +32,7 @@ describe('Task completion limits (e2e)', () => {
     const campaignId: string = campaign.body.data.id;
     const task = await api
       .post(`/campaigns/${campaignId}/tasks`, merchant.token)
-      .send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 10, ...limit })
+      .send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 10, ...limit })
       .expect(201);
     await api.post(`/campaigns/${campaignId}/submit`, merchant.token).expect(200);
     await api.post(`/admin/campaigns/${campaignId}/approve`, adminToken).send({}).expect(200);
@@ -41,7 +41,7 @@ describe('Task completion limits (e2e)', () => {
   };
 
   const submit = (taskId: string, token: string) =>
-    api.post(`/tasks/${taskId}/submit`, token).field('textAnswer', 'The coffee was great and the staff were friendly.');
+    api.post(`/tasks/${taskId}/submit`, token).field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/');
 
   beforeAll(async () => {
     app = await createTestApp();

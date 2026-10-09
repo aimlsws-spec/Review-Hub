@@ -7,7 +7,6 @@ import { SupportCategory, TaskCompletionLimit } from '@prisma/client';
 import { Queue } from 'bullmq';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
-import { formatIstDateTime, getIstDayBoundaries, getIstMonthBoundaries, getIstWeekBoundaries } from '@common/utils';
 
 import { QUEUE_NAMES } from '../../../queues/queue.constants';
 import { LocalStorageService } from '../../../storage/storage.service';
@@ -22,6 +21,7 @@ import { IN_FLIGHT_SUBMISSION_STATUSES, SUBMISSION_STORAGE } from '../constants'
 import { SubmitTaskDto, TaskIssueDto } from '../dto';
 import { TaskStartedEvent, TaskSubmittedEvent } from '../events';
 import { CampaignParticipantRepository, CampaignTaskRepository, TaskSubmissionRepository } from '../repositories';
+import { currentLimitPeriod, taskAvailability, unavailableMessage } from '../task-availability';
 
 import { LocationCheckinVerificationService } from './location-checkin-verification.service';
 import { QrScanVerificationService } from './qr-scan-verification.service';
@@ -31,18 +31,12 @@ import { SubmissionService } from './submission.service';
 const DETERMINISTIC_TASK_TYPES = ['QR_SCAN', 'LOCATION_CHECKIN'] as const;
 
 /** How a completion limit reads to the person who hit it: "once a day", "3 times a week". */
-const LIMIT_PERIOD_WORDS: Record<Exclude<TaskCompletionLimit, 'ONCE'>, string> = {
-  DAILY: 'a day',
-  WEEKLY: 'a week',
-  MONTHLY: 'a month',
-};
-
 /**
  * Handles a user joining a campaign through its first task, and submitting
  * evidence for a task. Every submission lands at PENDING with a QUEUED
  * AIVerificationJob row; the AI service (apps/ai-services) claims it,
- * moves the submission through AI_PROCESSING, and either auto-decides it
- * or defers to PENDING_MANUAL for a human reviewer.
+ * moves the submission through AI_PROCESSING, records its advice, and hands
+ * it to PENDING_MANUAL: the merchant (or an admin) always makes the decision.
  */
 @Injectable()
 export class TaskParticipationService {
@@ -102,6 +96,12 @@ export class TaskParticipationService {
     } else if (['DISQUALIFIED', 'ABANDONED'].includes(participant.status)) {
       throw new BadRequestException(`Cannot continue: participation is ${participant.status.toLowerCase()}`);
     }
+
+    // Refused here, before the person takes a screenshot and fills in the form, rather than only at submit time
+    // (createWithinLimit still makes the binding check, under a lock).
+    const own = await this.submissionRepository.findOwnForTasks(userId, [task.id]);
+    const blocked = unavailableMessage(task, taskAvailability(task, own));
+    if (blocked) throw new BadRequestException(blocked, 'TASK_NOT_AVAILABLE');
 
     this.eventEmitter.emit('task.started', new TaskStartedEvent(task.id, campaign.id, userId, participant.id));
 
@@ -214,12 +214,18 @@ export class TaskParticipationService {
       fileUrl = upload.path;
     }
 
+    // Who decides is the merchant's choice for this task. MANUAL goes straight to their queue with no AI call; AI and
+    // HYBRID are checked by the AI service first, and for HYBRID the merchant still makes the final call
+    // (AiVerificationService.completeJob). A task saved before the choice existed counts as AI, the schema default.
+    const checkedBy = task.verificationType ?? 'AI';
+    const sendsToAi = checkedBy !== 'MANUAL';
+
     const submission = await this.createWithinLimit(task, participant.id, userId, {
       participant: { connect: { id: participant.id } },
       task: { connect: { id: taskId } },
       user: { connect: { id: userId } },
-      status: 'PENDING',
-      verificationSource: 'AI',
+      status: sendsToAi ? 'PENDING' : 'PENDING_MANUAL',
+      verificationSource: checkedBy === 'MANUAL' ? 'MANUAL' : checkedBy === 'HYBRID' ? 'HYBRID' : 'AI',
       attemptNumber: (latestAttempt?.attemptNumber ?? 0) + 1,
       fileUrl,
       externalUrl: dto.externalUrl,
@@ -237,10 +243,12 @@ export class TaskParticipationService {
       });
     }
 
-    await this.submissionRepository.createVerificationJob({
-      submission: { connect: { id: submission.id } },
-      status: 'QUEUED',
-    });
+    if (sendsToAi) {
+      await this.submissionRepository.createVerificationJob({
+        submission: { connect: { id: submission.id } },
+        status: 'QUEUED',
+      });
+    }
 
     if (fraudMatch && fraudMatch.submission.userId !== userId) {
       await this.submissionRepository.createFraudFlag({
@@ -270,13 +278,15 @@ export class TaskParticipationService {
       this.logger.error(`Risk check failed for submission ${submission.id}: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // 1) Push to the background BullMQ Queue for AI Processing
-    await this.aiQueue.add('verify-submission', {
-      submissionId: submission.id,
-      taskId,
-      campaignId: campaign.id,
-      userId,
-    });
+    // 1) Push to the background BullMQ Queue for AI Processing (not for a task the merchant checks themselves)
+    if (sendsToAi) {
+      await this.aiQueue.add('verify-submission', {
+        submissionId: submission.id,
+        taskId,
+        campaignId: campaign.id,
+        userId,
+      });
+    }
 
     // 2) Emit event for local listeners (if any)
     this.eventEmitter.emit('task.submitted', new TaskSubmittedEvent(submission.id, taskId, campaign.id, userId));
@@ -285,8 +295,9 @@ export class TaskParticipationService {
   }
 
   /**
-   * QR_SCAN and LOCATION_CHECKIN don't need the AI service or a human reviewer — the check is a deterministic rule
-   * against `task.configuration`, so the decision (and any reward) lands the moment the submission is created.
+   * QR_SCAN and LOCATION_CHECKIN don't need the AI service: the check is a deterministic rule against
+   * `task.configuration`, decided the moment the submission is created. A check that fails is refused at once (it pays
+   * nothing and can be tried again); one that passes waits for the merchant to approve it, like every reward.
    */
   private async submitDeterministicTask(
     task: Awaited<ReturnType<CampaignTaskRepository['findById']>> & object,
@@ -324,7 +335,7 @@ export class TaskParticipationService {
         : this.locationCheckinVerification.verify(task.configuration, submittedLocation);
 
     if (verdict.passed) {
-      await this.submissionService.aiApprove(submission.id);
+      await this.submissionService.deferToManualReview(submission.id, `${task.taskType.toLowerCase()}-check`);
     } else {
       await this.submissionService.aiReject(submission.id, verdict.reason ?? 'Verification failed');
     }
@@ -379,28 +390,13 @@ export class TaskParticipationService {
     });
 
     if (result.outcome === 'created') return result.submission;
-    if (result.outcome === 'in-flight') throw new BadRequestException('This task already has a submission being checked');
-
-    const times = task.maxCompletionsPerPeriod === 1 ? 'once' : `${task.maxCompletionsPerPeriod} times`;
-    if (task.completionLimit === 'ONCE' || !period) {
-      throw new BadRequestException(task.maxCompletionsPerPeriod === 1 ? 'You have already completed this task' : `This task can be completed ${times} in total, and you have reached that`);
-    }
-    throw new BadRequestException(
-      `You can complete this task ${times} ${LIMIT_PERIOD_WORDS[task.completionLimit]}. You can do it again after ${formatIstDateTime(period.end)} IST.`,
-    );
+    const state = result.outcome === 'in-flight' ? 'IN_REVIEW' : period ? 'LIMIT_REACHED' : 'COMPLETED';
+    const message = unavailableMessage(task, { state, availableAgainAt: period?.end ?? null, timesCompleted: 0 });
+    throw new BadRequestException(message ?? 'This task can not be done right now', 'TASK_NOT_AVAILABLE');
   }
 
   /** The current limit period in IST, or null for a once-only task (limited over its whole life). */
   static currentPeriod(limit: TaskCompletionLimit, now: Date = new Date()): { start: Date; end: Date } | null {
-    switch (limit) {
-      case 'DAILY':
-        return getIstDayBoundaries(now);
-      case 'WEEKLY':
-        return getIstWeekBoundaries(now);
-      case 'MONTHLY':
-        return getIstMonthBoundaries(now);
-      default:
-        return null;
-    }
+    return currentLimitPeriod(limit, now);
   }
 }

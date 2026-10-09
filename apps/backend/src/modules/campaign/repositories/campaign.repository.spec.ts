@@ -7,6 +7,9 @@ import { PrismaService } from '../../../database/prisma/prisma.service';
 import { CampaignRepository } from './campaign.repository';
 
 describe('CampaignRepository', () => {
+  /** "No end date, or one still ahead": the rule every public query applies. */
+  const notEnded = { OR: [{ endAt: null }, { endAt: { gt: expect.any(Date) } }] };
+
   let repository: CampaignRepository;
 
   const mockPrisma = {
@@ -17,6 +20,7 @@ describe('CampaignRepository', () => {
       create: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
+      groupBy: jest.fn(),
     },
     campaignApproval: {
       create: jest.fn(),
@@ -43,7 +47,7 @@ describe('CampaignRepository', () => {
       expect(result).toEqual({ id: 'campaign-1' });
       expect(mockPrisma.campaign.findFirst).toHaveBeenCalledWith({
         where: { id: 'campaign-1', deletedAt: null },
-        include: { tasks: true, media: true, targets: true },
+        include: { tasks: { where: { deletedAt: null }, orderBy: { taskOrder: 'asc' } }, media: true, targets: true },
       });
     });
   });
@@ -134,6 +138,45 @@ describe('CampaignRepository', () => {
     });
   });
 
+  describe('findForAdmin', () => {
+    beforeEach(() => {
+      mockPrisma.campaign.findMany.mockResolvedValue([{ id: 'campaign-1', merchant: { id: 'merchant-1', businessName: 'Sunrise Bakery' } }]);
+      mockPrisma.campaign.count.mockResolvedValue(1);
+      mockPrisma.campaign.groupBy.mockResolvedValue([
+        { status: 'ACTIVE', _count: { _all: 3 } },
+        { status: 'PENDING_REVIEW', _count: { _all: 1 } },
+      ]);
+    });
+
+    it('lists campaigns in every status, newest first, with the business that runs each', async () => {
+      const result = await repository.findForAdmin({ page: 2, limit: 10 });
+
+      expect(mockPrisma.campaign.findMany).toHaveBeenCalledWith({
+        where: { deletedAt: null },
+        skip: 10,
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: { merchant: { select: { id: true, businessName: true } } },
+      });
+      expect(result).toMatchObject({ total: 1, page: 2, limit: 10, statusCounts: { ACTIVE: 3, PENDING_REVIEW: 1 } });
+    });
+
+    it('filters by status, type, merchant and a search over title and business name', async () => {
+      await repository.findForAdmin({ page: 1, limit: 20, status: 'ACTIVE', campaignType: 'REVIEW', merchantId: 'merchant-1', search: 'cake' });
+
+      const base = {
+        deletedAt: null,
+        campaignType: 'REVIEW',
+        merchantId: 'merchant-1',
+        OR: [{ title: { contains: 'cake' } }, { merchant: { businessName: { contains: 'cake' } } }],
+      };
+      expect(mockPrisma.campaign.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { ...base, status: 'ACTIVE' } }));
+      expect(mockPrisma.campaign.count).toHaveBeenCalledWith({ where: { ...base, status: 'ACTIVE' } });
+      // The tab counts use every filter but the status, so each tab shows what choosing it would list.
+      expect(mockPrisma.campaign.groupBy).toHaveBeenCalledWith({ by: ['status'], where: base, _count: { _all: true } });
+    });
+  });
+
   describe('findPublic', () => {
     it('should only return active, public, non-deleted campaigns', async () => {
       mockPrisma.campaign.findMany.mockResolvedValue([{ id: 'campaign-1' }]);
@@ -143,9 +186,20 @@ describe('CampaignRepository', () => {
       expect(result.data).toHaveLength(1);
       expect(mockPrisma.campaign.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { deletedAt: null, status: 'ACTIVE', visibility: 'PUBLIC' },
+          where: { deletedAt: null, status: 'ACTIVE', visibility: 'PUBLIC', AND: [notEnded] },
         }),
       );
+    });
+
+    it('leaves out a campaign past its end date, before the schedule job has marked it expired', async () => {
+      mockPrisma.campaign.findMany.mockResolvedValue([]);
+      mockPrisma.campaign.count.mockResolvedValue(0);
+
+      await repository.findPublic({ page: 1, limit: 20 });
+
+      const [condition] = mockPrisma.campaign.findMany.mock.calls.at(-1)[0].where.AND;
+      expect(condition.OR[0]).toEqual({ endAt: null });
+      expect(condition.OR[1].endAt.gt.getTime()).toBeGreaterThan(Date.now() - 5000);
     });
 
     describe('sorting', () => {
@@ -177,13 +231,12 @@ describe('CampaignRepository', () => {
         ]);
       });
 
-      it('lists what ends soonest first, and only what has an end date still ahead', async () => {
+      it('lists what ends soonest first, and only campaigns that have an end date (ended ones are always left out)', async () => {
         const args = await orderFor(CampaignSort.EndingSoon);
 
         expect(args.orderBy[0]).toEqual({ endAt: 'asc' });
-        expect(args.where.endAt.gte).toBeInstanceOf(Date);
-        expect(args.where.endAt.gte.getTime()).toBeLessThanOrEqual(Date.now());
-        expect(args.where.endAt.gte.getTime()).toBeGreaterThan(Date.now() - 5000);
+        expect(args.where.endAt).toEqual({ not: null });
+        expect(args.where.AND).toEqual([notEnded]);
       });
 
       it('does not filter by end date for the other sorts', async () => {
@@ -258,7 +311,7 @@ describe('CampaignRepository', () => {
       await expect(repository.findPublicById('campaign-1')).resolves.toEqual({ id: 'campaign-1' });
 
       expect(mockPrisma.campaign.findFirst).toHaveBeenCalledWith({
-        where: { id: 'campaign-1', deletedAt: null, status: 'ACTIVE', visibility: 'PUBLIC' },
+        where: { id: 'campaign-1', deletedAt: null, status: 'ACTIVE', visibility: 'PUBLIC', AND: [notEnded] },
       });
     });
   });

@@ -1,6 +1,7 @@
 import { PageHeader, Badge, StatusBadge, Skeleton, VerificationLevelBadge } from '@viralkar/shared-ui'
 import { useEffect, useState } from 'react'
 
+import { StoreLocationCard } from '@/components/StoreLocationCard'
 import { useMerchantProfileQuery, useUpdateMerchantProfileMutation, useRegisterMerchantMutation } from '@/hooks/useMerchantProfile'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Merchant } from '@/types'
@@ -407,6 +408,10 @@ export default function ProfilePage() {
             ) : (
               <p className="text-sm text-gray-400">No address on file.</p>
             )}
+          </SectionCard>
+
+          <SectionCard title="Store Location">
+            <StoreLocationCard merchant={merchant} />
           </SectionCard>
         </div>
       </div>

@@ -5,7 +5,7 @@ import { merchantApi } from '@/api/merchant.api'
 import { QUERY_KEYS } from '@/constants'
 import type { Merchant } from '@/types'
 import { getApiErrorMessage, requireValue } from '@/utils'
-import { loadRazorpayCheckout, openRazorpayCheckout } from '@/utils/razorpay'
+import { WALLET_TOP_UP_METHODS, loadRazorpayCheckout, openRazorpayCheckout } from '@/utils/razorpay'
 
 export function useWalletQuery(merchantId: string | undefined) {
   return useQuery({
@@ -81,6 +81,13 @@ export function useWalletMutations(merchantId: string | undefined, merchant: Mer
     mutationFn: (amount: number) => merchantApi.createRecharge(requireValue(merchantId, 'merchantId'), amount),
     onSuccess: async (res) => {
       const order = res.data.data
+      // The backend names the key the order was made under; the env copy is only a fallback for an older backend.
+      const key = order.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID
+      if (!key) {
+        toast.error('Online payment is not set up yet. Please contact support to add funds.')
+        refreshWallet()
+        return
+      }
       try {
         await loadRazorpayCheckout()
       } catch {
@@ -90,7 +97,7 @@ export function useWalletMutations(merchantId: string | undefined, merchant: Mer
 
       options?.onRechargeStart?.()
       openRazorpayCheckout({
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key,
         amount: Math.round(order.amount * 100),
         currency: order.currency,
         order_id: order.razorpayOrderId,
@@ -98,6 +105,7 @@ export function useWalletMutations(merchantId: string | undefined, merchant: Mer
         description: 'Wallet recharge',
         prefill: { name: merchant?.businessName, email: merchant?.email, contact: merchant?.phone },
         theme: { color: '#4f46e5' },
+        method: WALLET_TOP_UP_METHODS,
         handler: (response) =>
           verifyMutation.mutate({
             razorpayOrderId: response.razorpay_order_id,

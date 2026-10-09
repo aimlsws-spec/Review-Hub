@@ -12,7 +12,10 @@ export class AiVerificationJobRepository {
   }
 
   async findByIdWithSubmission(id: string) {
-    return this.prisma.aIVerificationJob.findUnique({ where: { id }, include: { submission: true } });
+    return this.prisma.aIVerificationJob.findUnique({
+      where: { id },
+      include: { submission: { include: { task: { select: { verificationType: true } } } } },
+    });
   }
 
   async findActiveBySubmissionId(submissionId: string) {

@@ -15,6 +15,7 @@ import {
 } from '@viralkar/shared-ui'
 import { useState } from 'react'
 
+import { MerchantCampaignsPanel } from '@/components/MerchantCampaignsPanel'
 import { MerchantTopUpPanel } from '@/components/MerchantTopUpPanel'
 import { ITEMS_PER_PAGE } from '@/constants'
 import {
@@ -325,6 +326,8 @@ export default function MerchantsPage() {
                 </div>
               )}
             </div>
+
+            <MerchantCampaignsPanel merchantId={detail.id} />
 
             {detail.verificationStatus === 'APPROVED' && detail.status === 'ACTIVE' && (
               <MerchantTopUpPanel merchantId={detail.id} businessName={detail.businessName} />

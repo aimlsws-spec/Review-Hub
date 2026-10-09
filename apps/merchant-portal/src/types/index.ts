@@ -91,6 +91,9 @@ export interface Merchant {
   addressLine1: string | null
   addressLine2: string | null
   postalCode: string | null
+  /** Where the store is, for the app's "Nearest" sort. Both set or both null. */
+  latitude?: number | null
+  longitude?: number | null
   logoUrl: string | null
   description: string | null
   verificationStatus: MerchantVerificationStatus
@@ -533,6 +536,65 @@ export interface Campaign {
   endAt: string | null
   createdAt: string
   updatedAt: string
+}
+
+/** The backend's TaskType. What a participant does; the app picks the proof screen from proofType (or QR/location). */
+export type TaskType =
+  | 'SCREENSHOT' | 'URL' | 'VIDEO' | 'TEXT' | 'FILE_UPLOAD' | 'CUSTOM'
+  | 'INSTAGRAM_FOLLOW' | 'INSTAGRAM_LIKE' | 'INSTAGRAM_COMMENT' | 'INSTAGRAM_STORY_SHARE'
+  | 'FACEBOOK_SHARE' | 'FACEBOOK_LIKE' | 'GOOGLE_REVIEW' | 'PLAY_STORE_REVIEW' | 'APP_INSTALL' | 'REFERRAL'
+  | 'SURVEY' | 'WEBSITE_VISIT' | 'WATCH_VIDEO' | 'YOUTUBE_SUBSCRIBE' | 'TWITTER_FOLLOW'
+  | 'QR_SCAN' | 'LOCATION_CHECKIN'
+
+/** What a participant sends as proof. QR and location tasks have their own, set by the backend. */
+export type TaskProofType = 'SCREENSHOT' | 'VIDEO' | 'URL' | 'TEXT' | 'QR_CODE' | 'LOCATION'
+export type TaskVerificationType = 'AI' | 'MANUAL' | 'HYBRID' | 'SYSTEM'
+export type TaskCompletionLimit = 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY'
+
+export interface CampaignTask {
+  id: string
+  campaignId: string
+  title: string
+  description: string | null
+  instructions: string | null
+  taskType: TaskType
+  verificationType: TaskVerificationType
+  taskOrder: number
+  required: boolean
+  proofType: TaskProofType | null
+  completionLimit: TaskCompletionLimit
+  configuration: Record<string, unknown> | null
+}
+
+/** One task submission to the merchant's campaign, as the review page shows it. */
+export interface MerchantSubmission {
+  id: string
+  status: SubmissionStatus
+  verificationSource: string
+  attemptNumber: number
+  createdAt: string
+  reviewedAt: string | null
+  rejectionReason: string | null
+  rewardAmount: number | null
+  campaign: { id: string; title: string }
+  task: { id: string; title: string; taskType: TaskType; proofType: TaskProofType | null; verificationType: TaskVerificationType }
+  /** First name and last initial only. */
+  participantName: string
+  evidence: { file: { mimeType: string; fileName: string } | null; link: string | null }
+  ai: { status: string; decision: string | null; confidence: number | null; fraudScore: number | null; explanation: string | null } | null
+  flags: { type: string | null; riskLevel: string; reason: string }[]
+}
+
+/** One campaign as its owner sees it, with its live tasks in order and what each admin review said. */
+export interface CampaignWithTasks extends Campaign {
+  tasks: CampaignTask[]
+  /** Newest first. Which admin reviewed it is not shared. */
+  approvals?: { status: string; comments: string | null; createdAt: string }[]
+  visibility?: string
+  minimumAge?: number | null
+  maximumAge?: number | null
+  targetGender?: string
+  minimumFollowers?: number
 }
 
 // ============================================================

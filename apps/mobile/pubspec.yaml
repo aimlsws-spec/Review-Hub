@@ -63,6 +63,7 @@ dependencies:
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.2.0
   fl_chart: ^1.2.0
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -77,12 +78,15 @@ dev_dependencies:
   flutter_native_splash: ^2.4.3
   geolocator_platform_interface: ^4.3.0
   app_links_platform_interface: ^2.0.4
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/images/
+    # The app's settings (AppConfig). Copy .env.example to .env; .env itself is not in git.
+    - .env
 
   # fonts are pulled from google_fonts at runtime — no bundled font files needed
 
@@ -100,3 +104,14 @@ flutter_native_splash:
     color: "#FFFFFF"
     image: assets/images/splash_icon_android12.png
     icon_background_color: "#FFFFFF"
+
+# The app's home-screen icon: the Viralkar K. The sources in assets/icon/ are rendered from
+# assets/images/viralkar_icon.svg by tool/make_app_icon.js; after changing them run: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/app_icon.png
+  # Android 8+ crops icons to the phone's shape (circle, squircle...): the K on a white layer, kept inside the crop.
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/icon/app_icon_foreground.png
+  min_sdk_android: 21

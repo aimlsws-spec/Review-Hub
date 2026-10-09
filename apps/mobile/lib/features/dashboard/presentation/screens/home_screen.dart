@@ -547,7 +547,7 @@ class _RecommendedTasksSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
-                  height: 160,
+                  height: homeCarouselHeight(context, textBlockHeight: 70),
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: tasks.length,
@@ -569,6 +569,13 @@ class _RecommendedTasksSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Height of a home carousel row: a 90 px picture plus the card's text block, which grows with the phone's text size
+/// (Settings > Font size). A fixed height overflowed on phones with larger text.
+@visibleForTesting
+double homeCarouselHeight(BuildContext context, {required double textBlockHeight}) {
+  return 90 + MediaQuery.textScalerOf(context).scale(textBlockHeight);
 }
 
 /// Horizontal "📣 Popular Campaigns" row, ranked server-side by recent join
@@ -610,7 +617,7 @@ class _PopularCampaignsSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
-                  height: 148,
+                  height: homeCarouselHeight(context, textBlockHeight: 58),
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: page.items.length,

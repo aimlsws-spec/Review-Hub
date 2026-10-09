@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -21,6 +22,10 @@ import 'shared/providers/core_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // The app's settings (AppConfig): loaded first, since the API client reads them. A missing or empty .env is not an
+  // error: AppConfig then uses --dart-define values and its defaults.
+  await dotenv.load(isOptional: true);
 
   await Hive.initFlutter();
   await Hive.openBox(StorageKeys.settingsBox);

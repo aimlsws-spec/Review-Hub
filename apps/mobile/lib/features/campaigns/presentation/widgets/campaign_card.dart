@@ -25,9 +25,9 @@ class CampaignCard extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: campaign.thumbnailUrl != null
+                child: campaign.thumbnailImageUrl != null
                     ? CachedNetworkImage(
-                        imageUrl: campaign.thumbnailUrl!,
+                        imageUrl: campaign.thumbnailImageUrl!,
                         width: 64,
                         height: 64,
                         fit: BoxFit.cover,
@@ -75,6 +75,9 @@ class CampaignCard extends StatelessWidget {
                           const AppBadge(label: 'Ending soon', variant: BadgeVariant.yellow),
                         if (campaign.isFull)
                           const AppBadge(label: 'Full', variant: BadgeVariant.gray),
+                        // Only when sorting by "Nearest", and only for a store that has a location.
+                        if (campaign.distanceLabel != null)
+                          AppBadge(label: campaign.distanceLabel!, variant: BadgeVariant.blue),
                       ],
                     ),
                   ],

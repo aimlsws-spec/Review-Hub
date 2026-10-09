@@ -4,6 +4,7 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsObject,
@@ -12,6 +13,8 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+
+import { ENABLED_PROOF_TYPES, ENABLED_TASK_TYPES } from '../../campaign/constants/enabled-types.constants';
 
 export class CreateCampaignTaskDto {
   @ApiProperty({ example: 'Follow us on Instagram' })
@@ -29,8 +32,8 @@ export class CreateCampaignTaskDto {
   @IsString()
   instructions?: string;
 
-  @ApiProperty({ enum: TaskType, example: TaskType.INSTAGRAM_FOLLOW })
-  @IsEnum(TaskType)
+  @ApiProperty({ enum: ENABLED_TASK_TYPES, example: TaskType.INSTAGRAM_FOLLOW })
+  @IsIn(ENABLED_TASK_TYPES, { message: `taskType must be one of: ${ENABLED_TASK_TYPES.join(', ')}` })
   taskType!: TaskType;
 
   @ApiPropertyOptional({ enum: VerificationType, default: VerificationType.AI })
@@ -68,9 +71,9 @@ export class CreateCampaignTaskDto {
   @IsBoolean()
   proofRequired?: boolean;
 
-  @ApiPropertyOptional({ enum: EvidenceType })
+  @ApiPropertyOptional({ enum: ENABLED_PROOF_TYPES })
   @IsOptional()
-  @IsEnum(EvidenceType)
+  @IsIn(ENABLED_PROOF_TYPES, { message: `proofType must be one of: ${ENABLED_PROOF_TYPES.join(', ')}` })
   proofType?: EvidenceType;
 
   @ApiPropertyOptional({ type: 'object' })

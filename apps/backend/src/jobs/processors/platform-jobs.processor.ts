@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 
 import { AdminDailySummaryService } from '../../modules/admin/services';
-import { CampaignOptimizerService } from '../../modules/campaign/services';
+import { CampaignOptimizerService, CampaignScheduleService } from '../../modules/campaign/services';
 import { GamificationService } from '../../modules/gamification/services';
 import { JobRunRecorder } from '../../modules/scheduled-jobs/services';
 import { MerchantSubscriptionService } from '../../modules/subscription/services';
@@ -25,6 +25,7 @@ export class PlatformJobsProcessor extends WorkerHost {
     private readonly aiCallLog: AiCallLogService,
     private readonly optimizerService: CampaignOptimizerService,
     private readonly summaryService: AdminDailySummaryService,
+    private readonly campaignScheduleService: CampaignScheduleService,
   ) {
     super();
   }
@@ -37,6 +38,7 @@ export class PlatformJobsProcessor extends WorkerHost {
     'ai-call-log-cleanup': () => this.aiCallLog.cleanup(),
     'campaign-optimizer': () => this.optimizerService.run(),
     'daily-admin-summary': async () => ({ ...(await this.summaryService.buildForYesterday()) }),
+    'campaign-schedule': async () => ({ ...(await this.campaignScheduleService.run()) }),
   };
 
   async process(job: Job): Promise<void> {

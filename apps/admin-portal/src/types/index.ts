@@ -339,6 +339,88 @@ export interface Campaign {
   updatedAt: string
 }
 
+/** How a campaign is doing, counted from its participants and credited rewards. */
+export interface CampaignPerformance {
+  joins: number
+  /** Participants who completed the campaign. */
+  finished: number
+  /** finished / joins, 0 to 1. */
+  completionRate: number
+  /** Rewards credited: one per approved task. */
+  completions: number
+  rewardsPaid: number
+}
+
+/** A row in the admin's list of every merchant's campaigns. */
+export interface AdminCampaignListItem extends Campaign {
+  currentParticipants: number
+  startAt: string | null
+  endAt: string | null
+  featured: boolean
+  merchant: { id: string; businessName: string }
+  performance?: CampaignPerformance
+}
+
+/** One page of every campaign, with how many campaigns each status holds under the same filters. */
+export interface AdminCampaignList extends PaginatedResult<AdminCampaignListItem> {
+  statusCounts: Partial<Record<CampaignStatus, number>>
+}
+
+export interface AllCampaignsParams {
+  page: number
+  limit: number
+  status?: CampaignStatus
+  campaignType?: string
+  merchantId?: string
+  search?: string
+}
+
+/** A task on a campaign, as the admin reviews it. */
+export interface CampaignTaskDetail {
+  id: string
+  title: string
+  description: string | null
+  instructions: string | null
+  taskType: string
+  proofType: string | null
+  verificationType: string
+  completionLimit: string
+  required: boolean
+  taskOrder: number
+  rewardAmount: string | null
+  /** QR code value, or the check-in point, for those task types. */
+  configuration: Record<string, unknown> | null
+}
+
+/** One campaign in full, for moderation (GET /admin/campaigns/:id). */
+export interface CampaignDetail extends Campaign {
+  visibility: string
+  maxParticipants: number | null
+  currentParticipants: number
+  minimumAge: number | null
+  maximumAge: number | null
+  targetGender: string
+  minimumFollowers: number
+  startAt: string | null
+  endAt: string | null
+  thumbnailUrl: string | null
+  bannerUrl: string | null
+  tasks: CampaignTaskDetail[]
+  media: { type: string; url: string }[]
+  merchant: {
+    id: string
+    businessName: string
+    email: string
+    phone: string
+    status: string
+    verificationStatus: string
+    city: { name: string } | null
+  }
+  approvals: { status: string; comments: string | null; createdAt: string; reviewer: { firstName: string; lastName: string } }[]
+  policyFlags: WordingFlag[]
+  performance?: CampaignPerformance
+}
+
 // ============================================================
 // WITHDRAWAL TYPES
 // ============================================================

@@ -8,6 +8,7 @@ export const ROUTES = {
   USERS: '/users',
   MERCHANTS: '/merchants',
   CAMPAIGNS: '/campaigns',
+  ALL_CAMPAIGNS: '/all-campaigns',
   KYC: '/kyc',
   NOTIFICATIONS: '/notifications',
   WITHDRAWALS: '/withdrawals',
@@ -50,6 +51,8 @@ export const QUERY_KEYS = {
   TDS: ['tds'],
   INVOICES: ['invoices'],
   CAMPAIGN_QUEUE: ['campaign-queue'],
+  /** Under CAMPAIGN_QUEUE so a moderation decision refreshes the full list too. */
+  ALL_CAMPAIGNS: ['campaign-queue', 'all'],
   KYC: ['kyc'],
   BROADCASTS: ['broadcasts'],
   NOTIFICATION_TEMPLATES: ['notification-templates'],

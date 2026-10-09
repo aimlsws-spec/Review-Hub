@@ -2,12 +2,12 @@ import { Input, Modal, Select, Spinner } from '@viralkar/shared-ui'
 import { useForm } from 'react-hook-form'
 
 import type { RecommendCampaignInput } from '@/api/merchant.api'
-import { CAMPAIGN_GOAL_LABELS, CAMPAIGN_TYPE_LABELS } from '@/constants'
+import { CAMPAIGN_GOAL_LABELS, CAMPAIGN_TYPE_LABELS, ENABLED_CAMPAIGN_GOALS } from '@/constants'
 import { useCampaignRecommendation } from '@/hooks/useCampaignBuilder'
 import type { CampaignDraft } from '@/types'
 import { formatCurrency } from '@/utils'
 
-const goalOptions = Object.entries(CAMPAIGN_GOAL_LABELS).map(([value, label]) => ({ value, label }))
+const goalOptions = ENABLED_CAMPAIGN_GOALS.map((value) => ({ value, label: CAMPAIGN_GOAL_LABELS[value] }))
 
 const DEFAULT_FORM: RecommendCampaignInput = { goal: 'MORE_REVIEWS', budget: 5000, durationDays: 7, highlight: '' }
 

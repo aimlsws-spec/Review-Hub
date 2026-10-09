@@ -148,7 +148,7 @@ describe('Money paths under load (e2e)', () => {
 
       const task = await api
         .post(`/campaigns/${campaignId}/tasks`, merchant.token)
-        .send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: REWARD_AMOUNT })
+        .send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: REWARD_AMOUNT })
         .expect(201);
       taskId = task.body.data.id;
 
@@ -178,7 +178,7 @@ describe('Money paths under load (e2e)', () => {
             await api.post(`/tasks/${taskId}/start`, user.token).expect(200);
             const submitted = await api
               .post(`/tasks/${taskId}/submit`, user.token)
-              .field('textAnswer', 'The coffee was great and the staff were friendly.')
+              .field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/')
               .expect(201);
             return submitted.body.data.id as string;
           }),

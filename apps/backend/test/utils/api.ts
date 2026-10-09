@@ -10,7 +10,7 @@ const PASSWORD = 'Passw0rd!23';
 const KNOWN_OTP = '246810';
 
 /** 1x1 transparent PNG: a real image, so file validation passes without shipping a fixture file. */
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+export const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 
 let counter = 0;
 

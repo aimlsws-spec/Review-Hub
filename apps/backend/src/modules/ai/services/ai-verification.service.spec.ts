@@ -5,7 +5,6 @@ import { NotFoundException } from '@common/exceptions/domain.exceptions';
 import { AiCallLogService } from '../../../shared/ai-call-log';
 import { LocalStorageService } from '../../../storage/storage.service';
 import { FraudFlagRepository } from '../../admin/repositories';
-import { SubmissionSignalRepository } from '../../risk/repositories';
 import { DuplicateImageService } from '../../risk/services';
 import { SubmissionService } from '../../task/services';
 import { AiVerificationDecision } from '../dto';
@@ -30,7 +29,6 @@ describe('AiVerificationService', () => {
   };
 
   const mockSubmissionService = {
-    aiApprove: jest.fn(),
     aiReject: jest.fn(),
     deferToManualReview: jest.fn(),
   };
@@ -45,7 +43,6 @@ describe('AiVerificationService', () => {
   };
 
   const mockDuplicateImageService = { check: jest.fn() };
-  const mockSignalRepository = { hasUnresolvedBlockingFlag: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -58,14 +55,12 @@ describe('AiVerificationService', () => {
         { provide: LocalStorageService, useValue: mockStorageService },
         { provide: FraudFlagRepository, useValue: mockFraudFlagRepository },
         { provide: DuplicateImageService, useValue: mockDuplicateImageService },
-        { provide: SubmissionSignalRepository, useValue: mockSignalRepository },
         { provide: AiCallLogService, useValue: mockAiCallLog },
       ],
     }).compile();
 
     // Nothing is flagged unless a test says so.
     mockDuplicateImageService.check.mockResolvedValue(null);
-    mockSignalRepository.hasUnresolvedBlockingFlag.mockResolvedValue(false);
 
     service = module.get(AiVerificationService);
     jobRepository = module.get(AiVerificationJobRepository);
@@ -117,75 +112,39 @@ describe('AiVerificationService', () => {
       );
     });
 
-    it('auto-approves when confidence and fraud score both clear the threshold', async () => {
-      const result = await service.completeJob('job-1', {
-        decision: AiVerificationDecision.APPROVE,
-        confidence: 0.9,
-        fraudScore: 0.1,
-      });
+    /** The submission waited for a person, and the system decided nothing itself. */
+    function expectPersonDecides(result: { outcome: string }) {
+      expect(submissionService.deferToManualReview).toHaveBeenCalledWith('submission-1');
+      expect(submissionService.aiReject).not.toHaveBeenCalled();
+      expect(result).toEqual({ submissionId: 'submission-1', outcome: 'PENDING_MANUAL' });
+    }
 
-      expect(submissionService.aiApprove).toHaveBeenCalledWith('submission-1');
-      expect(submissionService.deferToManualReview).not.toHaveBeenCalled();
-      expect(result).toEqual({ submissionId: 'submission-1', outcome: 'APPROVED' });
+    it.each([
+      ['a confident approval', AiVerificationDecision.APPROVE, 0.99, 0],
+      ['a confident rejection', AiVerificationDecision.REJECT, 0.99, 0],
+      ['an unsure approval', AiVerificationDecision.APPROVE, 0.5, 0.1],
+      ['an approval with a high fraud score', AiVerificationDecision.APPROVE, 0.99, 0.8],
+      ['a request for review', AiVerificationDecision.MANUAL_REVIEW, 0.99, 0],
+    ] as const)('hands %s to a person: the AI never pays or refuses on its own', async (_case, decision, confidence, fraudScore) => {
+      expectPersonDecides(await service.completeJob('job-1', { decision, confidence, fraudScore }));
     });
 
-    it('auto-rejects when confidence clears the threshold and the model says reject', async () => {
-      const result = await service.completeJob('job-1', {
+    it.each(['AI', 'HYBRID', 'MANUAL'])('hands the submission to a person whatever the task was set to (%s)', async (verificationType) => {
+      mockJobRepository.findByIdWithSubmission.mockResolvedValue({ ...job, submission: { userId: 'user-1', task: { verificationType } } });
+
+      expectPersonDecides(await service.completeJob('job-1', { decision: AiVerificationDecision.APPROVE, confidence: 0.99, fraudScore: 0 }));
+    });
+
+    it('keeps the AI verdict for the reviewer to read', async () => {
+      await service.completeJob('job-1', {
         decision: AiVerificationDecision.REJECT,
         confidence: 0.9,
-        fraudScore: 0.1,
-        explanation: 'Screenshot does not match the task',
+        explanation: 'The screenshot shows a different cafe',
       });
 
-      expect(submissionService.aiReject).toHaveBeenCalledWith('submission-1', 'Screenshot does not match the task');
-      expect(result).toEqual({ submissionId: 'submission-1', outcome: 'REJECTED' });
-    });
-
-    it('defers to manual review when confidence is below the threshold, even for an APPROVE decision', async () => {
-      const result = await service.completeJob('job-1', {
-        decision: AiVerificationDecision.APPROVE,
-        confidence: 0.5,
-        fraudScore: 0.1,
-      });
-
-      expect(submissionService.aiApprove).not.toHaveBeenCalled();
-      expect(submissionService.deferToManualReview).toHaveBeenCalledWith('submission-1');
-      expect(result).toEqual({ submissionId: 'submission-1', outcome: 'PENDING_MANUAL' });
-    });
-
-    it('defers to manual review when fraud score exceeds the threshold, even with high confidence', async () => {
-      const result = await service.completeJob('job-1', {
-        decision: AiVerificationDecision.APPROVE,
-        confidence: 0.99,
-        fraudScore: 0.8,
-      });
-
-      expect(submissionService.aiApprove).not.toHaveBeenCalled();
-      expect(submissionService.deferToManualReview).toHaveBeenCalledWith('submission-1');
-      expect(result.outcome).toBe('PENDING_MANUAL');
-    });
-
-    it('defers to manual review whenever the model itself asks for it, regardless of confidence', async () => {
-      const result = await service.completeJob('job-1', {
-        decision: AiVerificationDecision.MANUAL_REVIEW,
-        confidence: 0.99,
-        fraudScore: 0,
-      });
-
-      expect(submissionService.aiApprove).not.toHaveBeenCalled();
-      expect(submissionService.aiReject).not.toHaveBeenCalled();
-      expect(submissionService.deferToManualReview).toHaveBeenCalledWith('submission-1');
-      expect(result.outcome).toBe('PENDING_MANUAL');
-    });
-
-    it('treats a missing fraudScore as zero rather than failing the threshold check', async () => {
-      const result = await service.completeJob('job-1', {
-        decision: AiVerificationDecision.APPROVE,
-        confidence: 0.9,
-      });
-
-      expect(submissionService.aiApprove).toHaveBeenCalledWith('submission-1');
-      expect(result.outcome).toBe('APPROVED');
+      expect(jobRepository.createAuditLog).toHaveBeenCalledWith(
+        expect.objectContaining({ decision: AiVerificationDecision.REJECT, confidence: 0.9, explanation: 'The screenshot shows a different cafe' }),
+      );
     });
 
     it('does not raise a fraud flag when the fraud score is at or below the threshold', async () => {
@@ -235,59 +194,14 @@ describe('AiVerificationService', () => {
         expect(mockDuplicateImageService.check).not.toHaveBeenCalled();
       });
 
-      it('checks for duplicates before looking for blocking flags, so a flag it raises is seen', async () => {
+      it('checks for duplicates before handing the submission to a person, so the flag it raises is there to see', async () => {
         const order: string[] = [];
         mockDuplicateImageService.check.mockImplementation(async () => void order.push('check'));
-        mockSignalRepository.hasUnresolvedBlockingFlag.mockImplementation(async () => {
-          order.push('read flags');
-          return false;
-        });
+        mockSubmissionService.deferToManualReview.mockImplementation(async () => void order.push('to a person'));
 
         await service.completeJob('job-1', { ...approve, ...fingerprint });
 
-        expect(order).toEqual(['check', 'read flags']);
-      });
-
-      it('holds an approval for a person when a serious flag is open, even with perfect scores', async () => {
-        mockSignalRepository.hasUnresolvedBlockingFlag.mockResolvedValue(true);
-
-        const result = await service.completeJob('job-1', { ...approve, confidence: 0.99, fraudScore: 0 });
-
-        expect(submissionService.aiApprove).not.toHaveBeenCalled();
-        expect(submissionService.deferToManualReview).toHaveBeenCalledWith('submission-1');
-        expect(result).toEqual({ submissionId: 'submission-1', outcome: 'PENDING_MANUAL' });
-      });
-
-      it('still auto-approves when the only flags are minor (the query only counts serious, unresolved ones)', async () => {
-        mockSignalRepository.hasUnresolvedBlockingFlag.mockResolvedValue(false);
-
-        const result = await service.completeJob('job-1', approve);
-
-        expect(result.outcome).toBe('APPROVED');
-        expect(mockSignalRepository.hasUnresolvedBlockingFlag).toHaveBeenCalledWith('submission-1');
-      });
-
-      it('does not hold a rejection: rejecting pays nothing, so a flag changes nothing there', async () => {
-        mockSignalRepository.hasUnresolvedBlockingFlag.mockResolvedValue(true);
-
-        const result = await service.completeJob('job-1', {
-          decision: AiVerificationDecision.REJECT,
-          confidence: 0.9,
-          fraudScore: 0.1,
-          explanation: 'Does not match the task',
-        });
-
-        expect(submissionService.aiReject).toHaveBeenCalled();
-        expect(result.outcome).toBe('REJECTED');
-      });
-
-      it('holds an approval when the duplicate check itself fails, since it cannot vouch that the picture is new', async () => {
-        mockDuplicateImageService.check.mockRejectedValue(new Error('database unavailable'));
-
-        const result = await service.completeJob('job-1', { ...approve, ...fingerprint });
-
-        expect(submissionService.aiApprove).not.toHaveBeenCalled();
-        expect(result.outcome).toBe('PENDING_MANUAL');
+        expect(order).toEqual(['check', 'to a person']);
       });
 
       it('still completes and records the job when the duplicate check fails', async () => {
@@ -319,7 +233,7 @@ describe('AiVerificationService', () => {
       expect(mockFraudFlagRepository.create).toHaveBeenCalledWith(expect.objectContaining({ riskLevel: 'CRITICAL' }));
     });
 
-    it('still raises a fraud flag even when the submission is auto-rejected, not just approved', async () => {
+    it('raises a fraud flag whatever the AI decided', async () => {
       await service.completeJob('job-1', {
         decision: AiVerificationDecision.REJECT,
         confidence: 0.9,

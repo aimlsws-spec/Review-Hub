@@ -33,7 +33,7 @@ describe('Campaign lifecycle (e2e)', () => {
   const addTask = async (campaignId: string) =>
     api
       .post(`/campaigns/${campaignId}/tasks`, merchant.token)
-      .send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 50 })
+      .send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50 })
       .expect(201);
 
   beforeAll(async () => {
@@ -108,6 +108,47 @@ describe('Campaign lifecycle (e2e)', () => {
       expect(funded.body.data.status).toBe('ACTIVE');
     });
 
+    it('an admin sees a submitted campaign in full: merchant, wording, tasks and earlier reviews', async () => {
+      const campaign = await createCampaign({ shortDescription: 'Tell us about your visit', minimumAge: 18 });
+      await addTask(campaign.id);
+      await api.post(`/campaigns/${campaign.id}/submit`, merchant.token).expect(200);
+      await api.post(`/admin/campaigns/${campaign.id}/request-changes`, adminToken).send({ comments: 'Please explain the proof needed.' }).expect(200);
+      await api.post(`/campaigns/${campaign.id}/submit`, merchant.token).expect(200);
+
+      const res = await api.get(`/admin/campaigns/${campaign.id}`, adminToken).expect(200);
+
+      expect(res.body.data).toMatchObject({
+        id: campaign.id,
+        status: 'PENDING_REVIEW',
+        shortDescription: 'Tell us about your visit',
+        minimumAge: 18,
+        merchant: { id: merchant.merchantId, status: 'ACTIVE' },
+        tasks: [{ title: 'Write an honest review', taskType: 'URL' }],
+        approvals: [{ status: 'CHANGES_REQUESTED', comments: 'Please explain the proof needed.' }],
+        policyFlags: [],
+      });
+      // Only what moderation needs about the merchant.
+      expect(res.body.data.merchant).not.toHaveProperty('panNumber');
+    });
+
+    it('a merchant can withdraw a campaign while it waits for review, and it leaves the queue', async () => {
+      const campaign = await createCampaign();
+      await addTask(campaign.id);
+      await api.post(`/campaigns/${campaign.id}/submit`, merchant.token).expect(200);
+
+      const cancelled = await api.post(`/campaigns/${campaign.id}/cancel`, merchant.token).expect(200);
+
+      expect(cancelled.body.data.status).toBe('CANCELLED');
+      const queue = await api.get('/admin/campaigns/pending?limit=100', adminToken).expect(200);
+      expect(queue.body.data.data.map((c: { id: string }) => c.id)).not.toContain(campaign.id);
+    });
+
+    it('a merchant can not use the admin view of a campaign', async () => {
+      const campaign = await createCampaign();
+
+      await api.get(`/admin/campaigns/${campaign.id}`, merchant.token).expect(403);
+    });
+
     it('an admin can send a campaign back for changes, and it can be submitted again', async () => {
       const campaign = await createCampaign();
       await addTask(campaign.id);
@@ -117,6 +158,14 @@ describe('Campaign lifecycle (e2e)', () => {
       const again = await api.post(`/campaigns/${campaign.id}/submit`, merchant.token).expect(200);
 
       expect(again.body.data.status).toBe('PENDING_REVIEW');
+
+      // The merchant sees what the admin asked for, but not which admin.
+      const own = await api.get(`/campaigns/${campaign.id}`, merchant.token).expect(200);
+      expect(own.body.data.approvals).toEqual([
+        expect.objectContaining({ status: 'CHANGES_REQUESTED', comments: 'Please explain the proof needed.' }),
+      ]);
+      expect(own.body.data.approvals[0]).not.toHaveProperty('reviewer');
+      expect(own.body.data.tasks).toHaveLength(1);
     });
   });
 
@@ -138,7 +187,7 @@ describe('Campaign lifecycle (e2e)', () => {
       const campaign = await createCampaign();
       const task = await api
         .post(`/campaigns/${campaign.id}/tasks`, merchant.token)
-        .send({ title: 'Write a review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 50, instructions: `Leave ${asksForRating}` })
+        .send({ title: 'Write a review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50, instructions: `Leave ${asksForRating}` })
         .expect(201);
 
       await api.post(`/campaigns/${campaign.id}/submit`, merchant.token).expect(422);
@@ -229,22 +278,50 @@ describe('Campaign lifecycle (e2e)', () => {
       expect(Number(after.body.data.reservedBalance) - Number(before.body.data.reservedBalance)).toBe(1000);
     });
 
-    it('refuses to fund a campaign that costs more than the wallet holds, and leaves the wallet untouched', async () => {
+    it('refuses to submit a campaign the wallet can not pay for, says by how much, and takes nothing', async () => {
       const poor = await api.registerApprovedMerchant(adminToken);
       await api.rechargeMerchant(poor, 500);
       const res = await api.post(`/merchants/${poor.merchantId}/campaigns`, poor.token).send(draft({ totalBudget: 1000 })).expect(201);
       const campaignId: string = res.body.data.id;
-      await api.post(`/campaigns/${campaignId}/tasks`, poor.token).send({ title: 'Review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 50 }).expect(201);
-      await api.post(`/campaigns/${campaignId}/submit`, poor.token).expect(200);
-      await api.post(`/admin/campaigns/${campaignId}/approve`, adminToken).send({}).expect(200);
+      await api.post(`/campaigns/${campaignId}/tasks`, poor.token).send({ title: 'Review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50 }).expect(201);
 
-      await api.post(`/merchants/${poor.merchantId}/campaigns/${campaignId}/fund`, poor.token).expect(400);
+      const refused = await api.post(`/campaigns/${campaignId}/submit`, poor.token).expect(422);
 
+      expect(refused.body.code).toBe('CAMPAIGN_INSUFFICIENT_BUDGET');
+      expect(refused.body.details).toEqual({ available: 500, required: 1000, shortfall: 500 });
+      expect(refused.body.message).toContain('Nothing is taken from your wallet');
       const wallet = await api.get(`/merchants/${poor.merchantId}/wallet`, poor.token).expect(200);
       expect(Number(wallet.body.data.availableBalance)).toBe(500);
       expect(Number(wallet.body.data.reservedBalance)).toBe(0);
       const campaign = await api.get(`/campaigns/${campaignId}`, poor.token).expect(200);
-      expect(campaign.body.data.status).not.toBe('ACTIVE');
+      expect(campaign.body.data.status).toBe('DRAFT');
+
+      // Topped up, the same campaign goes through.
+      await api.rechargeMerchant(poor, 500);
+      await api.post(`/campaigns/${campaignId}/submit`, poor.token).expect(200);
+    });
+
+    it('still refuses to fund an approved campaign if the money was used on another one meanwhile', async () => {
+      const merchantB = await api.registerApprovedMerchant(adminToken);
+      await api.rechargeMerchant(merchantB, 1000);
+      const approved = async () => {
+        const res = await api.post(`/merchants/${merchantB.merchantId}/campaigns`, merchantB.token).send(draft({ totalBudget: 1000 })).expect(201);
+        const id: string = res.body.data.id;
+        await api.post(`/campaigns/${id}/tasks`, merchantB.token).send({ title: 'Review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50 }).expect(201);
+        await api.post(`/campaigns/${id}/submit`, merchantB.token).expect(200);
+        await api.post(`/admin/campaigns/${id}/approve`, adminToken).send({}).expect(200);
+        return id;
+      };
+      // Both pass the submit check while the 1000 is still there; only one can be paid for.
+      const first = await approved();
+      const second = await approved();
+      await api.post(`/merchants/${merchantB.merchantId}/campaigns/${first}/fund`, merchantB.token).expect(200);
+
+      await api.post(`/merchants/${merchantB.merchantId}/campaigns/${second}/fund`, merchantB.token).expect(400);
+
+      const wallet = await api.get(`/merchants/${merchantB.merchantId}/wallet`, merchantB.token).expect(200);
+      expect(Number(wallet.body.data.availableBalance)).toBe(0);
+      expect(Number(wallet.body.data.reservedBalance)).toBe(1000);
     });
 
     it('refuses to fund a campaign that belongs to another merchant (IDOR fix)', async () => {

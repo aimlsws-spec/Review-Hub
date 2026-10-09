@@ -1,16 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { CampaignTask, EvidenceType, TaskType } from '@prisma/client';
+import { CampaignTask, EvidenceType, TaskType, VerificationType } from '@prisma/client';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { EDITABLE_CAMPAIGN_STATUSES } from '../../campaign/constants';
 import { CampaignRepository } from '../../campaign/repositories';
+import { taskLinkProblem } from '../../campaign/task-link';
 import { CreateCampaignTaskDto, UpdateCampaignTaskDto } from '../dto';
 import { CampaignTaskCreatedEvent } from '../events';
 import { CampaignTaskRepository } from '../repositories';
 
 const DEFAULT_LOCATION_CHECKIN_RADIUS_METERS = 200;
+
+/**
+ * "The AI checks and pays automatically" is no longer offered: the AI only advises and a person approves every reward
+ * (SubmissionService.approve). A task asking for it, or for nothing, is stored as HYBRID: the AI checks, then a person
+ * decides. The schema still defaults to AI, so the value is always set here.
+ */
+function withPersonDeciding(verificationType: VerificationType | undefined): VerificationType {
+  return !verificationType || verificationType === VerificationType.AI ? VerificationType.HYBRID : verificationType;
+}
 
 /**
  * Manages the tasks a merchant defines for their own campaign. Task
@@ -36,7 +46,7 @@ export class CampaignTaskService {
       description: dto.description,
       instructions: dto.instructions,
       taskType: dto.taskType,
-      verificationType: dto.verificationType,
+      verificationType: withPersonDeciding(dto.verificationType),
       taskOrder: dto.taskOrder,
       rewardAmount: dto.rewardAmount,
       required: dto.required,
@@ -66,6 +76,7 @@ export class CampaignTaskService {
 
     return this.campaignTaskRepository.update(task.id, {
       ...updateFields,
+      ...(updateFields.verificationType ? { verificationType: withPersonDeciding(updateFields.verificationType) } : {}),
       ...(configuration !== undefined ? { configuration: configuration as never } : {}),
     });
   }
@@ -95,8 +106,13 @@ export class CampaignTaskService {
     return { ...task, configuration: configuration as never };
   }
 
-  /** QR/location configuration is validated here, not in the DTO, since what counts as valid depends on `taskType`. */
-  private prepareConfiguration(taskType: TaskType, configuration: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  /**
+   * Configuration is validated here, not in the DTO, since what counts as valid depends on `taskType`: the link a
+   * participant opens (required for tasks done on another site, see task-link.ts), and the QR code or place.
+   */
+  private prepareConfiguration(taskType: TaskType, rawConfiguration: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+    const configuration = this.withCheckedLink(taskType, rawConfiguration);
+
     if (taskType === 'QR_SCAN') {
       const qrCode = configuration?.qrCode;
       if (typeof qrCode !== 'string' || !qrCode.trim()) {
@@ -120,6 +136,19 @@ export class CampaignTaskService {
     }
 
     return configuration;
+  }
+
+  /** The configuration with its link trimmed (or dropped when blank), refusing a missing or wrong link. */
+  private withCheckedLink(taskType: TaskType, configuration: Record<string, unknown> | undefined) {
+    const raw = configuration?.targetUrl;
+    const targetUrl = typeof raw === 'string' ? raw.trim() : raw;
+    const problem = taskLinkProblem(taskType, targetUrl);
+    if (problem) throw new BadRequestException(problem, 'TASK_LINK_INVALID');
+
+    if (!configuration) return targetUrl ? { targetUrl } : undefined;
+    const rest = { ...configuration };
+    delete rest.targetUrl;
+    return targetUrl ? { ...rest, targetUrl } : rest;
   }
 
   private forcedProofType(taskType: TaskType): EvidenceType | undefined {

@@ -17,7 +17,6 @@ const ROUTE_LABELS: Record<string, string> = {
   analytics:  'Analytics',
   customers:  'Customers',
   rewards:    'Rewards',
-  coupons:    'Coupons',
   wallet:     'Wallet',
   documents:  'Documents',
   team:       'Team',

@@ -1,3 +1,4 @@
+import '../../../../core/location/location_coordinates.dart';
 import 'campaign_model.dart';
 
 /// How the campaign list is ordered. The values are the API's own names
@@ -7,7 +8,10 @@ enum CampaignSort {
   popular('popular', 'Popular'),
   newest('newest', 'Newest'),
   highestReward('highest_reward', 'Highest reward'),
-  endingSoon('ending_soon', 'Ending soon');
+  endingSoon('ending_soon', 'Ending soon'),
+
+  /// By distance from the phone to the merchant's store. Needs the phone's location, asked for only when chosen.
+  nearest('nearest', 'Nearest');
 
   const CampaignSort(this.apiValue, this.label);
 
@@ -32,6 +36,10 @@ enum CampaignCategory {
 
   final String apiValue;
   final String label;
+
+  /// The kinds merchants can create today, so the only ones with a chip. The rest stay for campaigns made earlier;
+  /// the backend keeps the same list (campaign/constants/enabled-types.constants.ts).
+  static const offered = [review, socialShare, socialFollow];
 }
 
 /// What the person has asked the campaign list to show.
@@ -41,9 +49,13 @@ class CampaignBrowseFilter {
     this.category,
     this.search = '',
     this.savedOnly = false,
+    this.near,
   });
 
   final CampaignSort sort;
+
+  /// Where the phone was when "Nearest" was chosen. Set only together with [CampaignSort.nearest].
+  final LocationCoordinates? near;
 
   /// Null means every kind.
   final CampaignCategory? category;
@@ -61,12 +73,15 @@ class CampaignBrowseFilter {
     bool clearCategory = false,
     String? search,
     bool? savedOnly,
+    LocationCoordinates? near,
+    bool clearNear = false,
   }) {
     return CampaignBrowseFilter(
       sort: sort ?? this.sort,
       category: clearCategory ? null : (category ?? this.category),
       search: search ?? this.search,
       savedOnly: savedOnly ?? this.savedOnly,
+      near: clearNear ? null : (near ?? this.near),
     );
   }
 }

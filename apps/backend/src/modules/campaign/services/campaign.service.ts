@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Campaign, CampaignStatus, Prisma } from '@prisma/client';
+import { Campaign, CampaignStatus, Prisma, RewardType } from '@prisma/client';
 
 import { CampaignSort } from '@common/enums';
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
@@ -10,7 +10,13 @@ import { BadRequestException, NotFoundException } from '@common/exceptions/domai
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { AuditLogService } from '../../../shared/audit/audit-log.service';
 import { MerchantWalletRepository } from '../../merchant/repositories';
-import { CAMPAIGN_STATUS_TRANSITIONS, DELETABLE_CAMPAIGN_STATUSES, EDITABLE_CAMPAIGN_STATUSES } from '../constants';
+import {
+  CAMPAIGN_STATUS_TRANSITIONS,
+  DELETABLE_CAMPAIGN_STATUSES,
+  EDITABLE_CAMPAIGN_STATUSES,
+  ENABLED_CAMPAIGN_TYPES,
+  ENABLED_TASK_TYPES,
+} from '../constants';
 import {
   ApproveCampaignDto,
   CampaignQueryDto,
@@ -26,7 +32,9 @@ import {
   CampaignSubmittedEvent,
   CampaignUpdatedEvent,
 } from '../events';
+import { CampaignBudgetNotCoveredException } from '../exceptions/budget-not-covered.exception';
 import { CampaignRepository } from '../repositories';
+import { taskLinkProblem } from '../task-link';
 
 import { CampaignPolicyService } from './campaign-policy.service';
 
@@ -43,6 +51,7 @@ export class CampaignService {
   ) {}
 
   async create(merchantId: string, userId: string, dto: CreateCampaignDto) {
+    assertCampaignDates(toDate(dto.startAt), toDate(dto.endAt));
     const slug = await this.generateUniqueSlug(dto.title);
 
     const campaign = await this.campaignRepository.create({
@@ -54,25 +63,25 @@ export class CampaignService {
       thumbnailUrl: dto.thumbnailUrl,
       bannerUrl: dto.bannerUrl,
       campaignType: dto.campaignType,
-      visibility: dto.visibility,
-      priority: dto.priority,
-      rewardType: dto.rewardType,
+      visibility: dto.visibility ?? undefined,
+      priority: dto.priority ?? undefined,
+      rewardType: RewardType.CASH,
       rewardAmount: dto.rewardAmount,
       totalBudget: dto.totalBudget,
       remainingBudget: dto.totalBudget,
       maxParticipants: dto.maxParticipants,
-      minimumUserLevel: dto.minimumUserLevel,
-      minimumFollowers: dto.minimumFollowers,
+      minimumUserLevel: dto.minimumUserLevel ?? undefined,
+      minimumFollowers: dto.minimumFollowers ?? undefined,
       minimumAge: dto.minimumAge,
       maximumAge: dto.maximumAge,
-      targetGender: dto.targetGender,
+      targetGender: dto.targetGender ?? undefined,
       targetCountries: dto.targetCountries,
       targetStates: dto.targetStates,
       targetCities: dto.targetCities,
-      startAt: dto.startAt ? new Date(dto.startAt) : undefined,
-      endAt: dto.endAt ? new Date(dto.endAt) : undefined,
+      startAt: toDate(dto.startAt) ?? undefined,
+      endAt: toDate(dto.endAt) ?? undefined,
       autoApprove: dto.autoApprove ?? false,
-      aiThreshold: dto.aiThreshold,
+      aiThreshold: dto.aiThreshold ?? undefined,
       status: 'DRAFT',
       createdBy: userId,
     });
@@ -92,6 +101,13 @@ export class CampaignService {
   async duplicate(campaignId: string, userId: string) {
     const source = await this.campaignRepository.findForDuplication(campaignId);
     if (!source) throw new NotFoundException('Campaign');
+    // A copy is a new campaign, so it may only be of a kind, with tasks, that can be created today.
+    if (!ENABLED_CAMPAIGN_TYPES.includes(source.campaignType)) {
+      throw new BadRequestException(`${source.campaignType} campaigns can not be created at the moment, so this one can not be copied`);
+    }
+    if (source.tasks.some((task) => !ENABLED_TASK_TYPES.includes(task.taskType))) {
+      throw new BadRequestException('This campaign has a task of a kind that can not be added at the moment, so it can not be copied');
+    }
 
     const title = `${source.title} (copy)`.slice(0, 200);
     const slug = await this.generateUniqueSlug(title);
@@ -109,7 +125,8 @@ export class CampaignService {
       campaignType: source.campaignType,
       visibility: source.visibility,
       priority: source.priority,
-      rewardType: source.rewardType,
+      // An old campaign may carry a non-cash label; it was always paid in cash, and a copy is cash like any new one.
+      rewardType: RewardType.CASH,
       rewardAmount: source.rewardAmount,
       totalBudget: source.totalBudget,
       remainingBudget: source.totalBudget,
@@ -255,12 +272,12 @@ export class CampaignService {
     const campaign = await this.getById(campaignId);
     this.assertEditable(campaign);
 
-    const data: Prisma.CampaignUpdateInput = {
-      ...dto,
-      startAt: dto.startAt ? new Date(dto.startAt) : undefined,
-      endAt: dto.endAt ? new Date(dto.endAt) : undefined,
-      updatedBy: userId,
-    };
+    // null clears a date (the form's field was emptied); left out keeps it.
+    const startAt = toDate(dto.startAt);
+    const endAt = toDate(dto.endAt);
+    assertCampaignDates(startAt === undefined ? campaign.startAt : startAt, endAt === undefined ? campaign.endAt : endAt);
+
+    const data: Prisma.CampaignUpdateInput = { ...withoutNullsFor(dto, REQUIRED_COLUMNS), startAt, endAt, updatedBy: userId };
     if (dto.totalBudget !== undefined) {
       data.remainingBudget = dto.totalBudget - Number(campaign.spentBudget);
     }
@@ -286,6 +303,19 @@ export class CampaignService {
       throw new BadRequestException(`Cannot submit a campaign in ${campaign.status} status`);
     }
 
+    // Without a task there is nothing for a participant to do once it is live.
+    if (!campaign.tasks?.length) {
+      throw new BadRequestException('Add at least one task before submitting this campaign for review');
+    }
+    // A task done on another site needs its link, or a participant has nowhere to go. Tasks made before links
+    // existed are caught here, so the merchant adds one before an admin reviews the campaign.
+    for (const task of campaign.tasks) {
+      const problem = taskLinkProblem(task.taskType, (task.configuration as Record<string, unknown> | null)?.targetUrl);
+      if (problem) throw new BadRequestException(`Task "${task.title}": ${problem}`, 'TASK_LINK_INVALID');
+    }
+    assertCampaignDates(campaign.startAt, campaign.endAt);
+    await this.assertBudgetCovered(campaign.merchantId, Number(campaign.totalBudget));
+
     // Wording that asks for, or rewards, a particular rating is refused here, before an admin ever has to see it.
     await this.policyService.assertCampaignAllowed(campaign, 'submitted');
 
@@ -299,8 +329,41 @@ export class CampaignService {
     return updated;
   }
 
+  /**
+   * Puts an approved campaign live, or, when its start date is still ahead, schedules it: either way the budget is
+   * reserved now, so the money is committed the moment the merchant says go. CampaignScheduleService starts a
+   * scheduled one when its time comes. Activating a scheduled campaign starts it at once.
+   */
   async activate(campaignId: string) {
+    const campaign = await this.getById(campaignId);
+    const now = new Date();
+    if (campaign.endAt && campaign.endAt <= now) {
+      throw new BadRequestException("This campaign's end date has passed. Duplicate it to run it again with new dates");
+    }
+    if (campaign.status === 'APPROVED' && campaign.startAt && campaign.startAt > now) {
+      return this.transitionStatus(campaignId, 'SCHEDULED');
+    }
+    return this.transitionStatus(campaignId, 'ACTIVE', { publishedAt: now });
+  }
+
+  /**
+   * Only a campaign the wallet can pay for goes to an admin, so nobody approves one that can not run. Nothing is taken
+   * here: the budget is reserved when the merchant activates the approved campaign, which checks the balance again.
+   */
+  private async assertBudgetCovered(merchantId: string, required: number) {
+    const wallet = await this.merchantWalletRepository.findByMerchantId(merchantId);
+    const available = Number(wallet?.availableBalance ?? 0);
+    if (available < required) throw new CampaignBudgetNotCoveredException(available, required);
+  }
+
+  /** A scheduled campaign whose start time has come goes live. Its budget was reserved when it was scheduled. */
+  async startScheduled(campaignId: string) {
     return this.transitionStatus(campaignId, 'ACTIVE', { publishedAt: new Date() });
+  }
+
+  /** A campaign past its end date is over. EXPIRED is final, so whatever budget it did not spend goes back. */
+  async expire(campaignId: string) {
+    return this.transitionStatus(campaignId, 'EXPIRED');
   }
 
   /**
@@ -332,6 +395,21 @@ export class CampaignService {
     const result = await this.campaignRepository.findPendingReview({ page, limit });
     const flags = await this.policyService.findingsForCampaigns(result.data);
     return { ...result, data: result.data.map((campaign) => ({ ...campaign, policyFlags: flags.get(campaign.id) ?? [] })) };
+  }
+
+  /** One campaign for its own merchant, with the feedback from each review. */
+  async getForOwner(campaignId: string) {
+    const campaign = await this.campaignRepository.findForOwner(campaignId);
+    if (!campaign) throw new NotFoundException('Campaign');
+    return campaign;
+  }
+
+  /** One campaign in full for an admin, with its wording flags worked out as the queue shows them. */
+  async getAdminDetail(campaignId: string) {
+    const campaign = await this.campaignRepository.findForAdminReview(campaignId);
+    if (!campaign) throw new NotFoundException('Campaign');
+    const flags = await this.policyService.findingsForCampaigns([campaign]);
+    return { ...campaign, policyFlags: flags.get(campaign.id) ?? [] };
   }
 
   async approve(campaignId: string, reviewerId: string, dto: ApproveCampaignDto) {
@@ -414,10 +492,10 @@ export class CampaignService {
       throw new BadRequestException(`Cannot move a campaign from ${campaign.status} to ${toStatus}`);
     }
 
-    // First entry into ACTIVE reserves the full budget out of the merchant's wallet.
-    // Resuming from PAUSED skips this — the budget is already held from first activation.
-    const isFirstActivation = toStatus === 'ACTIVE' && campaign.status !== 'PAUSED';
-    if (isFirstActivation) {
+    // Leaving APPROVED for live or scheduled reserves the full budget out of the merchant's wallet, once. Starting a
+    // scheduled campaign or resuming a paused one does not: the budget is already held.
+    const reservesBudget = campaign.status === 'APPROVED' && (toStatus === 'ACTIVE' || toStatus === 'SCHEDULED');
+    if (reservesBudget) {
       await this.merchantWalletRepository.reserveCampaignBudget({
         merchantId: campaign.merchantId,
         campaignId,
@@ -467,4 +545,34 @@ export class CampaignService {
 
     throw new BadRequestException('Could not generate a unique campaign slug, please try again');
   }
+}
+
+/** A date from the API: undefined when left out, null when cleared. */
+function toDate(value: string | null | undefined): Date | null | undefined {
+  if (value === undefined) return undefined;
+  return value === null ? null : new Date(value);
+}
+
+/**
+ * A campaign's dates make sense: an end date is in the future and after the start. A start date in the past is
+ * fine: it simply means "as soon as it is activated".
+ */
+function assertCampaignDates(startAt: Date | null | undefined, endAt: Date | null | undefined) {
+  if (!endAt) return;
+  if (endAt <= new Date()) throw new BadRequestException('The end date must be in the future');
+  if (startAt && endAt <= startAt) throw new BadRequestException('The end date must be after the start date');
+}
+
+/**
+ * Campaign columns that always hold a value (a default stands in when none is given). A client may still send null
+ * for one, e.g. a form's emptied number field; that means "not given", never "store nothing", which the database
+ * would refuse.
+ */
+const REQUIRED_COLUMNS = ['visibility', 'priority', 'rewardType', 'minimumUserLevel', 'minimumFollowers', 'targetGender', 'aiThreshold'] as const;
+
+/** The changes without a null for any of `keys`, so those keep their stored value. */
+function withoutNullsFor<T extends object>(changes: T, keys: readonly string[]): T {
+  return Object.fromEntries(
+    Object.entries(changes).filter(([key, value]) => !(value === null && keys.includes(key))),
+  ) as T;
 }

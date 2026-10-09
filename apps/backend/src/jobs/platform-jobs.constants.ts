@@ -19,6 +19,8 @@ export const PLATFORM_JOBS = {
   SUBSCRIPTION_RENEWALS: { jobName: 'subscription-renewals', jobType: 'CUSTOM', cronExpression: '0 1 * * *' },
   /** Featured campaigns whose paid days are over go back among the rest. Five past every hour. */
   FEATURED_CAMPAIGN_EXPIRY: { jobName: 'featured-campaign-expiry', jobType: 'CAMPAIGN_EXPIRY', cronExpression: '5 * * * *' },
+  /** Scheduled campaigns start when their start time comes; campaigns past their end date expire. Every 5 minutes. */
+  CAMPAIGN_SCHEDULE: { jobName: 'campaign-schedule', jobType: 'CAMPAIGN_EXPIRY', cronExpression: '*/5 * * * *' },
   /** Yesterday's summary, emailed to super and platform admins. 08:00 daily. */
   DAILY_ADMIN_SUMMARY: { jobName: 'daily-admin-summary', jobType: 'REPORT_GENERATION', cronExpression: '0 8 * * *' },
 } as const satisfies Record<string, RecordedJobDefinition>;

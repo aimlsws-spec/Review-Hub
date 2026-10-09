@@ -14,9 +14,11 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import '../../features/campaigns/data/models/campaign_progress_model.dart';
 import '../../features/campaigns/data/models/campaign_task_model.dart';
 import '../../features/campaigns/presentation/screens/campaign_detail_screen.dart';
 import '../../features/campaigns/presentation/screens/campaigns_screen.dart';
+import '../../features/campaigns/presentation/screens/my_campaigns_screen.dart';
 import '../../features/dashboard/presentation/screens/home_screen.dart';
 import '../../features/gamification/presentation/screens/gamification_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_screen.dart';
@@ -224,6 +226,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => AiStoryScreen(taskId: state.pathParameters['taskId']!),
       ),
       GoRoute(path: RoutePaths.mySubmissions, builder: (context, state) => const MySubmissionsScreen()),
+      GoRoute(
+        path: RoutePaths.myCampaigns,
+        builder: (context, state) => MyCampaignsScreen(
+          initialFilter: state.uri.queryParameters['tab'] == 'completed'
+              ? JoinedCampaignFilter.completed
+              : JoinedCampaignFilter.inProgress,
+        ),
+      ),
       GoRoute(path: RoutePaths.qrScanner, builder: (context, state) => const QrScannerScreen()),
 
       // Earning features (wallet, rewards, referrals, marketplace) wait for identity verification: IdentityGate.

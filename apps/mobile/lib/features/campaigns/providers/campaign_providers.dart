@@ -6,13 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/location/location_coordinates.dart';
+import '../../../core/location/location_providers.dart';
 import '../../../core/errors/result.dart';
 import '../../../shared/models/api_response.dart';
+import '../../../shared/models/paged_list.dart';
 import '../../../shared/providers/core_providers.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/campaign_repository.dart';
 import '../data/models/campaign_browse.dart';
 import '../data/models/campaign_model.dart';
+import '../data/models/campaign_progress_model.dart';
 import '../data/models/campaign_task_model.dart';
 import '../data/saved_campaigns_repository.dart';
 import '../data/saved_campaigns_store.dart';
@@ -44,6 +48,21 @@ final campaignTasksProvider = FutureProvider.autoDispose.family<Result<List<Camp
   return ref.watch(campaignRepositoryProvider).getTasks(campaignId);
 });
 
+/// The signed-in person's progress on a campaign's tasks. Refreshed after a submission (TaskSubmissionScreen), so a
+/// task just sent shows as in review rather than open.
+final campaignProgressProvider = FutureProvider.autoDispose.family<Result<CampaignProgressModel>, String>((
+  ref,
+  campaignId,
+) async {
+  return ref.watch(campaignRepositoryProvider).getProgress(campaignId);
+});
+
+/// The person's joined campaigns, under way or completed, for the My Campaigns screen.
+final joinedCampaignsProvider = FutureProvider.autoDispose
+    .family<Result<PaginatedResponse<JoinedCampaignModel>>, JoinedCampaignFilter>((ref, filter) async {
+      return ref.watch(campaignRepositoryProvider).getJoinedCampaigns(filter);
+    });
+
 // --- The Tasks tab: sort, category, search --------------------------------------------------------------------------
 
 /// What the person has asked the Tasks tab to show. Scoped to the screen, so it starts fresh each time.
@@ -55,7 +74,26 @@ class CampaignBrowseFilterNotifier extends Notifier<CampaignBrowseFilter> {
   @override
   CampaignBrowseFilter build() => const CampaignBrowseFilter();
 
-  void setSort(CampaignSort sort) => state = state.copyWith(sort: sort);
+  /// Any sort but "Nearest", which needs the phone's location: see [sortByNearest].
+  void setSort(CampaignSort sort) {
+    if (sort == CampaignSort.nearest) return;
+    state = state.copyWith(sort: sort, clearNear: true);
+  }
+
+  /// Sorts by distance from where the phone is. This is the only place the list asks for location, so the system
+  /// prompt appears when the person chooses "Nearest", never before. Without a location (refused, or location turned
+  /// off) the sort stays as it was and the failure says why.
+  Future<Failure?> sortByNearest() async {
+    final result = await ref.read(locationServiceProvider).getCurrentLocation();
+    if (!ref.mounted) return null;
+    return result.when(
+      success: (position) {
+        state = state.copyWith(sort: CampaignSort.nearest, near: position);
+        return null;
+      },
+      failure: (failure) => failure,
+    );
+  }
 
   /// Null shows every kind.
   void setCategory(CampaignCategory? category) =>
@@ -76,15 +114,77 @@ final campaignSearchControllerProvider = Provider.autoDispose<TextEditingControl
   return controller;
 });
 
-/// The list for the current sort, category and search. The saved view does not use it.
-final browseCampaignsProvider = FutureProvider.autoDispose<Result<PaginatedResponse<CampaignModel>>>((ref) async {
-  final (sort, category, search) = ref.watch(
-    campaignBrowseFilterProvider.select((filter) => (filter.sort, filter.category, filter.search)),
-  );
-  return ref
-      .watch(campaignRepositoryProvider)
-      .browsePublic(sort: sort.apiValue, campaignType: category?.apiValue, search: search.isEmpty ? null : search);
-});
+/// The list for the current sort, category and search, a page at a time. Changing any of them starts again from the
+/// first page. The saved view does not use it.
+final browseCampaignsProvider =
+    AsyncNotifierProvider.autoDispose<BrowseCampaignsNotifier, Result<PagedList<CampaignModel>>>(
+      BrowseCampaignsNotifier.new,
+    );
+
+class BrowseCampaignsNotifier extends AsyncNotifier<Result<PagedList<CampaignModel>>> {
+  static const pageSize = 20;
+
+  /// The part of the filter that decides what the server sends; whether the saved view is showing does not.
+  (CampaignSort, CampaignCategory?, String, LocationCoordinates?) _query() {
+    final filter = ref.read(campaignBrowseFilterProvider);
+    return (filter.sort, filter.category, filter.search, filter.near);
+  }
+
+  @override
+  Future<Result<PagedList<CampaignModel>>> build() async {
+    ref.watch(
+      campaignBrowseFilterProvider.select((filter) => (filter.sort, filter.category, filter.search, filter.near)),
+    );
+    final result = await _fetch(_query(), page: 1);
+    return result.map(PagedList<CampaignModel>.first);
+  }
+
+  Future<Result<PaginatedResponse<CampaignModel>>> _fetch(
+    (CampaignSort, CampaignCategory?, String, LocationCoordinates?) query, {
+    required int page,
+  }) {
+    final (sort, category, search, near) = query;
+    return ref
+        .read(campaignRepositoryProvider)
+        .browsePublic(
+          page: page,
+          limit: pageSize,
+          sort: sort.apiValue,
+          campaignType: category?.apiValue,
+          search: search.isEmpty ? null : search,
+          latitude: sort == CampaignSort.nearest ? near?.latitude : null,
+          longitude: sort == CampaignSort.nearest ? near?.longitude : null,
+        );
+  }
+
+  /// Fetches the next page and adds it below. Does nothing when everything is loaded or a page is already coming.
+  Future<void> loadMore() async {
+    final current = state.value?.valueOrNull;
+    if (current == null || !current.hasMore || current.loadingMore) return;
+
+    final query = _query();
+    state = AsyncData(Result.success(current.copyWith(loadingMore: true, clearMessage: true)));
+    final result = await _fetch(query, page: current.page + 1);
+    if (!ref.mounted) return;
+
+    // If the search or a chip changed while the page was coming, the list has already started over; this page belongs
+    // to the old one and must not be added to the new one.
+    final latest = state.value?.valueOrNull;
+    if (latest == null || !latest.loadingMore || _query() != query) return;
+
+    state = AsyncData(
+      Result.success(
+        result.when(
+          success: (page) => latest.append(page, idOf: (campaign) => campaign.id),
+          failure: (failure) => latest.copyWith(
+            loadingMore: false,
+            loadMoreMessage: failure.message.isEmpty ? 'Could not load more. Please try again.' : failure.message,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 // --- Saved campaigns ------------------------------------------------------------------------------------------------
 

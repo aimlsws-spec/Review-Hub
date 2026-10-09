@@ -46,6 +46,9 @@ class RoutePaths {
 
   static const String mySubmissions = '/tasks/my-submissions';
 
+  /// Campaigns the person joined, in progress and completed. `?tab=completed` opens on the completed ones.
+  static const String myCampaigns = '/my-campaigns';
+
   static const String walletTransactions = '/wallet/transactions';
   static const String walletRewards = '/wallet/rewards';
   static const String bankAccounts = '/wallet/bank-accounts';

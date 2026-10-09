@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MerchantStatus, MerchantVerificationStatus } from '@prisma/client';
 
-import { ConflictException, NotFoundException } from '@common/exceptions/domain.exceptions';
+import { BadRequestException, ConflictException, NotFoundException } from '@common/exceptions/domain.exceptions';
 
 import { RegisterMerchantDto, UpdateMerchantDto } from '../dto';
 import { MerchantRegisteredEvent } from '../events';
@@ -98,6 +98,10 @@ export class MerchantService {
   async updateProfile(merchantId: string, dto: UpdateMerchantDto) {
     const merchant = await this.merchantRepository.findById(merchantId);
     if (!merchant) throw new NotFoundException('Merchant');
+    // A point needs both halves: half a location would sort the store somewhere it is not.
+    if ((dto.latitude === undefined) !== (dto.longitude === undefined) || (dto.latitude === null) !== (dto.longitude === null)) {
+      throw new BadRequestException('Send the store latitude and longitude together', 'STORE_LOCATION_INCOMPLETE');
+    }
 
     const updated = await this.merchantRepository.update(merchantId, dto);
 

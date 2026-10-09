@@ -20,8 +20,8 @@ const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 const CustomersPage = lazy(() => import('@/pages/CustomersPage'))
 const CampaignsPage = lazy(() => import('@/pages/CampaignsPage'))
+const SubmissionsPage = lazy(() => import('@/pages/SubmissionsPage'))
 const RewardsPage = lazy(() => import('@/pages/RewardsPage'))
-const CouponsPage = lazy(() => import('@/pages/CouponsPage'))
 const WalletPage = lazy(() => import('@/pages/WalletPage'))
 const RefundsPage = lazy(() => import('@/pages/RefundsPage'))
 const FinancePage = lazy(() => import('@/pages/FinancePage'))
@@ -69,9 +69,9 @@ export const router = createBrowserRouter(
                 { path: ROUTES.REVIEWS, element: <ReviewsPage /> },
                 { path: ROUTES.CUSTOMERS, element: <CustomersPage /> },
                 { path: ROUTES.CAMPAIGNS, element: <CampaignsPage /> },
+                { path: ROUTES.SUBMISSIONS, element: <SubmissionsPage /> },
                 { path: ROUTES.ANALYTICS, element: <AnalyticsPage /> },
                 { path: ROUTES.REWARDS, element: <RewardsPage /> },
-                { path: ROUTES.COUPONS, element: <CouponsPage /> },
                 { path: ROUTES.WALLET, element: <WalletPage /> },
                 { path: ROUTES.REFUNDS, element: <RefundsPage /> },
                 { path: ROUTES.FINANCE, element: <FinancePage /> },

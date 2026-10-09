@@ -24,7 +24,7 @@ describe('Saved campaigns (e2e)', () => {
       })
       .expect(201);
     const id: string = campaign.body.data.id;
-    await api.post(`/campaigns/${id}/tasks`, merchant.token).send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 10 }).expect(201);
+    await api.post(`/campaigns/${id}/tasks`, merchant.token).send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 10 }).expect(201);
     await api.post(`/campaigns/${id}/submit`, merchant.token).expect(200);
     await api.post(`/admin/campaigns/${id}/approve`, adminToken).send({}).expect(200);
     await api.post(`/merchants/${merchant.merchantId}/campaigns/${id}/fund`, merchant.token).expect(200);

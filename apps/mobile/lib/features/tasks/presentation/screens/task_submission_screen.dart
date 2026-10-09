@@ -13,9 +13,11 @@ import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_button.dart';
 import '../../../campaigns/data/models/campaign_task_model.dart';
+import '../../../campaigns/providers/campaign_providers.dart';
 import '../../data/models/text_suggestion_model.dart';
 import '../../providers/task_providers.dart';
 import '../widgets/honest_feedback_notice.dart';
+import '../widgets/task_link_button.dart';
 
 final _pickedFileProvider = StateProvider.autoDispose<File?>((ref) => null);
 final _scannedCodeProvider = StateProvider.autoDispose<String?>((ref) => null);
@@ -196,6 +198,9 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
         );
 
     if (!mounted || !success) return;
+    // The task is now in review: the campaign and task pages must stop offering it.
+    ref.invalidate(campaignProgressProvider(widget.task.campaignId));
+    ref.invalidate(joinedCampaignsProvider);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Submitted! We\'ll review it shortly.')),
     );
@@ -221,6 +226,7 @@ class _TaskSubmissionScreenState extends ConsumerState<TaskSubmissionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(task.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              if (task.targetUri != null) ...[const SizedBox(height: 12), TaskLinkButton(task: task)],
               const SizedBox(height: 20),
               if (errorMessage != null) ...[
                 Container(

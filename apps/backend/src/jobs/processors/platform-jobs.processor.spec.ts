@@ -1,7 +1,7 @@
 import { Job } from 'bullmq';
 
 import { AdminDailySummaryService } from '../../modules/admin/services';
-import { CampaignOptimizerService } from '../../modules/campaign/services';
+import { CampaignOptimizerService, CampaignScheduleService } from '../../modules/campaign/services';
 import { GamificationService } from '../../modules/gamification/services';
 import { JobRunRecorder } from '../../modules/scheduled-jobs/services';
 import { MerchantSubscriptionService } from '../../modules/subscription/services';
@@ -19,6 +19,7 @@ describe('PlatformJobsProcessor', () => {
   };
   const aiCallLog = { cleanup: jest.fn().mockResolvedValue({ deleted: 5 }) };
   const optimizerService = { run: jest.fn().mockResolvedValue({ merchants: 3, newSuggestions: 2, notified: 1, failed: 0 }) };
+  const campaignScheduleService = { run: jest.fn().mockResolvedValue({ started: 1, expired: 2, failed: 0 }) };
   const summaryService = { buildForYesterday: jest.fn().mockResolvedValue({ day: '2026-10-02', created: true, recipients: 2 }) };
   const processor = new PlatformJobsProcessor(
     recorder as unknown as JobRunRecorder,
@@ -27,6 +28,7 @@ describe('PlatformJobsProcessor', () => {
     aiCallLog as unknown as AiCallLogService,
     optimizerService as unknown as CampaignOptimizerService,
     summaryService as unknown as AdminDailySummaryService,
+    campaignScheduleService as unknown as CampaignScheduleService,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -63,6 +65,13 @@ describe('PlatformJobsProcessor', () => {
     await processor.process({ name: 'daily-admin-summary' } as Job);
 
     expect(summaryService.buildForYesterday).toHaveBeenCalled();
+  });
+
+  it('starts and expires campaigns on their dates', async () => {
+    await processor.process({ name: 'campaign-schedule' } as Job);
+
+    expect(recorder.run).toHaveBeenCalledWith(PLATFORM_JOBS.CAMPAIGN_SCHEDULE, expect.any(Function));
+    expect(campaignScheduleService.run).toHaveBeenCalled();
   });
 
   it('has a handler for every platform job', () => {

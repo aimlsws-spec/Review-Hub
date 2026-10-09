@@ -23,6 +23,11 @@ jobs:
         with:
           channel: stable
 
+      # The app bundles .env (its settings, see lib/core/config/app_config.dart), which is not in git.
+      - name: Create .env from the example
+        working-directory: apps/mobile
+        run: cp .env.example .env
+
       - name: Install dependencies
         working-directory: apps/mobile
         run: flutter pub get

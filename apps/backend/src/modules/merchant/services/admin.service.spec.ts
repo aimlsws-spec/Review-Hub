@@ -15,6 +15,8 @@ describe('AdminService', () => {
     findVerificationFacts: jest.fn(),
     findById: jest.fn(),
     update: jest.fn(),
+    approveWithDetails: jest.fn(),
+    rejectWithDocuments: jest.fn(),
     findPending: jest.fn(),
     findWithFilters: jest.fn(),
   };
@@ -50,14 +52,25 @@ describe('AdminService', () => {
   describe('approveMerchant', () => {
     it('should activate and verify the merchant, emit an event, and audit it', async () => {
       mockMerchantRepository.findById.mockResolvedValue(merchant);
-      mockMerchantRepository.update.mockResolvedValue({ ...merchant, status: 'ACTIVE' });
+      mockMerchantRepository.approveWithDetails.mockResolvedValue({
+        merchant: { ...merchant, status: 'ACTIVE' },
+        documentsApproved: 1,
+        bankAccountsVerified: 1,
+      });
 
       const result = await service.approveMerchant({ merchantId: 'merchant-1' }, 'admin-1');
 
       expect(result).toHaveProperty('status', 'ACTIVE');
+      expect(mockMerchantRepository.approveWithDetails).toHaveBeenCalledWith('merchant-1', 'admin-1');
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('merchant.approved', expect.any(Object));
       expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ actorId: 'admin-1', actorType: 'ADMIN', action: 'APPROVE', entity: 'Merchant' }),
+        expect.objectContaining({
+          actorId: 'admin-1',
+          actorType: 'ADMIN',
+          action: 'APPROVE',
+          entity: 'Merchant',
+          after: expect.objectContaining({ documentsApproved: 1, bankAccountsVerified: 1 }),
+        }),
       );
     });
 
@@ -71,14 +84,23 @@ describe('AdminService', () => {
   describe('rejectMerchant', () => {
     it('should suspend the merchant, emit an event, and audit it', async () => {
       mockMerchantRepository.findById.mockResolvedValue(merchant);
-      mockMerchantRepository.update.mockResolvedValue({ ...merchant, status: 'SUSPENDED' });
+      mockMerchantRepository.rejectWithDocuments.mockResolvedValue({
+        merchant: { ...merchant, status: 'SUSPENDED' },
+        documentsRejected: 2,
+      });
 
       const result = await service.rejectMerchant({ merchantId: 'merchant-1', reason: 'Invalid docs' }, 'admin-1');
 
       expect(result).toHaveProperty('status', 'SUSPENDED');
+      expect(mockMerchantRepository.rejectWithDocuments).toHaveBeenCalledWith('merchant-1', 'Invalid docs');
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('merchant.rejected', expect.any(Object));
       expect(mockAuditLogService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ actorId: 'admin-1', action: 'REJECT', entity: 'Merchant' }),
+        expect.objectContaining({
+          actorId: 'admin-1',
+          action: 'REJECT',
+          entity: 'Merchant',
+          after: expect.objectContaining({ documentsRejected: 2 }),
+        }),
       );
     });
   });

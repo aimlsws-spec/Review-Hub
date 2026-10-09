@@ -14,10 +14,13 @@ import {
 import { CampaignOwnershipGuard } from './guards';
 import { CampaignRepository, MerchantSuggestionRepository, SavedCampaignRepository } from './repositories';
 import {
+  AdminCampaignService,
   CampaignBuilderService,
+  CampaignCoverService,
   CampaignOptimizerService,
   CampaignPerformanceService,
   CampaignPolicyService,
+  CampaignScheduleService,
   CampaignService,
   MerchantAnalyticsService,
   MerchantInsightsService,
@@ -37,7 +40,9 @@ import {
   ],
   providers: [
     CampaignService,
+    AdminCampaignService,
     CampaignBuilderService,
+    CampaignCoverService,
     CampaignPerformanceService,
     CampaignPolicyService,
     MerchantAnalyticsService,
@@ -45,12 +50,13 @@ import {
     MerchantReportExportService,
     SavedCampaignService,
     CampaignOptimizerService,
+    CampaignScheduleService,
     CampaignRepository,
     SavedCampaignRepository,
     MerchantSuggestionRepository,
     CampaignOwnershipGuard,
   ],
-  exports: [CampaignService, CampaignPolicyService, CampaignRepository, CampaignOwnershipGuard, CampaignOptimizerService, CampaignPerformanceService],
+  exports: [CampaignService, AdminCampaignService, CampaignPolicyService, CampaignRepository, CampaignOwnershipGuard, CampaignOptimizerService, CampaignPerformanceService, CampaignScheduleService],
 })
 export class CampaignModule {
   private readonly logger = new Logger(CampaignModule.name);

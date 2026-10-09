@@ -10,8 +10,10 @@ import { SupportModule } from '../support/support.module';
 import {
   CampaignTaskController,
   MerchantCampaignTaskController,
+  MerchantSubmissionController,
   SubmissionController,
   TaskParticipationController,
+  TaskProgressController,
   TaskRecommendationController,
 } from './controllers';
 import {
@@ -24,9 +26,11 @@ import { DisputeRepository } from './repositories/dispute.repository';
 import {
   CampaignTaskService,
   LocationCheckinVerificationService,
+  MerchantSubmissionService,
   QrScanVerificationService,
   SubmissionService,
   TaskParticipationService,
+  TaskProgressService,
   TaskRecommendationService,
 } from './services';
 import { DisputeService } from './services/dispute.service';
@@ -38,7 +42,9 @@ import { DisputeService } from './services/dispute.service';
     CampaignTaskController,
     TaskParticipationController,
     TaskRecommendationController,
+    TaskProgressController,
     SubmissionController,
+    MerchantSubmissionController,
   ],
   providers: [
     DisputeService,
@@ -46,7 +52,9 @@ import { DisputeService } from './services/dispute.service';
     CampaignTaskService,
     TaskParticipationService,
     SubmissionService,
+    MerchantSubmissionService,
     TaskRecommendationService,
+    TaskProgressService,
     QrScanVerificationService,
     LocationCheckinVerificationService,
     CampaignTaskRepository,

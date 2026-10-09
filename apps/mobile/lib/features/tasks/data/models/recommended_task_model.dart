@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../../core/config/app_config.dart';
+
 part 'recommended_task_model.freezed.dart';
 part 'recommended_task_model.g.dart';
 
@@ -25,4 +27,10 @@ abstract class RecommendedTaskModel with _$RecommendedTaskModel {
 
 extension RecommendedTaskModelX on RecommendedTaskModel {
   double get rewardAmountValue => double.tryParse(rewardAmount) ?? 0;
+
+  /// The campaign's cover image, as an address the app can load (the API returns a path); null when there is none.
+  String? get thumbnailImageUrl {
+    final path = thumbnailUrl;
+    return path == null || path.isEmpty ? null : AppConfig.resolveUploadUrl(path);
+  }
 }

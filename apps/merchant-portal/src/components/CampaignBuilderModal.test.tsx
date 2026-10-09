@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -49,15 +49,22 @@ describe('CampaignBuilderModal', () => {
     const user = userEvent.setup()
     render(<CampaignBuilderModal merchantId="merchant-1" onClose={vi.fn()} onUseDraft={vi.fn()} />)
 
-    await user.selectOptions(screen.getByLabelText(/what do you want to achieve/i), 'APP_INSTALLS')
+    await user.selectOptions(screen.getByLabelText(/what do you want to achieve/i), 'MORE_FOLLOWERS')
     await user.clear(screen.getByLabelText(/reward budget/i))
     await user.type(screen.getByLabelText(/reward budget/i), '2500')
     await user.type(screen.getByLabelText(/special offer/i), '  Free coffee  ')
     await user.click(screen.getByRole('button', { name: /get recommendation/i }))
 
     await waitFor(() =>
-      expect(mutateMock).toHaveBeenCalledWith({ goal: 'APP_INSTALLS', budget: 2500, durationDays: 7, highlight: 'Free coffee' }),
+      expect(mutateMock).toHaveBeenCalledWith({ goal: 'MORE_FOLLOWERS', budget: 2500, durationDays: 7, highlight: 'Free coffee' }),
     )
+  })
+
+  it('offers only the goals that lead to a campaign type on offer', () => {
+    render(<CampaignBuilderModal merchantId="merchant-1" onClose={vi.fn()} onUseDraft={vi.fn()} />)
+
+    const goals = within(screen.getByLabelText(/what do you want to achieve/i)).getAllByRole('option').map((option) => option.getAttribute('value'))
+    expect(goals).toEqual(['MORE_REVIEWS', 'MORE_FOLLOWERS', 'SPREAD_THE_WORD'])
   })
 
   it('does not ask when the budget is below the minimum', async () => {

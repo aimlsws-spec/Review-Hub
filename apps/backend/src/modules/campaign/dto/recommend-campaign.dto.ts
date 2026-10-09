@@ -1,15 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
-import { CampaignGoal } from '../constants/campaign-builder.constants';
+import { CampaignGoal, ENABLED_CAMPAIGN_GOALS } from '../constants/campaign-builder.constants';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 /** What a merchant tells the campaign builder before it recommends a campaign. */
 export class RecommendCampaignDto {
-  @ApiProperty({ enum: CampaignGoal, example: CampaignGoal.MORE_REVIEWS })
-  @IsEnum(CampaignGoal)
+  @ApiProperty({ enum: ENABLED_CAMPAIGN_GOALS, example: CampaignGoal.MORE_REVIEWS })
+  @IsIn(ENABLED_CAMPAIGN_GOALS, { message: `goal must be one of: ${ENABLED_CAMPAIGN_GOALS.join(', ')}` })
   goal!: CampaignGoal;
 
   @ApiProperty({ example: 5000, description: 'What the merchant wants to spend on rewards, in rupees' })

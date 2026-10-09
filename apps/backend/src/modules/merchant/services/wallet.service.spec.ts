@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { BadRequestException, NotFoundException } from '@common/exceptions/domain.exceptions';
@@ -55,6 +56,10 @@ describe('WalletService', () => {
         { provide: MerchantRepository, useValue: mockMerchantRepository },
         { provide: MerchantWalletRepository, useValue: mockWalletRepository },
         { provide: PAYMENT_PROVIDER, useValue: mockRazorpayService },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn((key: string) => (key === 'payment.razorpayKeyId' ? 'rzp_test_public' : undefined)) },
+        },
       ],
     }).compile();
 
@@ -105,14 +110,14 @@ describe('WalletService', () => {
   });
 
   describe('createRechargeOrder', () => {
-    it('should create a Razorpay order and a pending transaction, without crediting anything', async () => {
+    it('should create a Razorpay order and a pending transaction, without crediting anything, and name the public key', async () => {
       mockMerchantRepository.findById.mockResolvedValue(mockMerchant);
       mockWalletRepository.getOrCreate.mockResolvedValue(mockWallet);
       mockRazorpayService.createOrder.mockResolvedValue({ id: 'order_1', amount: 500000, currency: 'INR', status: 'created' });
 
       const result = await service.createRechargeOrder('merchant-1', 5000);
 
-      expect(result).toEqual({ razorpayOrderId: 'order_1', amount: 5000, currency: 'INR' });
+      expect(result).toEqual({ razorpayOrderId: 'order_1', amount: 5000, currency: 'INR', keyId: 'rzp_test_public' });
       expect(mockWalletRepository.createPendingTopUp).toHaveBeenCalledWith({
         merchantWalletId: 'wallet-1',
         amount: 5000,

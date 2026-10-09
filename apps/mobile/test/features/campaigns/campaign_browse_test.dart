@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +17,7 @@ import 'package:viral_kar/features/campaigns/presentation/screens/campaign_detai
 import 'package:viral_kar/features/campaigns/presentation/screens/campaigns_screen.dart';
 import 'package:viral_kar/features/campaigns/providers/campaign_providers.dart';
 import 'package:viral_kar/shared/models/api_response.dart';
+import 'package:viral_kar/shared/models/paged_list.dart';
 
 CampaignModel _campaign(String id, {String title = 'Brew Bar', String reward = '50.00'}) => CampaignModel(
   id: id,
@@ -28,17 +31,24 @@ CampaignModel _campaign(String id, {String title = 'Brew Bar', String reward = '
 );
 
 class _Browse {
-  _Browse({this.sort, this.type, this.search});
+  _Browse({this.sort, this.type, this.search, this.page = 1});
 
+  final int page;
   final String? sort;
   final String? type;
   final String? search;
 }
 
-/// Stands in for the server: serves the campaigns the test sets, and records what was asked.
+/// Stands in for the server: serves the campaigns the test sets, a page at a time, and records what was asked.
 class _FakeCampaignRepository extends Fake implements CampaignRepository {
   List<CampaignModel> browseResult = [_campaign('c1', title: 'Brew Bar')];
   Result<PaginatedResponse<CampaignModel>>? browseFailure;
+
+  /// When set, every page after the first fails with it.
+  Failure? failLaterPages;
+
+  /// When set, every page after the first waits for it.
+  Completer<void>? hold;
   final Map<String, Result<CampaignModel>> byId = {};
   final List<_Browse> browses = [];
   final List<String> fetched = [];
@@ -51,10 +61,16 @@ class _FakeCampaignRepository extends Fake implements CampaignRepository {
     String? campaignType,
     String? search,
     String sort = 'featured',
+    double? latitude,
+    double? longitude,
   }) async {
-    browses.add(_Browse(sort: sort, type: campaignType, search: search));
+    browses.add(_Browse(sort: sort, type: campaignType, search: search, page: page));
+    if (page > 1) await hold?.future;
+    final failure = failLaterPages;
+    if (page > 1 && failure != null) return Result.failure(failure);
+    final items = browseResult.skip((page - 1) * limit).take(limit).toList();
     return browseFailure ??
-        Result.success(PaginatedResponse(items: browseResult, total: browseResult.length, page: 1, limit: 20));
+        Result.success(PaginatedResponse(items: items, total: browseResult.length, page: page, limit: limit));
   }
 
   @override
@@ -207,6 +223,7 @@ void main() {
         'newest',
         'highest_reward',
         'ending_soon',
+        'nearest',
       ]);
     });
 
@@ -222,6 +239,10 @@ void main() {
         'SURVEY',
         'CUSTOM',
       ]);
+    });
+
+    test('offers a chip only for the kinds merchants can create today', () {
+      expect(CampaignCategory.offered.map((c) => c.apiValue), ['REVIEW', 'SOCIAL_SHARE', 'SOCIAL_FOLLOW']);
     });
   });
 
@@ -513,11 +534,22 @@ void main() {
     testWidgets('asks for one kind of campaign, and back to every kind', (tester) async {
       await show(tester, const CampaignsScreen());
 
-      await tapChip(tester, 'Survey');
-      expect(repository.browses.last.type, 'SURVEY');
+      await tapChip(tester, 'Follow');
+      expect(repository.browses.last.type, 'SOCIAL_FOLLOW');
 
       await tapChip(tester, 'All');
       expect(repository.browses.last.type, isNull);
+    });
+
+    testWidgets('shows no chip for a kind merchants can not create today', (tester) async {
+      await show(tester, const CampaignsScreen());
+
+      expect(find.widgetWithText(ChoiceChip, 'Feedback'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Share'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Follow'), findsOneWidget);
+      for (final hidden in ['Survey', 'Video', 'Website', 'App install', 'Referral', 'Other']) {
+        expect(find.widgetWithText(ChoiceChip, hidden), findsNothing);
+      }
     });
 
     testWidgets('keeps the order and kind together with a search', (tester) async {
@@ -553,7 +585,7 @@ void main() {
       await show(tester, const CampaignsScreen());
       expect(find.text('No campaigns right now'), findsOneWidget);
 
-      await tapChip(tester, 'Survey');
+      await tapChip(tester, 'Share');
       expect(find.text('No campaigns match'), findsOneWidget);
 
       await tester.tap(find.text('Clear filters'));
@@ -620,6 +652,168 @@ void main() {
       expect(homeCalls, isNotEmpty);
       expect(repository.browses.where((b) => b.search == 'cafe').single.sort, 'featured');
       expect(repository.browses.last.search, isNull);
+    });
+  });
+
+  group('the Tasks tab, a page at a time', () {
+    List<CampaignModel> many(int count) => [for (var i = 1; i <= count; i++) _campaign('c$i', title: 'Campaign $i')];
+
+    /// The screen keeps the list alive while it shows. A test that waits between steps does the same, or the provider
+    /// disposes itself while nobody is listening.
+    ProviderContainer listening() {
+      final container = makeContainer();
+      container.listen(browseCampaignsProvider, (previous, next) {});
+      return container;
+    }
+
+    Future<PagedList<CampaignModel>> loaded(ProviderContainer container) async =>
+        (await container.read(browseCampaignsProvider.future)).valueOrNull!;
+
+    PagedList<CampaignModel> now(ProviderContainer container) =>
+        container.read(browseCampaignsProvider).value!.valueOrNull!;
+
+    test('starts with the first page and knows more are waiting', () async {
+      repository.browseResult = many(45);
+      final container = listening();
+
+      final list = await loaded(container);
+
+      expect(list.items, hasLength(BrowseCampaignsNotifier.pageSize));
+      expect(list.total, 45);
+      expect(list.hasMore, isTrue);
+      expect(repository.browses.map((b) => b.page), [1]);
+    });
+
+    test('adds each next page below, with the same filters, and stops at the end', () async {
+      repository.browseResult = many(45);
+      final container = listening();
+      container.read(campaignBrowseFilterProvider.notifier).setSort(CampaignSort.newest);
+      await loaded(container);
+
+      await container.read(browseCampaignsProvider.notifier).loadMore();
+      await container.read(browseCampaignsProvider.notifier).loadMore();
+      await container.read(browseCampaignsProvider.notifier).loadMore();
+
+      final list = now(container);
+      expect(list.items.map((c) => c.id), [for (var i = 1; i <= 45; i++) 'c$i']);
+      expect(list.hasMore, isFalse);
+      // The list started on the default order before the sort changed; after that, one ask per page, and nothing more
+      // once everything is in.
+      final newest = repository.browses.skipWhile((b) => b.sort != 'newest');
+      expect(newest.map((b) => b.page), [1, 2, 3]);
+      expect(newest.map((b) => b.sort).toSet(), {'newest'});
+    });
+
+    test('asks for one page at a time, however often the end is reached', () async {
+      repository.browseResult = many(45);
+      repository.hold = Completer<void>();
+      final container = listening();
+      await loaded(container);
+
+      final first = container.read(browseCampaignsProvider.notifier).loadMore();
+      unawaited(container.read(browseCampaignsProvider.notifier).loadMore());
+      expect(now(container).loadingMore, isTrue);
+      repository.hold!.complete();
+      await first;
+
+      expect(repository.browses.map((b) => b.page), [1, 2]);
+      expect(now(container).items, hasLength(40));
+    });
+
+    test('drops a page that arrives after the filters changed, and starts the new list from the first page', () async {
+      repository.browseResult = many(45);
+      repository.hold = Completer<void>();
+      final container = listening();
+      await loaded(container);
+
+      final coming = container.read(browseCampaignsProvider.notifier).loadMore();
+      container.read(campaignBrowseFilterProvider.notifier).setCategory(CampaignCategory.survey);
+      await loaded(container);
+      repository.hold!.complete();
+      await coming;
+
+      expect(now(container).items, hasLength(BrowseCampaignsNotifier.pageSize));
+      expect(now(container).loadingMore, isFalse);
+      expect(repository.browses.last.page, 1);
+      expect(repository.browses.last.type, 'SURVEY');
+    });
+
+    test('keeps what is shown when the next page fails, says why, and tries again', () async {
+      repository.browseResult = many(25);
+      repository.failLaterPages = const NetworkFailure('No internet connection');
+      final container = listening();
+      await loaded(container);
+
+      await container.read(browseCampaignsProvider.notifier).loadMore();
+
+      expect(now(container).items, hasLength(20));
+      expect(now(container).loadMoreMessage, 'No internet connection');
+      expect(now(container).loadingMore, isFalse);
+
+      repository.failLaterPages = null;
+      await container.read(browseCampaignsProvider.notifier).loadMore();
+
+      expect(now(container).items, hasLength(25));
+      expect(now(container).loadMoreMessage, isNull);
+    });
+
+    testWidgets('brings in the next pages as the person scrolls, and says how many there are at the end', (
+      tester,
+    ) async {
+      repository.browseResult = many(45);
+      await show(tester, const CampaignsScreen());
+      expect(find.text('Campaign 21'), findsNothing);
+
+      await tester.dragUntilVisible(find.text('45 campaigns'), find.byType(ListView), const Offset(0, -600));
+      await tester.pumpAndSettle();
+
+      expect(repository.browses.map((b) => b.page), [1, 2, 3]);
+      expect(find.text('45 campaigns'), findsOneWidget);
+    });
+
+    testWidgets('offers to load more by hand after a failure', (tester) async {
+      repository.browseResult = many(25);
+      repository.failLaterPages = const NetworkFailure('No internet connection');
+      await show(tester, const CampaignsScreen());
+
+      // On this tall test screen the first page fits without scrolling, so nothing asks for more until the button.
+      await tester.dragUntilVisible(find.text('Load more'), find.byType(ListView), const Offset(0, -600));
+      await tester.tap(find.text('Load more'));
+      await tester.pumpAndSettle();
+      expect(find.text('No internet connection'), findsOneWidget);
+      expect(find.text('Campaign 20'), findsOneWidget);
+
+      repository.failLaterPages = null;
+      await tester.tap(find.text('Load more'));
+      await tester.pumpAndSettle();
+      await tester.dragUntilVisible(find.text('25 campaigns'), find.byType(ListView), const Offset(0, -600));
+
+      expect(find.text('Campaign 25'), findsOneWidget);
+      expect(find.text('No internet connection'), findsNothing);
+    });
+  });
+
+  group('PagedList', () {
+    PaginatedResponse<CampaignModel> page(List<String> ids, {required int total}) =>
+        PaginatedResponse(items: [for (final id in ids) _campaign(id)], total: total, page: 1, limit: 2);
+
+    test('skips an item the next page repeats, when the list shifted on the server between pages', () {
+      final first = PagedList<CampaignModel>.first(page(['a', 'b'], total: 4));
+
+      final next = first.append(page(['b', 'c'], total: 4), idOf: (c) => c.id);
+
+      expect(next.items.map((c) => c.id), ['a', 'b', 'c']);
+      expect(next.page, 2);
+      expect(next.hasMore, isTrue);
+    });
+
+    test('treats an empty page as the end, even if the count says more', () {
+      final first = PagedList<CampaignModel>.first(page(['a', 'b'], total: 4));
+
+      final next = first.append(page([], total: 4), idOf: (c) => c.id);
+
+      expect(next.hasMore, isFalse);
+      expect(next.total, 2);
     });
   });
 

@@ -37,7 +37,7 @@ describe('Browsing campaigns (e2e)', () => {
   };
 
   const activate = async (campaignId: string, rewardAmount: number) => {
-    await api.post(`/campaigns/${campaignId}/tasks`, merchant.token).send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount }).expect(201);
+    await api.post(`/campaigns/${campaignId}/tasks`, merchant.token).send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount }).expect(201);
     await api.post(`/campaigns/${campaignId}/submit`, merchant.token).expect(200);
     await api.post(`/admin/campaigns/${campaignId}/approve`, adminToken).send({}).expect(200);
     await api.post(`/merchants/${merchant.merchantId}/campaigns/${campaignId}/fund`, merchant.token).expect(200);

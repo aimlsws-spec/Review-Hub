@@ -6,11 +6,10 @@ import { NotFoundException } from '@common/exceptions/domain.exceptions';
 import { AI_CALL_FEATURES, AiCallLogService } from '../../../shared/ai-call-log';
 import { LocalStorageService } from '../../../storage/storage.service';
 import { FraudFlagRepository } from '../../admin/repositories';
-import { SubmissionSignalRepository } from '../../risk/repositories';
 import { DuplicateImageService } from '../../risk/services';
 import { SubmissionService } from '../../task/services';
 import { AI_VERIFICATION_THRESHOLDS } from '../constants';
-import { AiVerificationDecision, CompleteVerificationJobDto } from '../dto';
+import { CompleteVerificationJobDto } from '../dto';
 import { AiVerificationJobRepository } from '../repositories';
 
 @Injectable()
@@ -23,7 +22,6 @@ export class AiVerificationService {
     private readonly storageService: LocalStorageService,
     private readonly fraudFlagRepository: FraudFlagRepository,
     private readonly duplicateImageService: DuplicateImageService,
-    private readonly signalRepository: SubmissionSignalRepository,
     private readonly aiCallLog: AiCallLogService,
   ) {}
 
@@ -50,11 +48,12 @@ export class AiVerificationService {
   }
 
   /**
-   * The worker reports its verdict here. Regardless of what the model
-   * decided, the actual submission outcome (auto-approve/reject vs. escalate
-   * to a human) is re-evaluated against fixed confidence/fraud thresholds —
-   * a model that's unsure or flags meaningful fraud risk never gets to
-   * unilaterally approve or reject a real reward payout.
+   * The worker reports its verdict here. The AI only advises: whatever it decided, the submission then waits for the
+   * merchant (or an admin) to approve or reject it, so no reward is ever paid without a person deciding.
+   *
+   * WHY: the AI can spot a re-used, blank or unreadable screenshot, but it can not confirm the proof really shows this
+   * merchant's business, and a wrong rejection is unfair to someone who did the work. Its verdict, confidence and
+   * explanation are kept (the audit log below) and shown to the reviewer next to any fraud flags.
    */
   async completeJob(jobId: string, dto: CompleteVerificationJobDto) {
     const job = await this.jobRepository.findByIdWithSubmission(jobId);
@@ -89,51 +88,24 @@ export class AiVerificationService {
       await this.flagFraudRisk(job.submissionId, job.submission.userId, fraudScore, dto.explanation);
     }
 
-    // The AI's own score is only one signal. Flags raised by other checks (the same picture used before,
-    // several accounts on one campaign...) must also stop a reward being paid without a person looking.
-    const riskCheckFailed = await this.checkForDuplicateImage(job.submissionId, job.submission.userId, dto);
-    const blockedByRisk = riskCheckFailed || (await this.signalRepository.hasUnresolvedBlockingFlag(job.submissionId));
+    // A re-used picture is flagged for the reviewer to see; the decision is theirs either way.
+    await this.checkForDuplicateImage(job.submissionId, job.submission.userId, dto);
 
-    const clearsThreshold =
-      dto.confidence >= AI_VERIFICATION_THRESHOLDS.MIN_CONFIDENCE &&
-      fraudScore <= AI_VERIFICATION_THRESHOLDS.MAX_FRAUD_SCORE;
-
-    // Only an approval is held back: it is the one outcome that pays money. A rejection is safe either way.
-    const heldForRisk = dto.decision === AiVerificationDecision.APPROVE && blockedByRisk;
-
-    if (!clearsThreshold || dto.decision === AiVerificationDecision.MANUAL_REVIEW || heldForRisk) {
-      await this.submissionService.deferToManualReview(job.submissionId);
-      this.logger.log(
-        `Submission ${job.submissionId} escalated to manual review (confidence=${dto.confidence}, fraud=${fraudScore}${heldForRisk ? ', held for a fraud flag' : ''})`,
-      );
-      return { submissionId: job.submissionId, outcome: 'PENDING_MANUAL' as const };
-    }
-
-    if (dto.decision === AiVerificationDecision.APPROVE) {
-      await this.submissionService.aiApprove(job.submissionId);
-      return { submissionId: job.submissionId, outcome: 'APPROVED' as const };
-    }
-
-    await this.submissionService.aiReject(
-      job.submissionId,
-      dto.explanation ?? 'Automated verification could not confirm this submission.',
+    await this.submissionService.deferToManualReview(job.submissionId);
+    this.logger.log(
+      `Submission ${job.submissionId} checked by the AI (${dto.decision}, confidence=${dto.confidence}, fraud=${fraudScore}); waiting for a person to decide`,
     );
-    return { submissionId: job.submissionId, outcome: 'REJECTED' as const };
+    return { submissionId: job.submissionId, outcome: 'PENDING_MANUAL' as const };
   }
 
-  /**
-   * Fingerprints the evidence picture and compares it with earlier ones. Returns true if the check itself
-   * failed: an approval must then wait for a person, because we cannot claim the picture is new.
-   */
-  private async checkForDuplicateImage(submissionId: string, userId: string, dto: CompleteVerificationJobDto): Promise<boolean> {
-    if (!dto.perceptualHash) return false;
+  /** Fingerprints the evidence picture and flags it if it matches an earlier one. A failure only costs that flag. */
+  private async checkForDuplicateImage(submissionId: string, userId: string, dto: CompleteVerificationJobDto): Promise<void> {
+    if (!dto.perceptualHash) return;
 
     try {
       await this.duplicateImageService.check({ submissionId, userId, perceptualHash: dto.perceptualHash, evidenceText: dto.evidenceText });
-      return false;
     } catch (error) {
       this.logger.error(`Duplicate-image check failed for submission ${submissionId}: ${error instanceof Error ? error.message : String(error)}`);
-      return true;
     }
   }
 
@@ -158,12 +130,9 @@ export class AiVerificationService {
   }
 
   /**
-   * Raises an admin-visible fraud flag whenever the AI's fraud score crosses
-   * the same threshold that already blocks auto-approval — this is what
-   * finally gives the admin fraud queue real data to review instead of
-   * always being empty, and gives admins something to act
-   * `FraudReviewService.reverseReward` on if the submission later turns out
-   * to have been approved and rewarded despite the risk.
+   * Raises an admin-visible fraud flag whenever the AI's fraud score crosses MAX_FRAUD_SCORE. The reviewer sees it
+   * before deciding, and admins can act on it with `FraudReviewService.reverseReward` if the submission was approved
+   * and rewarded anyway.
    */
   private async flagFraudRisk(submissionId: string, userId: string, fraudScore: number, explanation?: string) {
     const riskLevel: FraudRiskLevel = fraudScore >= 0.8 ? 'CRITICAL' : fraudScore >= 0.6 ? 'HIGH' : 'MEDIUM';

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { CampaignService } from '../../campaign/services';
+import { AdminCampaignService, CampaignService } from '../../campaign/services';
 
 import { AdminCampaignQueueController } from './campaign-queue.controller';
 
@@ -13,11 +13,15 @@ describe('AdminCampaignQueueController', () => {
     reject: jest.fn(),
     requestChanges: jest.fn(),
   };
+  const mockAdminCampaignService = { list: jest.fn(), getDetail: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminCampaignQueueController],
-      providers: [{ provide: CampaignService, useValue: mockCampaignService }],
+      providers: [
+        { provide: CampaignService, useValue: mockCampaignService },
+        { provide: AdminCampaignService, useValue: mockAdminCampaignService },
+      ],
     }).compile();
 
     controller = module.get<AdminCampaignQueueController>(AdminCampaignQueueController);
@@ -27,6 +31,17 @@ describe('AdminCampaignQueueController', () => {
   it('listPending should delegate to the service', async () => {
     await controller.listPending('1', '20');
     expect(mockCampaignService.listPendingReview).toHaveBeenCalledWith(1, 20);
+  });
+
+  it('listAll passes the filters to the admin campaign service', async () => {
+    const query = { page: 2, limit: 20, status: 'ACTIVE', search: 'cafe' };
+    await controller.listAll(query as never);
+    expect(mockAdminCampaignService.list).toHaveBeenCalledWith(query);
+  });
+
+  it('getOne returns the campaign with its performance', async () => {
+    await controller.getOne('campaign-1');
+    expect(mockAdminCampaignService.getDetail).toHaveBeenCalledWith('campaign-1');
   });
 
   it('approve should delegate to the service', async () => {

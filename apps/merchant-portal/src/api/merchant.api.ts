@@ -18,11 +18,18 @@ import type {
   DashboardStats,
   PaginatedResponse,
   Campaign,
+  CampaignTask,
+  CampaignWithTasks,
   CampaignAnalytics,
+  MerchantSubmission,
+  SubmissionStatus,
+  TaskCompletionLimit,
+  TaskProofType,
+  TaskType,
+  TaskVerificationType,
   AnalyticsOverview,
   CampaignType,
   CampaignVisibility,
-  RewardType,
   WordingCheck,
   MerchantReward,
   SupportTicket,
@@ -68,18 +75,35 @@ export interface RecommendCampaignInput {
   highlight?: string
 }
 
+export interface CampaignTaskInput {
+  title: string
+  taskType: TaskType
+  description?: string
+  instructions?: string
+  verificationType?: TaskVerificationType
+  proofType?: TaskProofType
+  required?: boolean
+  completionLimit?: TaskCompletionLimit
+  taskOrder?: number
+  configuration?: Record<string, unknown>
+}
+
+/** What an edit may change: everything but the campaign type, which is fixed when it is created. */
+export type CampaignUpdateInput = Partial<Omit<CampaignFormInput, 'campaignType'>>
+
 export interface CampaignFormInput {
   title: string
   shortDescription?: string
   description: string
   campaignType: CampaignType
   visibility?: CampaignVisibility
-  rewardType?: RewardType
   rewardAmount: number
   totalBudget: number
-  maxParticipants?: number
-  startAt?: string
-  endAt?: string
+  /** null clears the cap on an edit. */
+  maxParticipants?: number | null
+  /** ISO date-time. null clears it on an edit. */
+  startAt?: string | null
+  endAt?: string | null
   targetGender?: 'ALL' | 'MALE' | 'FEMALE' | 'OTHER'
   minimumAge?: number
   maximumAge?: number
@@ -146,7 +170,7 @@ export const merchantApi = {
     apiClient.get<ApiResponse<PaginatedResponse<WalletTransaction>>>(`/merchants/${merchantId}/wallet/transactions`, { params }),
 
   createRecharge: (merchantId: string, amount: number) =>
-    apiClient.post<ApiResponse<{ razorpayOrderId: string; amount: number; currency: string }>>(
+    apiClient.post<ApiResponse<{ razorpayOrderId: string; amount: number; currency: string; keyId?: string }>>(
       `/merchants/${merchantId}/wallet/recharge`,
       { amount },
     ),
@@ -238,8 +262,19 @@ export const merchantApi = {
   checkCampaignWording: (merchantId: string, data: { title?: string; shortDescription?: string; description?: string }) =>
     apiClient.post<ApiResponse<WordingCheck>>(`/merchants/${merchantId}/campaigns/check-wording`, data),
 
-  updateCampaign: (campaignId: string, data: Partial<Omit<CampaignFormInput, 'campaignType'>>) =>
+  updateCampaign: (campaignId: string, data: CampaignUpdateInput) =>
     apiClient.patch<ApiResponse<Campaign>>(`/campaigns/${campaignId}`, data),
+
+  /** Sets the cover image shown on the campaign card in the app (JPEG, PNG or WebP, up to 5 MB). */
+  setCampaignCover: (campaignId: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/cover`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
+  removeCampaignCover: (campaignId: string) => apiClient.delete<ApiResponse<Campaign>>(`/campaigns/${campaignId}/cover`),
 
   /** Copies a campaign (tasks, media, targeting) into a new draft titled "<title> (copy)". */
   duplicateCampaign: (campaignId: string) => apiClient.post<ApiResponse<Campaign>>(`/campaigns/${campaignId}/duplicate`),
@@ -264,6 +299,32 @@ export const merchantApi = {
 
   getCampaignAnalytics: (merchantId: string, campaignId: string) =>
     apiClient.get<ApiResponse<CampaignAnalytics>>(`/merchants/${merchantId}/campaigns/${campaignId}/analytics`),
+
+  /** Submissions to this merchant's campaigns, newest first. */
+  getSubmissions: (merchantId: string, params: { page?: number; limit?: number; status?: SubmissionStatus; campaignId?: string }) =>
+    apiClient.get<ApiResponse<PaginatedResponse<MerchantSubmission>>>(`/merchants/${merchantId}/submissions`, { params }),
+
+  /** The proof file a participant uploaded, to show it. */
+  getSubmissionEvidence: (merchantId: string, submissionId: string) =>
+    apiClient.get<Blob>(`/merchants/${merchantId}/submissions/${submissionId}/evidence`, { responseType: 'blob' }),
+
+  approveSubmission: (merchantId: string, submissionId: string) =>
+    apiClient.post<ApiResponse<MerchantSubmission>>(`/merchants/${merchantId}/submissions/${submissionId}/approve`),
+
+  rejectSubmission: (merchantId: string, submissionId: string, rejectionReason: string) =>
+    apiClient.post<ApiResponse<MerchantSubmission>>(`/merchants/${merchantId}/submissions/${submissionId}/reject`, { rejectionReason }),
+
+  /** One campaign with its tasks, for the task editor. */
+  getCampaign: (campaignId: string) => apiClient.get<ApiResponse<CampaignWithTasks>>(`/campaigns/${campaignId}`),
+
+  createCampaignTask: (campaignId: string, data: CampaignTaskInput) =>
+    apiClient.post<ApiResponse<CampaignTask>>(`/campaigns/${campaignId}/tasks`, data),
+
+  updateCampaignTask: (campaignId: string, taskId: string, data: Partial<CampaignTaskInput>) =>
+    apiClient.patch<ApiResponse<CampaignTask>>(`/campaigns/${campaignId}/tasks/${taskId}`, data),
+
+  deleteCampaignTask: (campaignId: string, taskId: string) =>
+    apiClient.delete<ApiResponse<CampaignTask>>(`/campaigns/${campaignId}/tasks/${taskId}`),
 
   deleteCampaign: (campaignId: string) => apiClient.delete<ApiResponse<Campaign>>(`/campaigns/${campaignId}`),
 

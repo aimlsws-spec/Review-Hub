@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/errors/failure.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/paged_list.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../data/models/campaign_browse.dart';
@@ -29,6 +31,11 @@ class CampaignsScreen extends ConsumerWidget {
             icon: Icon(savedOnly ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
             tooltip: savedOnly ? 'Show all campaigns' : 'Show saved campaigns',
             onPressed: () => ref.read(campaignBrowseFilterProvider.notifier).setSavedOnly(!savedOnly),
+          ),
+          IconButton(
+            icon: const Icon(Icons.emoji_events_outlined),
+            tooltip: 'My campaigns',
+            onPressed: () => context.push(RoutePaths.myCampaigns),
           ),
           IconButton(
             icon: const Icon(Icons.history_rounded),
@@ -88,9 +95,10 @@ class _SearchAndFilters extends ConsumerWidget {
           chips: [
             for (final sort in CampaignSort.values)
               ChoiceChip(
+                avatar: sort == CampaignSort.nearest ? const Icon(Icons.near_me_outlined, size: 16) : null,
                 label: Text(sort.label),
                 selected: filter.sort == sort,
-                onSelected: (_) => notifier.setSort(sort),
+                onSelected: (_) => sort == CampaignSort.nearest ? _sortByNearest(context, notifier) : notifier.setSort(sort),
               ),
           ],
         ),
@@ -102,7 +110,7 @@ class _SearchAndFilters extends ConsumerWidget {
               selected: filter.category == null,
               onSelected: (_) => notifier.setCategory(null),
             ),
-            for (final category in CampaignCategory.values)
+            for (final category in CampaignCategory.offered)
               ChoiceChip(
                 label: Text(category.label),
                 selected: filter.category == category,
@@ -157,8 +165,8 @@ class _BrowseList extends ConsumerWidget {
       error: (error, stack) =>
           ErrorStateView(message: '$error', onRetry: () => ref.invalidate(browseCampaignsProvider)),
       data: (result) => result.when(
-        success: (page) {
-          if (page.items.isEmpty) {
+        success: (list) {
+          if (list.items.isEmpty) {
             return narrowed
                 ? EmptyState(
                     icon: Icons.search_off_rounded,
@@ -178,7 +186,12 @@ class _BrowseList extends ConsumerWidget {
                     description: 'Check back soon: new campaigns are added regularly.',
                   );
           }
-          return _CampaignList(campaigns: page.items, onRefresh: () async => ref.invalidate(browseCampaignsProvider));
+          return _CampaignList(
+            campaigns: list.items,
+            onRefresh: () async => ref.invalidate(browseCampaignsProvider),
+            onNearEnd: () => ref.read(browseCampaignsProvider.notifier).loadMore(),
+            footer: _BrowseFooter(list: list),
+          );
         },
         failure: (failure) =>
             ErrorStateView(message: failure.message, onRetry: () => ref.invalidate(browseCampaignsProvider)),
@@ -215,27 +228,101 @@ class _SavedList extends ConsumerWidget {
   }
 }
 
+/// The cards, pull-to-refresh, and for a list that comes a page at a time, a footer and a call as the end comes near.
 class _CampaignList extends StatelessWidget {
-  const _CampaignList({required this.campaigns, required this.onRefresh});
+  const _CampaignList({required this.campaigns, required this.onRefresh, this.onNearEnd, this.footer});
 
   final List<CampaignModel> campaigns;
   final Future<void> Function() onRefresh;
+  final VoidCallback? onNearEnd;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
+    final footer = this.footer;
+    final onNearEnd = this.onNearEnd;
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        itemCount: campaigns.length,
-        itemBuilder: (context, index) {
-          final campaign = campaigns[index];
-          return CampaignCard(
-            campaign: campaign,
-            onTap: () => context.push(RoutePaths.campaignDetailPath(campaign.id)),
-          );
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          // Near the bottom: bring the next page in before the person gets there.
+          if (onNearEnd != null && notification.metrics.extentAfter < 300) onNearEnd();
+          return false;
         },
+        child: ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          itemCount: campaigns.length + (footer == null ? 0 : 1),
+          itemBuilder: (context, index) {
+            if (index == campaigns.length) return footer!;
+            final campaign = campaigns[index];
+            return CampaignCard(
+              campaign: campaign,
+              onTap: () => context.push(RoutePaths.campaignDetailPath(campaign.id)),
+            );
+          },
+        ),
       ),
     );
   }
+}
+
+/// The end of the browse list: a spinner while the next page comes, a way to ask for it, or how many there are.
+class _BrowseFooter extends ConsumerWidget {
+  const _BrowseFooter({required this.list});
+
+  final PagedList<CampaignModel> list;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (list.loadingMore) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    final message = list.loadMoreMessage;
+    if (!list.hasMore) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: Text(
+            '${list.total} ${list.total == 1 ? 'campaign' : 'campaigns'}',
+            style: const TextStyle(color: AppColors.slate500, fontSize: 12.5),
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          if (message != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(message, style: const TextStyle(color: AppColors.danger, fontSize: 12.5)),
+            ),
+          TextButton(
+            onPressed: () => ref.read(browseCampaignsProvider.notifier).loadMore(),
+            child: const Text('Load more'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sorts by distance. The location prompt appears here, when "Nearest" is chosen, and only here. Without a location
+/// the list keeps its order and the person is told why.
+Future<void> _sortByNearest(BuildContext context, CampaignBrowseFilterNotifier notifier) async {
+  final failure = await notifier.sortByNearest();
+  if (failure == null || !context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        failure is LocationPermissionDeniedFailure
+            ? 'Allow location to sort campaigns by distance. You can turn it on in your phone settings.'
+            : failure.message,
+      ),
+    ),
+  );
 }

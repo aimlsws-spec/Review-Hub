@@ -8,3 +8,4 @@ export * from './review-campaign.dto';
 export * from './analytics-query.dto';
 export * from './report-export-query.dto';
 export * from './saved-campaign.dto';
+export * from './admin-campaign-query.dto';

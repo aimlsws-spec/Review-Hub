@@ -2,13 +2,14 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useCampaignQueueQuery, useCampaignReviewMutation } from '@/hooks/useCampaignQueue'
+import { useCampaignDetailQuery, useCampaignQueueQuery, useCampaignReviewMutation } from '@/hooks/useCampaignQueue'
 
 import CampaignQueuePage from './CampaignQueuePage'
 
 vi.mock('@/hooks/useCampaignQueue', () => ({
   useCampaignQueueQuery: vi.fn(),
   useCampaignReviewMutation: vi.fn(),
+  useCampaignDetailQuery: vi.fn(),
 }))
 
 const campaign = {
@@ -158,5 +159,22 @@ describe('CampaignQueuePage', () => {
     await waitFor(() =>
       expect(submitReviewMock).toHaveBeenCalledWith({ campaign, kind: 'reject', note: 'Violates content policy' }),
     )
+  })
+
+  it('opens the campaign in full from its name, and goes on to a decision from there', async () => {
+    vi.mocked(useCampaignDetailQuery).mockReturnValue({
+      data: { data: { data: { ...campaign, visibility: 'PUBLIC', maxParticipants: null, currentParticipants: 0, minimumAge: null, maximumAge: null, targetGender: 'ALL', minimumFollowers: 0, startAt: null, endAt: null, thumbnailUrl: null, bannerUrl: null, tasks: [], media: [], approvals: [], policyFlags: [], merchant: { id: 'merchant-1', businessName: 'Prerna Test Cafe', email: 'p@example.com', phone: '+91', status: 'ACTIVE', verificationStatus: 'APPROVED', city: null } } } },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never)
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Diwali Review Drive' }))
+    expect(within(screen.getByRole('dialog')).getByText('Prerna Test Cafe')).toBeInTheDocument()
+
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Request changes' }))
+    expect(within(screen.getByRole('dialog')).getByText('What needs to change?')).toBeInTheDocument()
   })
 })

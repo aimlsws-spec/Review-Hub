@@ -48,9 +48,73 @@ describe('CampaignTaskService', () => {
       mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
       mockCampaignTaskRepository.create.mockResolvedValue(task);
 
-      const result = await service.create('campaign-1', { title: 'Follow us', taskType: 'INSTAGRAM_FOLLOW' } as never);
+      const result = await service.create('campaign-1', {
+        title: 'Follow us',
+        taskType: 'INSTAGRAM_FOLLOW',
+        configuration: { targetUrl: 'https://www.instagram.com/prernatestcafe/' },
+      } as never);
       expect(result).toEqual(task);
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('task.created', expect.any(Object));
+    });
+
+    it.each([
+      ['AI', 'HYBRID'],
+      [undefined, 'HYBRID'],
+      ['HYBRID', 'HYBRID'],
+      ['MANUAL', 'MANUAL'],
+    ])('stores "%s" as %s: a person decides every reward, so "the AI pays automatically" is not kept', async (asked, stored) => {
+      mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+      mockCampaignTaskRepository.create.mockResolvedValue(task);
+
+      await service.create('campaign-1', { title: 'Share a photo', taskType: 'SCREENSHOT', verificationType: asked } as never);
+
+      expect(mockCampaignTaskRepository.create).toHaveBeenCalledWith(expect.objectContaining({ verificationType: stored }));
+    });
+
+    describe('the link participants open', () => {
+      beforeEach(() => {
+        mockCampaignRepository.findById.mockResolvedValue(draftCampaign);
+        mockCampaignTaskRepository.create.mockResolvedValue(task);
+      });
+
+      it('stores a trimmed link to the site the task names', async () => {
+        await service.create('campaign-1', {
+          title: 'Review us',
+          taskType: 'GOOGLE_REVIEW',
+          configuration: { targetUrl: '  https://g.page/r/CbXyz123/review  ' },
+        } as never);
+
+        expect(mockCampaignTaskRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({ configuration: { targetUrl: 'https://g.page/r/CbXyz123/review' } }),
+        );
+      });
+
+      it('refuses a task done on another site without a link', async () => {
+        await expect(service.create('campaign-1', { title: 'Follow us', taskType: 'INSTAGRAM_FOLLOW' } as never)).rejects.toThrow(
+          'Add the link to Instagram that participants open to do this task',
+        );
+        expect(mockCampaignTaskRepository.create).not.toHaveBeenCalled();
+      });
+
+      it('refuses a link to the wrong site', async () => {
+        await expect(
+          service.create('campaign-1', {
+            title: 'Follow us',
+            taskType: 'INSTAGRAM_FOLLOW',
+            configuration: { targetUrl: 'https://instagram-login.example.com/prerna' },
+          } as never),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('keeps the QR code next to an optional link, and drops a blank one', async () => {
+        await service.create('campaign-1', {
+          title: 'Scan at the counter',
+          taskType: 'QR_SCAN',
+          configuration: { qrCode: 'STORE-42', targetUrl: '  ' },
+        } as never);
+
+        expect(mockCampaignTaskRepository.create).toHaveBeenCalledWith(expect.objectContaining({ configuration: { qrCode: 'STORE-42' } }));
+      });
     });
 
     it('keeps the completion limit the merchant chose', async () => {
@@ -163,8 +227,8 @@ describe('CampaignTaskService', () => {
 
     it('does not touch configuration or proofType for an ordinary task', async () => {
       const result = await service.create('campaign-1', {
-        title: 'Follow us',
-        taskType: 'INSTAGRAM_FOLLOW',
+        title: 'Share a photo of your order',
+        taskType: 'SCREENSHOT',
         proofType: 'SCREENSHOT',
       } as never);
 

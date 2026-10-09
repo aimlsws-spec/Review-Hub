@@ -1,3 +1,19 @@
+export type RazorpayMethod = 'card' | 'upi' | 'netbanking' | 'wallet' | 'emi' | 'cardless_emi' | 'paylater'
+
+/**
+ * A wallet top-up is paid only by card, UPI or netbanking. EMI and pay-later turn a prepaid campaign budget into the
+ * merchant's debt, and wallet and EMI payments are the ones most often reversed or settled late.
+ */
+export const WALLET_TOP_UP_METHODS: Partial<Record<RazorpayMethod, boolean>> = {
+  card: true,
+  upi: true,
+  netbanking: true,
+  wallet: false,
+  emi: false,
+  cardless_emi: false,
+  paylater: false,
+}
+
 export interface RazorpayCheckoutOptions {
   key: string
   amount: number
@@ -7,6 +23,8 @@ export interface RazorpayCheckoutOptions {
   description?: string
   prefill?: { name?: string; email?: string; contact?: string }
   theme?: { color?: string }
+  /** Payment methods to show (true) or hide (false). One left out keeps Razorpay's default. */
+  method?: Partial<Record<RazorpayMethod, boolean>>
   handler: (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => void
   modal?: { ondismiss?: () => void }
 }

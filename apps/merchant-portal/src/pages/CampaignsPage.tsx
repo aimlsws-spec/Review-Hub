@@ -1,20 +1,26 @@
 import { Input, Select, Textarea, Spinner, StatusBadge, EmptyState, ErrorState, Modal, ConfirmDialog, TableSkeleton, Pagination } from '@viralkar/shared-ui'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 
 import type { CampaignFormInput } from '@/api/merchant.api'
 import { CampaignBuilderModal } from '@/components/CampaignBuilderModal'
+import { CampaignCoverField } from '@/components/CampaignCoverField'
+import { CampaignTasksModal } from '@/components/CampaignTasksModal'
+import { CampaignViewModal } from '@/components/CampaignViewModal'
+import { BUDGET_SAFETY_NOTE, SubmitCampaignDialog } from '@/components/SubmitCampaignDialog'
 import { WordingNotice } from '@/components/WordingNotice'
-import { ITEMS_PER_PAGE, CAMPAIGN_TYPE_LABELS, CAMPAIGN_STATUS_LABELS, REWARD_TYPE_LABELS } from '@/constants'
-import { useCampaignsQuery, useCampaignMutations } from '@/hooks/useCampaigns'
+import { ITEMS_PER_PAGE, CAMPAIGN_TYPE_LABELS, CAMPAIGN_STATUS_LABELS, ENABLED_CAMPAIGN_TYPES, ROUTES } from '@/constants'
+import { useCampaignCoverMutations, useCampaignsQuery, useCampaignMutations } from '@/hooks/useCampaigns'
 import { useSubscriptionMutations, useSubscriptionQuery } from '@/hooks/useSubscription'
+import { useWalletQuery } from '@/hooks/useWallet'
 import { useWordingCheck } from '@/hooks/useWordingCheck'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Campaign, CampaignDraft, CampaignStatus } from '@/types'
-import { formatCurrency } from '@/utils'
+import { formatCurrency, uploadUrl } from '@/utils'
+import { dateInputToIso, isoToDateInput, todayDateInput } from '@/utils/campaign-dates'
 
-const campaignTypeOptions = Object.entries(CAMPAIGN_TYPE_LABELS).map(([value, label]) => ({ value, label }))
-const rewardTypeOptions = Object.entries(REWARD_TYPE_LABELS).map(([value, label]) => ({ value, label }))
+const campaignTypeOptions = ENABLED_CAMPAIGN_TYPES.map((value) => ({ value, label: CAMPAIGN_TYPE_LABELS[value] ?? value }))
 const statusFilterOptions = Object.entries(CAMPAIGN_STATUS_LABELS).map(([value, label]) => ({ value, label }))
 
 const EDITABLE_STATUSES: CampaignStatus[] = ['DRAFT', 'CHANGES_REQUESTED']
@@ -27,7 +33,6 @@ const emptyForm: CampaignFormInput = {
   description: '',
   campaignType: 'REVIEW',
   visibility: 'PUBLIC',
-  rewardType: 'CASH',
   rewardAmount: 50,
   totalBudget: 5000,
 }
@@ -45,6 +50,12 @@ export default function CampaignsPage() {
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [cancelTarget, setCancelTarget] = useState<Campaign | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null)
+  const [tasksTarget, setTasksTarget] = useState<Campaign | null>(null)
+  const [viewTarget, setViewTarget] = useState<Campaign | null>(null)
+  const [submitTarget, setSubmitTarget] = useState<Campaign | null>(null)
+  /** A cover picture chosen in the form, uploaded once the campaign is saved. */
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const { uploadCover, removeCover } = useCampaignCoverMutations()
 
   const { data, isLoading, isError, refetch } = useCampaignsQuery(merchantId, {
     page,
@@ -57,7 +68,9 @@ export default function CampaignsPage() {
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<CampaignFormInput>({ defaultValues: emptyForm })
-  const [title, shortDescription, description] = watch(['title', 'shortDescription', 'description'])
+  const walletData = useWalletQuery(editorOpen ? merchantId : undefined).data?.data?.data
+  const walletBalance = walletData ? Number(walletData.availableBalance) : undefined
+  const [title, shortDescription, description, startDate] = watch(['title', 'shortDescription', 'description', 'startAt'])
   const wordingCheck = useWordingCheck(editorOpen ? merchantId : undefined, { title, shortDescription, description })
 
   const openCreate = () => {
@@ -76,13 +89,12 @@ export default function CampaignsPage() {
       shortDescription: draft.shortDescription,
       description: draft.description,
       campaignType: draft.campaignType,
-      rewardType: draft.rewardType,
       rewardAmount: draft.rewardAmount,
       totalBudget: draft.totalBudget,
       maxParticipants: draft.maxParticipants,
       minimumFollowers: draft.minimumFollowers,
-      startAt: draft.startAt,
-      endAt: draft.endAt,
+      startAt: isoToDateInput(draft.startAt),
+      endAt: isoToDateInput(draft.endAt),
     })
     setEditorOpen(true)
   }
@@ -94,23 +106,63 @@ export default function CampaignsPage() {
       shortDescription: campaign.shortDescription ?? '',
       description: campaign.description,
       campaignType: campaign.campaignType,
-      rewardType: campaign.rewardType,
       rewardAmount: Number(campaign.rewardAmount),
       totalBudget: Number(campaign.totalBudget),
       maxParticipants: campaign.maxParticipants ?? undefined,
+      startAt: isoToDateInput(campaign.startAt),
+      endAt: isoToDateInput(campaign.endAt),
     })
     setEditorOpen(true)
   }
 
+  /**
+   * The form holds plain dates; the API takes moments. A start date means the start of that day and an end date the
+   * end of it, in the merchant's time. An emptied date is sent as null on an edit, so it is cleared, not kept.
+   */
+  const submitCampaign = handleSubmit((form) => {
+    const date = (value: string | null | undefined, edge: 'start' | 'end') =>
+      value ? dateInputToIso(value, edge) : editing ? null : undefined
+    // An empty number box reads as NaN, which would reach the API as null. Left out, it keeps the default. Only the
+    // participant cap can be cleared on an edit (no cap); the edit form does not load the targeting fields at all.
+    const number = (value: number | null | undefined) => (typeof value === 'number' && !Number.isNaN(value) ? value : undefined)
+    // The type of campaign is set when it is created; an edit may not send it (the API refuses fields it does not
+    // take). There is no reward type to send: every reward is paid as money into the user's wallet.
+    const { campaignType, ...editable } = form
+    // The cover needs the campaign's id, which a new campaign only has once it is saved, so it is uploaded after.
+    const cover = coverFile
+    const editingId = editing?.id
+    saveMutation.mutate(
+      {
+        ...(editing ? editable : { ...editable, campaignType }),
+        startAt: date(form.startAt, 'start'),
+        endAt: date(form.endAt, 'end'),
+        maxParticipants: number(form.maxParticipants) ?? (editing ? null : undefined),
+        minimumAge: number(form.minimumAge),
+        maximumAge: number(form.maximumAge),
+        minimumFollowers: number(form.minimumFollowers),
+      },
+      {
+        onSuccess: (response) => {
+          const campaignId = editingId ?? response.data.data.id
+          if (cover && campaignId) uploadCover.mutate({ campaignId, file: cover })
+        },
+      },
+    )
+  })
+
   const closeEditor = () => {
     setEditorOpen(false)
     setEditing(null)
+    setCoverFile(null)
   }
 
   const { saveMutation, actionMutation, deleteMutation, duplicateMutation } = useCampaignMutations(merchantId, {
     editingId: editing?.id,
     onSaveSuccess: closeEditor,
-    onActionSuccess: () => setCancelTarget(null),
+    onActionSuccess: () => {
+      setCancelTarget(null)
+      setSubmitTarget(null)
+    },
     onDeleteSuccess: () => setDeleteTarget(null),
   })
 
@@ -178,11 +230,22 @@ export default function CampaignsPage() {
               {campaigns.map((campaign) => (
                 <tr key={campaign.id} className="table-tr">
                   <td className="table-td">
-                    <p className="font-medium text-gray-900">{campaign.title}</p>
-                    <p className="text-xs text-gray-400">{CAMPAIGN_TYPE_LABELS[campaign.campaignType] ?? campaign.campaignType}</p>
+                    <div className="flex items-center gap-3">
+                      {campaign.thumbnailUrl && (
+                        <img src={uploadUrl(campaign.thumbnailUrl)} alt="" className="h-10 w-16 shrink-0 rounded object-cover" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900">{campaign.title}</p>
+                        <p className="text-xs text-gray-400">
+                          {CAMPAIGN_TYPE_LABELS[campaign.campaignType] ?? campaign.campaignType}
+                          {campaign.startAt && ` · Starts ${formatShortDate(campaign.startAt)}`}
+                          {campaign.endAt && ` · Ends ${formatShortDate(campaign.endAt)}`}
+                        </p>
+                      </div>
+                    </div>
                   </td>
                   <td className="table-td">
-                    {formatCurrency(campaign.rewardAmount)} <span className="text-gray-400">({REWARD_TYPE_LABELS[campaign.rewardType] ?? campaign.rewardType})</span>
+                    {formatCurrency(campaign.rewardAmount)}
                   </td>
                   <td className="table-td">
                     {formatCurrency(campaign.spentBudget)} <span className="text-gray-400">/ {formatCurrency(campaign.totalBudget)}</span>
@@ -193,13 +256,20 @@ export default function CampaignsPage() {
                   <td className="table-td"><StatusBadge status={campaign.status} /></td>
                   <td className="table-td text-right">
                     <div className="flex justify-end gap-1.5">
+                      <button className="btn-ghost btn-sm" onClick={() => setViewTarget(campaign)}>View</button>
+                      <button className="btn-ghost btn-sm" onClick={() => setTasksTarget(campaign)}>Tasks</button>
+                      {!EDITABLE_STATUSES.includes(campaign.status) && (
+                        <Link className="btn-ghost btn-sm" to={`${ROUTES.SUBMISSIONS}?campaignId=${campaign.id}`}>
+                          Submissions
+                        </Link>
+                      )}
                       {EDITABLE_STATUSES.includes(campaign.status) && (
                         <button className="btn-ghost btn-sm" onClick={() => openEdit(campaign)}>Edit</button>
                       )}
                       {EDITABLE_STATUSES.includes(campaign.status) && (
                         <button
                           className="btn-ghost btn-sm text-primary-700 hover:bg-primary-50"
-                          onClick={() => actionMutation.mutate({ id: campaign.id, action: 'submit' })}
+                          onClick={() => setSubmitTarget(campaign)}
                         >
                           Submit
                         </button>
@@ -265,6 +335,32 @@ export default function CampaignsPage() {
         </div>
       )}
 
+      {tasksTarget && <CampaignTasksModal campaign={tasksTarget} onClose={() => setTasksTarget(null)} />}
+
+      {submitTarget && (
+        <SubmitCampaignDialog
+          campaign={submitTarget}
+          submitting={actionMutation.isPending}
+          onSubmit={() => actionMutation.mutate({ id: submitTarget.id, action: 'submit' })}
+          onClose={() => setSubmitTarget(null)}
+        />
+      )}
+
+      {viewTarget && (
+        <CampaignViewModal
+          campaign={viewTarget}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => {
+            setViewTarget(null)
+            openEdit(viewTarget)
+          }}
+          onEditTasks={() => {
+            setViewTarget(null)
+            setTasksTarget(viewTarget)
+          }}
+        />
+      )}
+
       {builderOpen && (
         <CampaignBuilderModal merchantId={merchantId} onClose={() => setBuilderOpen(false)} onUseDraft={useBuilderDraft} />
       )}
@@ -278,7 +374,7 @@ export default function CampaignsPage() {
           footer={
             <>
               <button className="btn-secondary" onClick={closeEditor} disabled={saveMutation.isPending}>Cancel</button>
-              <button className="btn-primary" onClick={handleSubmit((d) => saveMutation.mutate(d))} disabled={saveMutation.isPending}>
+              <button className="btn-primary" onClick={submitCampaign} disabled={saveMutation.isPending}>
                 {saveMutation.isPending && <Spinner size="sm" className="text-white" />}
                 {editing ? 'Save changes' : 'Create draft'}
               </button>
@@ -306,21 +402,25 @@ export default function CampaignsPage() {
               {...register('description', { required: 'Description is required', minLength: { value: 20, message: 'At least 20 characters' } })}
             />
             <WordingNotice check={wordingCheck} />
-            <div className="grid grid-cols-2 gap-4">
-              <Select
-                label="Campaign type"
-                required
-                options={campaignTypeOptions}
-                disabled={!!editing}
-                error={errors.campaignType?.message}
-                {...register('campaignType', { required: true })}
-              />
-              <Select
-                label="Reward type"
-                options={rewardTypeOptions}
-                {...register('rewardType')}
-              />
-            </div>
+            <CampaignCoverField
+              savedPath={editing?.thumbnailUrl ?? null}
+              file={coverFile}
+              onChange={setCoverFile}
+              removing={removeCover.isPending}
+              onRemoveSaved={
+                editing
+                  ? () => removeCover.mutate(editing.id, { onSuccess: () => setEditing({ ...editing, thumbnailUrl: null }) })
+                  : undefined
+              }
+            />
+            <Select
+              label="Campaign type"
+              required
+              options={campaignTypeOptions}
+              disabled={!!editing}
+              error={errors.campaignType?.message}
+              {...register('campaignType', { required: true })}
+            />
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Reward per participant (₹)"
@@ -334,10 +434,41 @@ export default function CampaignsPage() {
                 type="number"
                 required
                 error={errors.totalBudget?.message}
+                hint={walletBalance === undefined ? undefined : `Your wallet: ${formatCurrency(walletBalance)} available`}
                 {...register('totalBudget', { required: 'Required', valueAsNumber: true, min: { value: 1, message: 'Must be at least ₹1' } })}
               />
             </div>
             
+            <p className="text-xs text-gray-500">
+              You can save a draft with any budget. To submit it for review, your wallet needs to hold the full budget.{' '}
+              {BUDGET_SAFETY_NOTE}
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Start date"
+                type="date"
+                hint="Leave blank to start as soon as it is activated"
+                error={errors.startAt?.message}
+                {...register('startAt')}
+              />
+              <Input
+                label="End date"
+                type="date"
+                min={startDate || todayDateInput()}
+                hint="Leave blank to run until the budget is used up"
+                error={errors.endAt?.message}
+                {...register('endAt', {
+                  validate: (end, form) => {
+                    if (!end) return true
+                    if (end < todayDateInput()) return 'The end date can not be in the past'
+                    if (form.startAt && end < form.startAt) return 'The end date must be on or after the start date'
+                    return true
+                  },
+                })}
+              />
+            </div>
+
             <div className="pt-4 mt-4 border-t border-gray-100">
               <h4 className="text-sm font-medium text-gray-900 mb-4">Audience Targeting (Optional)</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -426,4 +557,9 @@ export default function CampaignsPage() {
       )}
     </div>
   )
+}
+
+/** "12 Oct 2026", for the dates under a campaign's title. */
+function formatShortDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }

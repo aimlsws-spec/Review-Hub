@@ -29,7 +29,7 @@ describe('Merchant analytics (e2e)', () => {
       .expect(201);
     const task = await api
       .post(`/campaigns/${campaign.body.data.id}/tasks`, owner.token)
-      .send({ title: 'Write an honest review', taskType: 'TEXT', verificationType: 'MANUAL', rewardAmount: 50 })
+      .send({ title: 'Write an honest review', taskType: 'URL', verificationType: 'MANUAL', rewardAmount: 50 })
       .expect(201);
     await api.post(`/campaigns/${campaign.body.data.id}/submit`, owner.token).expect(200);
     await api.post(`/admin/campaigns/${campaign.body.data.id}/approve`, adminToken).send({}).expect(200);
@@ -40,7 +40,7 @@ describe('Merchant analytics (e2e)', () => {
   /** A user joins, submits, and the admin approves (or rejects) the submission. */
   const takePart = async (user: TestUser, task: string, decision: 'approve' | 'reject' = 'approve') => {
     await api.post(`/tasks/${task}/start`, user.token).expect(200);
-    const submitted = await api.post(`/tasks/${task}/submit`, user.token).field('textAnswer', 'The coffee was great and the staff were friendly.').expect(201);
+    const submitted = await api.post(`/tasks/${task}/submit`, user.token).field('externalUrl', 'https://www.instagram.com/p/viralkar-proof/').expect(201);
     const id = submitted.body.data.id;
     if (decision === 'approve') await api.post(`/submissions/${id}/approve`, adminToken).expect(200);
     else await api.post(`/submissions/${id}/reject`, adminToken).send({ rejectionReason: 'The screenshot does not show the review.' }).expect(200);

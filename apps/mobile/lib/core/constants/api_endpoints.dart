@@ -49,6 +49,8 @@ class ApiEndpoints {
   static String campaignTasks(String campaignId) => '/campaigns/$campaignId/tasks';
   static String campaignDetails(String campaignId) => '/campaigns/$campaignId/details';
   static String taskStart(String taskId) => '/tasks/$taskId/start';
+  static String campaignProgress(String campaignId) => '/users/me/campaigns/$campaignId/progress';
+  static const String joinedCampaigns = '/users/me/campaigns/joined';
   static String taskSubmit(String taskId) => '/tasks/$taskId/submit';
   static String taskReportIssue(String taskId) => '/tasks/$taskId/report-issue';
   static String taskTextSuggestion(String taskId) => '/tasks/$taskId/text-suggestion';

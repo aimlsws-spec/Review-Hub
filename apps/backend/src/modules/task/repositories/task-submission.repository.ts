@@ -22,6 +22,24 @@ export type LimitedSubmissionResult =
   | { outcome: 'in-flight' }
   | { outcome: 'limit-reached' };
 
+/** What a merchant reviewer sees with each submission. Only unresolved fraud flags: settled ones are history. */
+const MERCHANT_REVIEW_INCLUDE = {
+  task: {
+    select: {
+      id: true,
+      title: true,
+      taskType: true,
+      proofType: true,
+      verificationType: true,
+      campaign: { select: { id: true, title: true } },
+    },
+  },
+  user: { select: { firstName: true, lastName: true } },
+  attachments: { select: { mimeType: true, fileName: true }, take: 1 },
+  aiJob: { select: { status: true, auditLog: { select: { decision: true, confidence: true, fraudScore: true, explanation: true } } } },
+  fraudFlags: { where: { resolved: false }, select: { type: true, riskLevel: true, reason: true } },
+} satisfies Prisma.TaskSubmissionInclude;
+
 @Injectable()
 export class TaskSubmissionRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -54,6 +72,18 @@ export class TaskSubmissionRepository {
       if (counted >= maxCompletions) return { outcome: 'limit-reached' };
 
       return { outcome: 'created', submission: await tx.taskSubmission.create({ data }) };
+    });
+  }
+
+  /**
+   * One person's submissions that count towards the limits of the given tasks (in flight or approved), for working out
+   * whether each task is still open to them (task-availability.ts).
+   */
+  async findOwnForTasks(userId: string, taskIds: string[]) {
+    if (!taskIds.length) return [];
+    return this.prisma.taskSubmission.findMany({
+      where: { userId, taskId: { in: taskIds }, deletedAt: null, status: { in: [...BLOCKING_SUBMISSION_STATUSES] } },
+      select: { taskId: true, status: true, createdAt: true },
     });
   }
 
@@ -107,6 +137,40 @@ export class TaskSubmissionRepository {
     ]);
 
     return { data, total, page, limit };
+  }
+
+  /**
+   * Submissions to one merchant's campaigns, newest first, with what a reviewer needs beside each: the task, the
+   * campaign, who sent it, the evidence, the AI's verdict and any open fraud flags.
+   */
+  async findForMerchant(params: { merchantId: string; page: number; limit: number; status?: string; campaignId?: string }) {
+    const { merchantId, page, limit, status, campaignId } = params;
+    const where: Prisma.TaskSubmissionWhereInput = {
+      deletedAt: null,
+      task: { campaign: { merchantId, ...(campaignId ? { id: campaignId } : {}) } },
+    };
+    if (status) where.status = status as never;
+
+    const [data, total] = await Promise.all([
+      this.prisma.taskSubmission.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: MERCHANT_REVIEW_INCLUDE,
+      }),
+      this.prisma.taskSubmission.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
+  /** One submission, only if it belongs to one of this merchant's campaigns. */
+  async findOneForMerchant(id: string, merchantId: string) {
+    return this.prisma.taskSubmission.findFirst({
+      where: { id, deletedAt: null, task: { campaign: { merchantId } } },
+      include: MERCHANT_REVIEW_INCLUDE,
+    });
   }
 
   async createAttachment(data: Prisma.SubmissionAttachmentCreateInput) {
